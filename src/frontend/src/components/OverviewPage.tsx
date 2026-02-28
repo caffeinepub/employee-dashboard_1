@@ -1,6 +1,15 @@
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Activity, AlertTriangle, TrendingUp, Users } from "lucide-react";
+import {
+  Activity,
+  AlertTriangle,
+  Plus,
+  TrendingUp,
+  Upload,
+  Users,
+} from "lucide-react";
 import { type Variants, motion } from "motion/react";
+import { useState } from "react";
 import { Severity } from "../backend";
 import type { Employee, Feedback } from "../backend.d.ts";
 import {
@@ -8,6 +17,8 @@ import {
   useAllEmployees,
   useAllFeedback,
 } from "../hooks/useQueries";
+import { AddEmployeeModal } from "./AddEmployeeModal";
+import { BulkUploadModal } from "./BulkUploadModal";
 import { EmployeeCard } from "./EmployeeCard";
 import { FeedbackCard } from "./FeedbackCard";
 
@@ -25,6 +36,9 @@ const severityOrder: Record<string, number> = {
 };
 
 export function OverviewPage({ onSelectEmployee }: OverviewPageProps) {
+  const [addEmployeeOpen, setAddEmployeeOpen] = useState(false);
+  const [bulkUploadOpen, setBulkUploadOpen] = useState(false);
+
   const { data: activeCount, isLoading: countLoading } =
     useActiveEmployeeCount();
   const { data: employees = [], isLoading: employeesLoading } =
@@ -77,17 +91,24 @@ export function OverviewPage({ onSelectEmployee }: OverviewPageProps) {
               Real-time insights across your organization
             </p>
           </div>
-          <div className="text-right">
-            <p className="text-[10px] text-muted-foreground/60 uppercase tracking-widest">
-              Last updated
-            </p>
-            <p className="text-xs font-mono-data text-muted-foreground">
-              {new Date().toLocaleDateString("en-US", {
-                month: "short",
-                day: "numeric",
-                year: "numeric",
-              })}
-            </p>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setBulkUploadOpen(true)}
+              className="gap-2 text-xs"
+            >
+              <Upload className="w-3.5 h-3.5" />
+              Bulk Upload
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => setAddEmployeeOpen(true)}
+              className="gap-2 text-xs"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              Add Employee
+            </Button>
           </div>
         </div>
       </motion.div>
@@ -296,6 +317,12 @@ export function OverviewPage({ onSelectEmployee }: OverviewPageProps) {
           </div>
         </motion.div>
       </div>
+
+      <AddEmployeeModal
+        open={addEmployeeOpen}
+        onOpenChange={setAddEmployeeOpen}
+      />
+      <BulkUploadModal open={bulkUploadOpen} onOpenChange={setBulkUploadOpen} />
     </div>
   );
 }

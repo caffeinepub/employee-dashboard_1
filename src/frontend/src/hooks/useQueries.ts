@@ -1,5 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { Employee, EmployeeDetails, Feedback } from "../backend.d.ts";
+import type { Status } from "../backend";
+import type {
+  Employee,
+  EmployeeDetails,
+  EmployeeFullInput,
+  EmployeeInput,
+  Feedback,
+  FeedbackInput,
+} from "../backend.d.ts";
 import { useActor } from "./useActor";
 
 export function useInitialize() {
@@ -74,5 +82,112 @@ export function useFeedbackByEmployee(employeeId: bigint | null) {
       return actor.getFeedbackByEmployee(employeeId);
     },
     enabled: !!actor && !isFetching && employeeId !== null,
+  });
+}
+
+export function useAddEmployee() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (input: EmployeeFullInput) => {
+      if (!actor) throw new Error("Actor not available");
+      return actor.addEmployee(input);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["allEmployees"] });
+      queryClient.invalidateQueries({ queryKey: ["activeEmployeeCount"] });
+    },
+  });
+}
+
+export function useAddFeedback() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (input: FeedbackInput) => {
+      if (!actor) throw new Error("Actor not available");
+      return actor.addFeedback(input);
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: ["feedbackByEmployee", variables.employeeId.toString()],
+      });
+      queryClient.invalidateQueries({ queryKey: ["allFeedback"] });
+    },
+  });
+}
+
+export function useBulkAddEmployees() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (inputs: EmployeeInput[]) => {
+      if (!actor) throw new Error("Actor not available");
+      return actor.bulkAddEmployees(inputs);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["allEmployees"] });
+      queryClient.invalidateQueries({ queryKey: ["activeEmployeeCount"] });
+    },
+  });
+}
+
+export function useDeleteEmployee() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: bigint) => {
+      if (!actor) throw new Error("Actor not available");
+      return actor.deleteEmployee(id);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["allEmployees"] });
+      queryClient.invalidateQueries({ queryKey: ["activeEmployeeCount"] });
+    },
+  });
+}
+
+export function useUpdateEmployeeStatus() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, status }: { id: bigint; status: Status }) => {
+      if (!actor) throw new Error("Actor not available");
+      return actor.updateEmployeeStatus(id, status);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["allEmployees"] });
+      queryClient.invalidateQueries({ queryKey: ["activeEmployeeCount"] });
+    },
+  });
+}
+
+export function useUpdateEmployee() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      id,
+      input,
+    }: {
+      id: bigint;
+      input: EmployeeFullInput;
+    }) => {
+      if (!actor) throw new Error("Actor not available");
+      return actor.updateEmployee(id, input);
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["allEmployees"] });
+      queryClient.invalidateQueries({ queryKey: ["activeEmployeeCount"] });
+      queryClient.invalidateQueries({
+        queryKey: ["employeeDetails", variables.id.toString()],
+      });
+    },
   });
 }

@@ -1,12 +1,13 @@
 import Map "mo:core/Map";
-import Text "mo:core/Text";
 import Int "mo:core/Int";
-import Iter "mo:core/Iter";
 import Array "mo:core/Array";
 import Time "mo:core/Time";
 import Order "mo:core/Order";
 import Runtime "mo:core/Runtime";
+import Iter "mo:core/Iter";
+import Migration "migration";
 
+(with migration = Migration.run)
 actor {
   type EmployeeId = Nat;
 
@@ -26,7 +27,7 @@ actor {
     };
   };
 
-  type Status = { #active; #inactive };
+  type Status = { #active; #inactive; #onHold };
 
   type Performance = {
     employeeId : EmployeeId;
@@ -62,6 +63,43 @@ actor {
     problems : [Text];
   };
 
+  type EmployeeInput = {
+    name : Text;
+    role : Text;
+    department : Text;
+    status : Status;
+    joinDate : Int;
+    avatar : Text;
+  };
+
+  type PerformanceInput = {
+    salesScore : Nat;
+    opsScore : Nat;
+    reviewCount : Nat;
+  };
+
+  type SWOTInput = {
+    strengths : [Text];
+    weaknesses : [Text];
+    opportunities : [Text];
+    threats : [Text];
+  };
+
+  type EmployeeFullInput = {
+    employeeInfo : EmployeeInput;
+    performance : PerformanceInput;
+    swotAnalysis : SWOTInput;
+    traits : [Text];
+    problems : [Text];
+  };
+
+  type FeedbackInput = {
+    employeeId : EmployeeId;
+    category : Text;
+    description : Text;
+    severity : Severity;
+  };
+
   let employees = Map.empty<EmployeeId, Employee>();
   let performances = Map.empty<EmployeeId, Performance>();
   let swots = Map.empty<EmployeeId, SWOT>();
@@ -69,13 +107,11 @@ actor {
   let problems = Map.empty<EmployeeId, [Text]>();
   let feedback = Map.empty<Nat, Feedback>();
 
-  // Seed data
   public shared ({ caller }) func initialize() : async () {
     if (employees.size() > 0) { return () };
 
     let currentTime = Time.now();
 
-    // Employees
     let employeeList = [
       {
         id = 1;
@@ -83,7 +119,7 @@ actor {
         role = "Sales Manager";
         department = "Sales";
         status = #active;
-        joinDate = currentTime - 31536000_000_000_000; // 1 year ago
+        joinDate = currentTime - 31536000_000_000_000;
         avatar = "AJ";
       },
       {
@@ -92,7 +128,7 @@ actor {
         role = "Operations Lead";
         department = "Operations";
         status = #active;
-        joinDate = currentTime - 63072000_000_000_000; // 2 years ago
+        joinDate = currentTime - 63072000_000_000_000;
         avatar = "BS";
       },
       {
@@ -101,7 +137,7 @@ actor {
         role = "HR Specialist";
         department = "HR";
         status = #inactive;
-        joinDate = currentTime - 15768000_000_000_000; // 6 months ago
+        joinDate = currentTime - 15768000_000_000_000;
         avatar = "CL";
       },
       {
@@ -110,7 +146,7 @@ actor {
         role = "Finance Analyst";
         department = "Finance";
         status = #active;
-        joinDate = currentTime - 94608000_000_000_000; // 3 years ago
+        joinDate = currentTime - 94608000_000_000_000;
         avatar = "DK";
       },
       {
@@ -119,7 +155,7 @@ actor {
         role = "Marketing Director";
         department = "Marketing";
         status = #active;
-        joinDate = currentTime - 47304000_000_000_000; // 1.5 years ago
+        joinDate = currentTime - 47304000_000_000_000;
         avatar = "EB";
       },
       {
@@ -128,7 +164,7 @@ actor {
         role = "IT Support";
         department = "IT";
         status = #active;
-        joinDate = currentTime - 23652000_000_000_000; // 9 months ago
+        joinDate = currentTime - 23652000_000_000_000;
         avatar = "FW";
       },
     ];
@@ -137,7 +173,6 @@ actor {
       employees.add(employee.id, employee);
     };
 
-    // Performances
     let performanceList = [
       { employeeId = 1; salesScore = 85; opsScore = 78; reviewCount = 10 },
       { employeeId = 2; salesScore = 72; opsScore = 90; reviewCount = 8 },
@@ -151,7 +186,6 @@ actor {
       performances.add(performance.employeeId, performance);
     };
 
-    // SWOT
     let swotList = [
       {
         employeeId = 1;
@@ -201,7 +235,6 @@ actor {
       swots.add(swot.employeeId, swot);
     };
 
-    // Traits
     let traitsMap = [
       (1, ["Driven", "Collaborative", "Adaptable"]),
       (2, ["Detail-oriented", "Reliable", "Calm under pressure"]),
@@ -215,7 +248,6 @@ actor {
       traits.add(id, traitList);
     };
 
-    // Problems
     let problemsMap = [
       (
         1,
@@ -265,7 +297,6 @@ actor {
       problems.add(id, problemList);
     };
 
-    // Feedback
     let feedbackList = [
       {
         id = 1;
@@ -273,7 +304,7 @@ actor {
         category = "Performance";
         description = "Consistently meets targets, needs to improve time management";
         severity = #medium;
-        date = currentTime - 2592000_000_000_000; // 1 month ago
+        date = currentTime - 2592000_000_000_000;
       },
       {
         id = 2;
@@ -281,7 +312,7 @@ actor {
         category = "Operations";
         description = "Excellent process improvements, needs public speaking training";
         severity = #low;
-        date = currentTime - 5184000_000_000_000; // 2 months ago
+        date = currentTime - 5184000_000_000_000;
       },
       {
         id = 3;
@@ -289,7 +320,7 @@ actor {
         category = "HR";
         description = "Strong interpersonal skills, needs data analysis training";
         severity = #medium;
-        date = currentTime - 3888000_000_000_000; // 1.5 months ago
+        date = currentTime - 3888000_000_000_000;
       },
       {
         id = 4;
@@ -297,7 +328,7 @@ actor {
         category = "Finance";
         description = "Excellent modeling skills, improve presentation skills";
         severity = #low;
-        date = currentTime - 10368000_000_000_000; // 4 months ago
+        date = currentTime - 10368000_000_000_000;
       },
       {
         id = 5;
@@ -305,7 +336,7 @@ actor {
         category = "Marketing";
         description = "Creative campaigns, needs to focus on budgeting";
         severity = #medium;
-        date = currentTime - 7776000_000_000_000; // 3 months ago
+        date = currentTime - 7776000_000_000_000;
       },
       {
         id = 6;
@@ -313,7 +344,7 @@ actor {
         category = "IT";
         description = "Excellent tech support, needs to improve communication";
         severity = #low;
-        date = currentTime - 12096000_000_000_000; // 4.5 months ago
+        date = currentTime - 12096000_000_000_000;
       },
     ];
 
@@ -323,11 +354,19 @@ actor {
   };
 
   public query ({ caller }) func getAllEmployees() : async [Employee] {
-    employees.values().toArray().sort(); // implicitly uses Employee.compare
+    employees.values().toArray().sort();
   };
 
   public query ({ caller }) func getActiveEmployeeCount() : async Nat {
-    employees.values().toArray().filter(isActive).size();
+    employees.values().toArray().filter(
+      func(emp) {
+        switch (emp.status) {
+          case (#active) { true };
+          case (#inactive) { false };
+          case (#onHold) { false };
+        };
+      }
+    ).size();
   };
 
   public query ({ caller }) func getEmployeeDetails(id : EmployeeId) : async EmployeeDetails {
@@ -357,10 +396,185 @@ actor {
     );
   };
 
-  func isActive(emp : Employee) : Bool {
-    switch (emp.status) {
-      case (#active) { true };
-      case (#inactive) { false };
+  public shared ({ caller }) func addEmployee(employeeInput : EmployeeFullInput) : async EmployeeId {
+    let newId = employees.size() + 1;
+    let currentTime = Time.now();
+
+    let employee : Employee = {
+      id = newId;
+      name = employeeInput.employeeInfo.name;
+      role = employeeInput.employeeInfo.role;
+      department = employeeInput.employeeInfo.department;
+      status = employeeInput.employeeInfo.status;
+      joinDate = employeeInput.employeeInfo.joinDate;
+      avatar = employeeInput.employeeInfo.avatar;
+    };
+
+    let performance : Performance = {
+      employeeId = newId;
+      salesScore = employeeInput.performance.salesScore;
+      opsScore = employeeInput.performance.opsScore;
+      reviewCount = employeeInput.performance.reviewCount;
+    };
+
+    let swot : SWOT = {
+      employeeId = newId;
+      strengths = employeeInput.swotAnalysis.strengths;
+      weaknesses = employeeInput.swotAnalysis.weaknesses;
+      opportunities = employeeInput.swotAnalysis.opportunities;
+      threats = employeeInput.swotAnalysis.threats;
+    };
+
+    employees.add(newId, employee);
+    performances.add(newId, performance);
+    swots.add(newId, swot);
+    traits.add(newId, employeeInput.traits);
+    problems.add(newId, employeeInput.problems);
+
+    newId;
+  };
+
+  public shared ({ caller }) func addFeedback(feedbackInput : FeedbackInput) : async Nat {
+    switch (employees.get(feedbackInput.employeeId)) {
+      case (null) {
+        Runtime.trap("Employee ID does not exist");
+      };
+      case (?_) {
+        let newId = feedback.size() + 1;
+        let currentTime = Time.now();
+
+        let newFeedback : Feedback = {
+          id = newId;
+          employeeId = feedbackInput.employeeId;
+          category = feedbackInput.category;
+          description = feedbackInput.description;
+          severity = feedbackInput.severity;
+          date = currentTime;
+        };
+
+        feedback.add(newId, newFeedback);
+        newId;
+      };
+    };
+  };
+
+  public shared ({ caller }) func bulkAddEmployees(basicInputs : [EmployeeInput]) : async [EmployeeId] {
+    let startId = employees.size() + 1;
+    let idsArray = Array.tabulate(
+      basicInputs.size(),
+      func(i) {
+        let newId = startId + i;
+        let empInput = basicInputs[i];
+
+        let employee : Employee = {
+          id = newId;
+          name = empInput.name;
+          role = empInput.role;
+          department = empInput.department;
+          status = empInput.status;
+          joinDate = empInput.joinDate;
+          avatar = empInput.avatar;
+        };
+
+        let performance : Performance = {
+          employeeId = newId;
+          salesScore = 0;
+          opsScore = 0;
+          reviewCount = 0;
+        };
+
+        let swot : SWOT = {
+          employeeId = newId;
+          strengths = [];
+          weaknesses = [];
+          opportunities = [];
+          threats = [];
+        };
+
+        employees.add(newId, employee);
+        performances.add(newId, performance);
+        swots.add(newId, swot);
+        traits.add(newId, []);
+        problems.add(newId, []);
+
+        newId;
+      },
+    );
+    idsArray;
+  };
+
+  public shared ({ caller }) func deleteEmployee(id : EmployeeId) : async Bool {
+    let existed = employees.containsKey(id);
+    employees.remove(id);
+    performances.remove(id);
+    swots.remove(id);
+    traits.remove(id);
+    problems.remove(id);
+
+    let feedbackEntries = feedback.toArray();
+    for ((fbId, fb) in feedbackEntries.values()) {
+      if (fb.employeeId == id) {
+        feedback.remove(fbId);
+      };
+    };
+
+    existed;
+  };
+
+  public shared ({ caller }) func updateEmployeeStatus(id : EmployeeId, newStatus : Status) : async Bool {
+    switch (employees.get(id)) {
+      case (null) { false };
+      case (?employee) {
+        let updatedEmployee = { employee with status = newStatus };
+        employees.add(id, updatedEmployee);
+        true;
+      };
+    };
+  };
+
+  // Updates all employee information, including Employee, Performance, SWOT, traits, and problems.
+  // Returns true if the update is successful, false if the employee does not exist.
+  public shared ({ caller }) func updateEmployee(id : EmployeeId, input : EmployeeFullInput) : async Bool {
+    // Check if the employee exists
+    if (not employees.containsKey(id)) {
+      false;
+    } else {
+      // Create updated Employee record
+      let updatedEmployee : Employee = {
+        id; // Use the existing employee's ID, not the input ID
+        name = input.employeeInfo.name;
+        role = input.employeeInfo.role;
+        department = input.employeeInfo.department;
+        status = input.employeeInfo.status;
+        joinDate = input.employeeInfo.joinDate;
+        avatar = input.employeeInfo.avatar;
+      };
+
+      // Create updated Performance record
+      let updatedPerformance : Performance = {
+        employeeId = id; // Use the existing employee's ID
+        salesScore = input.performance.salesScore;
+        opsScore = input.performance.opsScore;
+        reviewCount = input.performance.reviewCount;
+      };
+
+      // Create updated SWOT record
+      let updatedSwot : SWOT = {
+        employeeId = id; // Use the existing employee's ID
+        strengths = input.swotAnalysis.strengths;
+        weaknesses = input.swotAnalysis.weaknesses;
+        opportunities = input.swotAnalysis.opportunities;
+        threats = input.swotAnalysis.threats;
+      };
+
+      // Update all existing data with new values
+      employees.add(id, updatedEmployee);
+      performances.add(id, updatedPerformance);
+      swots.add(id, updatedSwot);
+      traits.add(id, input.traits);
+      problems.add(id, input.problems);
+
+      true;
     };
   };
 };

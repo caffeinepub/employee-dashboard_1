@@ -160,6 +160,12 @@
     border-color: oklch(0.35 0.02 240 / 0.4);
   }
 
+  .status-onhold {
+    background: oklch(0.25 0.07 75 / 0.4);
+    color: oklch(0.82 0.16 75);
+    border-color: oklch(0.5 0.15 75 / 0.4);
+  }
+
   .teal-glow {
     box-shadow: 0 0 24px oklch(0.72 0.15 175 / 0.15), 0 4px 12px oklch(0.1 0.008 240 / 0.4);
   }

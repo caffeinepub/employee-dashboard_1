@@ -26,10 +26,31 @@ export interface EmployeeDetails {
   'performance' : Performance,
   'problems' : Array<string>,
 }
+export interface EmployeeFullInput {
+  'swotAnalysis' : SWOTInput,
+  'employeeInfo' : EmployeeInput,
+  'traits' : Array<string>,
+  'performance' : PerformanceInput,
+  'problems' : Array<string>,
+}
 export type EmployeeId = bigint;
+export interface EmployeeInput {
+  'status' : Status,
+  'joinDate' : bigint,
+  'name' : string,
+  'role' : string,
+  'department' : string,
+  'avatar' : string,
+}
 export interface Feedback {
   'id' : bigint,
   'date' : bigint,
+  'description' : string,
+  'employeeId' : EmployeeId,
+  'category' : string,
+  'severity' : Severity,
+}
+export interface FeedbackInput {
   'description' : string,
   'employeeId' : EmployeeId,
   'category' : string,
@@ -41,6 +62,11 @@ export interface Performance {
   'reviewCount' : bigint,
   'salesScore' : bigint,
 }
+export interface PerformanceInput {
+  'opsScore' : bigint,
+  'reviewCount' : bigint,
+  'salesScore' : bigint,
+}
 export interface SWOT {
   'weaknesses' : Array<string>,
   'strengths' : Array<string>,
@@ -48,18 +74,31 @@ export interface SWOT {
   'opportunities' : Array<string>,
   'employeeId' : EmployeeId,
 }
+export interface SWOTInput {
+  'weaknesses' : Array<string>,
+  'strengths' : Array<string>,
+  'threats' : Array<string>,
+  'opportunities' : Array<string>,
+}
 export type Severity = { 'low' : null } |
   { 'high' : null } |
   { 'medium' : null };
 export type Status = { 'active' : null } |
-  { 'inactive' : null };
+  { 'inactive' : null } |
+  { 'onHold' : null };
 export interface _SERVICE {
+  'addEmployee' : ActorMethod<[EmployeeFullInput], EmployeeId>,
+  'addFeedback' : ActorMethod<[FeedbackInput], bigint>,
+  'bulkAddEmployees' : ActorMethod<[Array<EmployeeInput>], Array<EmployeeId>>,
+  'deleteEmployee' : ActorMethod<[EmployeeId], boolean>,
   'getActiveEmployeeCount' : ActorMethod<[], bigint>,
   'getAllEmployees' : ActorMethod<[], Array<Employee>>,
   'getAllFeedback' : ActorMethod<[], Array<Feedback>>,
   'getEmployeeDetails' : ActorMethod<[EmployeeId], EmployeeDetails>,
   'getFeedbackByEmployee' : ActorMethod<[EmployeeId], Array<Feedback>>,
   'initialize' : ActorMethod<[], undefined>,
+  'updateEmployee' : ActorMethod<[EmployeeId, EmployeeFullInput], boolean>,
+  'updateEmployeeStatus' : ActorMethod<[EmployeeId, Status], boolean>,
 }
 export declare const idlService: IDL.ServiceClass;
 export declare const idlInitArgs: IDL.Type[];

@@ -14,6 +14,21 @@ export interface SWOT {
     opportunities: Array<string>;
     employeeId: EmployeeId;
 }
+export interface SWOTInput {
+    weaknesses: Array<string>;
+    strengths: Array<string>;
+    threats: Array<string>;
+    opportunities: Array<string>;
+}
+export interface Employee {
+    id: EmployeeId;
+    status: Status;
+    joinDate: bigint;
+    name: string;
+    role: string;
+    department: string;
+    avatar: string;
+}
 export type EmployeeId = bigint;
 export interface Feedback {
     id: bigint;
@@ -36,8 +51,25 @@ export interface EmployeeDetails {
     performance: Performance;
     problems: Array<string>;
 }
-export interface Employee {
-    id: EmployeeId;
+export interface PerformanceInput {
+    opsScore: bigint;
+    reviewCount: bigint;
+    salesScore: bigint;
+}
+export interface FeedbackInput {
+    description: string;
+    employeeId: EmployeeId;
+    category: string;
+    severity: Severity;
+}
+export interface EmployeeFullInput {
+    swotAnalysis: SWOTInput;
+    employeeInfo: EmployeeInput;
+    traits: Array<string>;
+    performance: PerformanceInput;
+    problems: Array<string>;
+}
+export interface EmployeeInput {
     status: Status;
     joinDate: bigint;
     name: string;
@@ -52,13 +84,20 @@ export enum Severity {
 }
 export enum Status {
     active = "active",
-    inactive = "inactive"
+    inactive = "inactive",
+    onHold = "onHold"
 }
 export interface backendInterface {
+    addEmployee(employeeInput: EmployeeFullInput): Promise<EmployeeId>;
+    addFeedback(feedbackInput: FeedbackInput): Promise<bigint>;
+    bulkAddEmployees(basicInputs: Array<EmployeeInput>): Promise<Array<EmployeeId>>;
+    deleteEmployee(id: EmployeeId): Promise<boolean>;
     getActiveEmployeeCount(): Promise<bigint>;
     getAllEmployees(): Promise<Array<Employee>>;
     getAllFeedback(): Promise<Array<Feedback>>;
     getEmployeeDetails(id: EmployeeId): Promise<EmployeeDetails>;
     getFeedbackByEmployee(employeeId: EmployeeId): Promise<Array<Feedback>>;
     initialize(): Promise<void>;
+    updateEmployee(id: EmployeeId, input: EmployeeFullInput): Promise<boolean>;
+    updateEmployeeStatus(id: EmployeeId, newStatus: Status): Promise<boolean>;
 }

@@ -1,6 +1,24 @@
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import {
@@ -11,19 +29,34 @@ import {
   Calendar,
   CheckCircle2,
   Lightbulb,
+  Loader2,
   MessageSquare,
+  MessageSquarePlus,
+  Pencil,
   ShieldAlert,
   Star,
+  Trash2,
 } from "lucide-react";
 import { AnimatePresence, type Variants, motion } from "motion/react";
+import { useState } from "react";
+import { toast } from "sonner";
 import { Status } from "../backend";
 import type { Employee } from "../backend.d.ts";
-import { useEmployeeDetails, useFeedbackByEmployee } from "../hooks/useQueries";
+import {
+  useDeleteEmployee,
+  useEmployeeDetails,
+  useFeedbackByEmployee,
+  useUpdateEmployeeStatus,
+} from "../hooks/useQueries";
+import { AddFeedbackModal } from "./AddFeedbackModal";
+import { EditEmployeeModal } from "./EditEmployeeModal";
+import { getStatusClassName, getStatusLabel } from "./EmployeeCard";
 import { FeedbackCard } from "./FeedbackCard";
 
 interface EmployeeDetailPageProps {
   employee: Employee;
   onBack: () => void;
+  onDeleted?: () => void;
 }
 
 const SKELETON_KEYS_3 = ["sk-a", "sk-b", "sk-c"];
@@ -33,12 +66,20 @@ const SKELETON_KEYS_6 = ["sk-a", "sk-b", "sk-c", "sk-d", "sk-e", "sk-f"];
 export function EmployeeDetailPage({
   employee,
   onBack,
+  onDeleted,
 }: EmployeeDetailPageProps) {
+  const [addFeedbackOpen, setAddFeedbackOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+
   const { data: details, isLoading: detailsLoading } = useEmployeeDetails(
     employee.id,
   );
   const { data: feedbackItems = [], isLoading: feedbackLoading } =
     useFeedbackByEmployee(employee.id);
+
+  const updateStatus = useUpdateEmployeeStatus();
+  const deleteEmployee = useDeleteEmployee();
 
   const getInitials = (name: string) =>
     name
@@ -48,7 +89,35 @@ export function EmployeeDetailPage({
       .toUpperCase()
       .slice(0, 2);
 
-  const isActive = employee.status === Status.active;
+  const handleStatusChange = (value: string) => {
+    const newStatus = value as Status;
+    updateStatus.mutate(
+      { id: employee.id, status: newStatus },
+      {
+        onSuccess: () => {
+          toast.success(`Status updated to ${getStatusLabel(newStatus)}`);
+        },
+        onError: () => {
+          toast.error("Failed to update status");
+        },
+      },
+    );
+  };
+
+  const handleDelete = () => {
+    deleteEmployee.mutate(employee.id, {
+      onSuccess: () => {
+        toast.success(`${employee.name} has been removed`);
+        setDeleteOpen(false);
+        if (onDeleted) onDeleted();
+        else onBack();
+      },
+      onError: () => {
+        toast.error("Failed to delete employee");
+        setDeleteOpen(false);
+      },
+    });
+  };
 
   const formatJoinDate = (ts: bigint) => {
     try {
@@ -86,15 +155,70 @@ export function EmployeeDetailPage({
         className="p-8 max-w-6xl mx-auto"
       >
         {/* Back button */}
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onBack}
-          className="mb-6 text-muted-foreground hover:text-foreground -ml-2 gap-2"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Back to Overview
-        </Button>
+        <div className="flex items-center justify-between mb-6">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onBack}
+            className="text-muted-foreground hover:text-foreground -ml-2 gap-2"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back to Overview
+          </Button>
+
+          {/* Action buttons */}
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setEditOpen(true)}
+              className="gap-2 text-xs"
+              disabled={detailsLoading || !details}
+            >
+              <Pencil className="w-3.5 h-3.5" />
+              Edit Employee
+            </Button>
+
+            <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-2 text-destructive border-destructive/30 hover:bg-destructive/10 hover:border-destructive/50 text-xs"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  Delete Employee
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete {employee.name}?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will permanently remove {employee.name} and all their
+                    associated data. This cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={handleDelete}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    disabled={deleteEmployee.isPending}
+                  >
+                    {deleteEmployee.isPending ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Deleting…
+                      </>
+                    ) : (
+                      "Delete"
+                    )}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
+        </div>
 
         {/* Employee Header */}
         <motion.div
@@ -120,10 +244,10 @@ export function EmployeeDetailPage({
                     <span
                       className={cn(
                         "text-xs font-semibold px-2.5 py-1 rounded-full border",
-                        isActive ? "status-active" : "status-inactive",
+                        getStatusClassName(employee.status),
                       )}
                     >
-                      {isActive ? "● Active" : "○ Inactive"}
+                      ● {getStatusLabel(employee.status)}
                     </span>
                   </div>
 
@@ -131,7 +255,7 @@ export function EmployeeDetailPage({
                     {employee.role}
                   </p>
 
-                  <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
+                  <div className="flex flex-wrap gap-4 text-xs text-muted-foreground mb-3">
                     <span className="flex items-center gap-1.5">
                       <Building2 className="w-3.5 h-3.5" />
                       {employee.department}
@@ -144,6 +268,49 @@ export function EmployeeDetailPage({
                       <span className="text-muted-foreground/50">#</span>
                       {employee.id.toString()}
                     </span>
+                  </div>
+
+                  {/* Status change selector */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold shrink-0">
+                      Change status:
+                    </span>
+                    <Select
+                      value={employee.status}
+                      onValueChange={handleStatusChange}
+                      disabled={updateStatus.isPending}
+                    >
+                      <SelectTrigger className="h-7 text-xs w-36 border-border/50 bg-background/30">
+                        {updateStatus.isPending ? (
+                          <span className="flex items-center gap-2">
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                            Updating…
+                          </span>
+                        ) : (
+                          <SelectValue />
+                        )}
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={Status.active} className="text-xs">
+                          <span className="flex items-center gap-2">
+                            <span className="w-2 h-2 rounded-full bg-[oklch(0.72_0.18_145)] inline-block" />
+                            Active
+                          </span>
+                        </SelectItem>
+                        <SelectItem value={Status.inactive} className="text-xs">
+                          <span className="flex items-center gap-2">
+                            <span className="w-2 h-2 rounded-full bg-muted-foreground/40 inline-block" />
+                            Inactive
+                          </span>
+                        </SelectItem>
+                        <SelectItem value={Status.onHold} className="text-xs">
+                          <span className="flex items-center gap-2">
+                            <span className="w-2 h-2 rounded-full bg-[oklch(0.82_0.16_75)] inline-block" />
+                            On Hold
+                          </span>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
               </div>
@@ -451,15 +618,26 @@ export function EmployeeDetailPage({
 
           {/* Employee Feedback */}
           <motion.div variants={sectionVariants}>
-            <h2 className="text-xs uppercase tracking-widest text-muted-foreground font-semibold mb-3 flex items-center gap-2">
-              <MessageSquare className="w-3.5 h-3.5" />
-              Employee Feedback
-              {!feedbackLoading && (
-                <span className="font-mono-data text-[10px] text-primary/60 bg-primary/10 px-2 py-0.5 rounded-full">
-                  {feedbackItems.length}
-                </span>
-              )}
-            </h2>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-xs uppercase tracking-widest text-muted-foreground font-semibold flex items-center gap-2">
+                <MessageSquare className="w-3.5 h-3.5" />
+                Employee Feedback
+                {!feedbackLoading && (
+                  <span className="font-mono-data text-[10px] text-primary/60 bg-primary/10 px-2 py-0.5 rounded-full">
+                    {feedbackItems.length}
+                  </span>
+                )}
+              </h2>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setAddFeedbackOpen(true)}
+                className="gap-1.5 text-xs h-7 px-3"
+              >
+                <MessageSquarePlus className="w-3 h-3" />
+                Add Feedback
+              </Button>
+            </div>
 
             <div className="glass-card rounded-xl overflow-hidden">
               {feedbackLoading ? (
@@ -488,6 +666,22 @@ export function EmployeeDetailPage({
           </motion.div>
         </motion.div>
       </motion.div>
+
+      <AddFeedbackModal
+        open={addFeedbackOpen}
+        onOpenChange={setAddFeedbackOpen}
+        employeeId={employee.id}
+        employeeName={employee.name}
+      />
+
+      {details && (
+        <EditEmployeeModal
+          open={editOpen}
+          onOpenChange={setEditOpen}
+          employeeId={employee.id}
+          details={details}
+        />
+      )}
     </AnimatePresence>
   );
 }

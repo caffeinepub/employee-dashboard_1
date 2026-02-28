@@ -1,44 +1,30 @@
 # Employee Dashboard
 
 ## Current State
-New project. No existing code.
+
+A full-stack employee dashboard with:
+- Overview page: employee grid with active count, feedback highlights
+- Employee detail page: SWOT, performance scores, behavioral traits, problems, feedback
+- Add Employee form (full detail), Bulk Upload via CSV, Add Feedback form
+- Delete employee (with confirmation dialog) on card and detail page
+- Inline status change (Active / Inactive / On Hold) on card and detail page
+- Backend functions: initialize, getAllEmployees, getActiveEmployeeCount, getEmployeeDetails, getAllFeedback, getFeedbackByEmployee, addEmployee, addFeedback, bulkAddEmployees, deleteEmployee, updateEmployeeStatus
 
 ## Requested Changes (Diff)
 
 ### Add
-- **Dashboard Overview Page**
-  - Active employee count stat card
-  - Issues & feedback section with bullet-point highlights per employee/category
-  - Employee list/grid with quick-glance status
-
-- **Employee Detail View** (tab/modal when an employee is selected)
-  - Personal & role information
-  - SWOT Analysis (Strengths, Weaknesses, Opportunities, Threats)
-  - Problems faced
-  - Behavioral traits
-  - Sales performance metric
-  - Operational discipline score
-  - Number of reviews received
-
-- **Backend Data Model**
-  - Employee record: name, role, department, status (active/inactive), join date
-  - Performance data: sales score, operational discipline score, review count
-  - SWOT: strengths[], weaknesses[], opportunities[], threats[]
-  - Behavioral traits[]
-  - Problems faced[]
-  - Feedback/issues list with category and description
+- `updateEmployee(id, input: EmployeeFullInput): async Bool` backend function to update all fields of an existing employee (info, performance, SWOT, traits, problems)
+- "Edit" button on the employee detail page that opens a pre-filled form (same structure as Add Employee) with all current values. On save, call `updateEmployee` and refresh the detail view.
 
 ### Modify
-- None
+- Employee detail page: add an Edit button (pencil icon or "Edit Employee" label) that opens a modal/drawer with all editable fields pre-populated
+- The edit form should cover: name, role, department, joinDate, avatar initials, salesScore, opsScore, reviewCount, strengths, weaknesses, opportunities, threats, traits, problems
 
 ### Remove
-- None
+- Nothing removed
 
 ## Implementation Plan
-1. Generate Motoko backend with Employee, Performance, SWOT, Feedback data models and CRUD queries
-2. Build frontend dashboard with:
-   - Overview stats (active count, issue highlights)
-   - Employee list with selection
-   - Employee detail panel/tab with all sub-sections (SWOT, traits, sales, ops, reviews)
-3. Seed sample employees with realistic data for demonstration
-4. Deploy
+
+1. Add `updateEmployee(id: EmployeeId, input: EmployeeFullInput): async Bool` to `main.mo` — updates employee info, performance, swot, traits, problems for the given id. Returns false if not found.
+2. Regenerate `backend.d.ts` with the new function.
+3. Frontend: on the employee detail page, add an "Edit Employee" button. Clicking it opens a modal or slide-over pre-filled with all current employee data. On submit, call `updateEmployee` and reload the detail.

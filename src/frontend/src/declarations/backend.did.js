@@ -8,10 +8,48 @@
 
 import { IDL } from '@icp-sdk/core/candid';
 
-export const EmployeeId = IDL.Nat;
+export const SWOTInput = IDL.Record({
+  'weaknesses' : IDL.Vec(IDL.Text),
+  'strengths' : IDL.Vec(IDL.Text),
+  'threats' : IDL.Vec(IDL.Text),
+  'opportunities' : IDL.Vec(IDL.Text),
+});
 export const Status = IDL.Variant({
   'active' : IDL.Null,
   'inactive' : IDL.Null,
+  'onHold' : IDL.Null,
+});
+export const EmployeeInput = IDL.Record({
+  'status' : Status,
+  'joinDate' : IDL.Int,
+  'name' : IDL.Text,
+  'role' : IDL.Text,
+  'department' : IDL.Text,
+  'avatar' : IDL.Text,
+});
+export const PerformanceInput = IDL.Record({
+  'opsScore' : IDL.Nat,
+  'reviewCount' : IDL.Nat,
+  'salesScore' : IDL.Nat,
+});
+export const EmployeeFullInput = IDL.Record({
+  'swotAnalysis' : SWOTInput,
+  'employeeInfo' : EmployeeInput,
+  'traits' : IDL.Vec(IDL.Text),
+  'performance' : PerformanceInput,
+  'problems' : IDL.Vec(IDL.Text),
+});
+export const EmployeeId = IDL.Nat;
+export const Severity = IDL.Variant({
+  'low' : IDL.Null,
+  'high' : IDL.Null,
+  'medium' : IDL.Null,
+});
+export const FeedbackInput = IDL.Record({
+  'description' : IDL.Text,
+  'employeeId' : EmployeeId,
+  'category' : IDL.Text,
+  'severity' : Severity,
 });
 export const Employee = IDL.Record({
   'id' : EmployeeId,
@@ -21,11 +59,6 @@ export const Employee = IDL.Record({
   'role' : IDL.Text,
   'department' : IDL.Text,
   'avatar' : IDL.Text,
-});
-export const Severity = IDL.Variant({
-  'low' : IDL.Null,
-  'high' : IDL.Null,
-  'medium' : IDL.Null,
 });
 export const Feedback = IDL.Record({
   'id' : IDL.Nat,
@@ -57,6 +90,14 @@ export const EmployeeDetails = IDL.Record({
 });
 
 export const idlService = IDL.Service({
+  'addEmployee' : IDL.Func([EmployeeFullInput], [EmployeeId], []),
+  'addFeedback' : IDL.Func([FeedbackInput], [IDL.Nat], []),
+  'bulkAddEmployees' : IDL.Func(
+      [IDL.Vec(EmployeeInput)],
+      [IDL.Vec(EmployeeId)],
+      [],
+    ),
+  'deleteEmployee' : IDL.Func([EmployeeId], [IDL.Bool], []),
   'getActiveEmployeeCount' : IDL.Func([], [IDL.Nat], ['query']),
   'getAllEmployees' : IDL.Func([], [IDL.Vec(Employee)], ['query']),
   'getAllFeedback' : IDL.Func([], [IDL.Vec(Feedback)], ['query']),
@@ -67,13 +108,56 @@ export const idlService = IDL.Service({
       ['query'],
     ),
   'initialize' : IDL.Func([], [], []),
+  'updateEmployee' : IDL.Func([EmployeeId, EmployeeFullInput], [IDL.Bool], []),
+  'updateEmployeeStatus' : IDL.Func([EmployeeId, Status], [IDL.Bool], []),
 });
 
 export const idlInitArgs = [];
 
 export const idlFactory = ({ IDL }) => {
+  const SWOTInput = IDL.Record({
+    'weaknesses' : IDL.Vec(IDL.Text),
+    'strengths' : IDL.Vec(IDL.Text),
+    'threats' : IDL.Vec(IDL.Text),
+    'opportunities' : IDL.Vec(IDL.Text),
+  });
+  const Status = IDL.Variant({
+    'active' : IDL.Null,
+    'inactive' : IDL.Null,
+    'onHold' : IDL.Null,
+  });
+  const EmployeeInput = IDL.Record({
+    'status' : Status,
+    'joinDate' : IDL.Int,
+    'name' : IDL.Text,
+    'role' : IDL.Text,
+    'department' : IDL.Text,
+    'avatar' : IDL.Text,
+  });
+  const PerformanceInput = IDL.Record({
+    'opsScore' : IDL.Nat,
+    'reviewCount' : IDL.Nat,
+    'salesScore' : IDL.Nat,
+  });
+  const EmployeeFullInput = IDL.Record({
+    'swotAnalysis' : SWOTInput,
+    'employeeInfo' : EmployeeInput,
+    'traits' : IDL.Vec(IDL.Text),
+    'performance' : PerformanceInput,
+    'problems' : IDL.Vec(IDL.Text),
+  });
   const EmployeeId = IDL.Nat;
-  const Status = IDL.Variant({ 'active' : IDL.Null, 'inactive' : IDL.Null });
+  const Severity = IDL.Variant({
+    'low' : IDL.Null,
+    'high' : IDL.Null,
+    'medium' : IDL.Null,
+  });
+  const FeedbackInput = IDL.Record({
+    'description' : IDL.Text,
+    'employeeId' : EmployeeId,
+    'category' : IDL.Text,
+    'severity' : Severity,
+  });
   const Employee = IDL.Record({
     'id' : EmployeeId,
     'status' : Status,
@@ -82,11 +166,6 @@ export const idlFactory = ({ IDL }) => {
     'role' : IDL.Text,
     'department' : IDL.Text,
     'avatar' : IDL.Text,
-  });
-  const Severity = IDL.Variant({
-    'low' : IDL.Null,
-    'high' : IDL.Null,
-    'medium' : IDL.Null,
   });
   const Feedback = IDL.Record({
     'id' : IDL.Nat,
@@ -118,6 +197,14 @@ export const idlFactory = ({ IDL }) => {
   });
   
   return IDL.Service({
+    'addEmployee' : IDL.Func([EmployeeFullInput], [EmployeeId], []),
+    'addFeedback' : IDL.Func([FeedbackInput], [IDL.Nat], []),
+    'bulkAddEmployees' : IDL.Func(
+        [IDL.Vec(EmployeeInput)],
+        [IDL.Vec(EmployeeId)],
+        [],
+      ),
+    'deleteEmployee' : IDL.Func([EmployeeId], [IDL.Bool], []),
     'getActiveEmployeeCount' : IDL.Func([], [IDL.Nat], ['query']),
     'getAllEmployees' : IDL.Func([], [IDL.Vec(Employee)], ['query']),
     'getAllFeedback' : IDL.Func([], [IDL.Vec(Feedback)], ['query']),
@@ -128,6 +215,12 @@ export const idlFactory = ({ IDL }) => {
         ['query'],
       ),
     'initialize' : IDL.Func([], [], []),
+    'updateEmployee' : IDL.Func(
+        [EmployeeId, EmployeeFullInput],
+        [IDL.Bool],
+        [],
+      ),
+    'updateEmployeeStatus' : IDL.Func([EmployeeId, Status], [IDL.Bool], []),
   });
 };
 

@@ -104,7 +104,9 @@ export function Sidebar({
                     "absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-sidebar",
                     employee.status === Status.active
                       ? "bg-[oklch(0.72_0.18_145)]"
-                      : "bg-muted-foreground/40",
+                      : employee.status === Status.onHold
+                        ? "bg-[oklch(0.82_0.16_75)]"
+                        : "bg-muted-foreground/40",
                   )}
                 />
               </div>
