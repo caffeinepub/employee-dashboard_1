@@ -1,0 +1,174 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@font-face {
+  font-family: "Cabinet Grotesk";
+  src: url("/assets/fonts/CabinetGrotesk-Variable.woff2") format("woff2");
+  font-weight: 100 900;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Bricolage Grotesque";
+  src: url("/assets/fonts/BricolageGrotesque-Variable.woff2") format("woff2");
+  font-weight: 200 800;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "JetBrains Mono";
+  src: url("/assets/fonts/JetBrainsMono-Variable.woff2") format("woff2");
+  font-weight: 100 800;
+  font-display: swap;
+}
+
+@layer base {
+  :root {
+    --radius: 0.5rem;
+
+    /* Dark-first palette: deep slate with teal accent */
+    --background: 0.14 0.008 240;
+    --foreground: 0.92 0.008 240;
+
+    --card: 0.17 0.01 240;
+    --card-foreground: 0.92 0.008 240;
+
+    --popover: 0.2 0.012 240;
+    --popover-foreground: 0.92 0.008 240;
+
+    /* Teal/emerald primary */
+    --primary: 0.72 0.15 175;
+    --primary-foreground: 0.1 0.008 240;
+
+    --secondary: 0.22 0.012 240;
+    --secondary-foreground: 0.85 0.008 240;
+
+    --muted: 0.2 0.01 240;
+    --muted-foreground: 0.58 0.012 240;
+
+    --accent: 0.25 0.015 240;
+    --accent-foreground: 0.92 0.008 240;
+
+    --destructive: 0.6 0.22 25;
+    --destructive-foreground: 0.98 0 0;
+
+    --border: 0.28 0.015 240;
+    --input: 0.25 0.012 240;
+    --ring: 0.72 0.15 175;
+
+    /* Status colors */
+    --success: 0.72 0.18 145;
+    --success-foreground: 0.1 0.008 240;
+    --warning: 0.78 0.18 75;
+    --warning-foreground: 0.1 0.008 240;
+
+    /* Charts */
+    --chart-1: 0.72 0.15 175;
+    --chart-2: 0.68 0.18 145;
+    --chart-3: 0.78 0.18 75;
+    --chart-4: 0.6 0.22 25;
+    --chart-5: 0.62 0.2 290;
+
+    /* Sidebar */
+    --sidebar: 0.12 0.008 240;
+    --sidebar-foreground: 0.92 0.008 240;
+    --sidebar-primary: 0.72 0.15 175;
+    --sidebar-primary-foreground: 0.1 0.008 240;
+    --sidebar-accent: 0.2 0.012 240;
+    --sidebar-accent-foreground: 0.92 0.008 240;
+    --sidebar-border: 0.22 0.012 240;
+    --sidebar-ring: 0.72 0.15 175;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-body antialiased;
+    background-image:
+      radial-gradient(ellipse 80% 60% at 50% -10%, oklch(0.18 0.04 175 / 0.3) 0%, transparent 70%),
+      radial-gradient(ellipse 60% 40% at 90% 80%, oklch(0.16 0.03 240 / 0.2) 0%, transparent 60%);
+    min-height: 100vh;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-display;
+  }
+}
+
+@layer utilities {
+  .font-mono-data {
+    font-family: "JetBrains Mono", monospace;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .glass-card {
+    background: oklch(var(--card) / 0.85);
+    backdrop-filter: blur(12px);
+    border: 1px solid oklch(var(--border) / 0.6);
+  }
+
+  .swot-strength {
+    background: linear-gradient(135deg, oklch(0.2 0.04 155 / 0.5), oklch(0.18 0.02 175 / 0.3));
+    border-color: oklch(0.4 0.12 155 / 0.4);
+  }
+
+  .swot-weakness {
+    background: linear-gradient(135deg, oklch(0.2 0.04 25 / 0.5), oklch(0.18 0.02 15 / 0.3));
+    border-color: oklch(0.5 0.15 25 / 0.4);
+  }
+
+  .swot-opportunity {
+    background: linear-gradient(135deg, oklch(0.2 0.04 240 / 0.5), oklch(0.18 0.02 260 / 0.3));
+    border-color: oklch(0.45 0.12 240 / 0.4);
+  }
+
+  .swot-threat {
+    background: linear-gradient(135deg, oklch(0.2 0.04 75 / 0.5), oklch(0.18 0.02 60 / 0.3));
+    border-color: oklch(0.5 0.15 75 / 0.4);
+  }
+
+  .severity-high {
+    background: oklch(0.25 0.06 25 / 0.4);
+    color: oklch(0.8 0.18 25);
+    border-color: oklch(0.5 0.18 25 / 0.4);
+  }
+
+  .severity-medium {
+    background: oklch(0.25 0.06 75 / 0.4);
+    color: oklch(0.82 0.16 75);
+    border-color: oklch(0.55 0.16 75 / 0.4);
+  }
+
+  .severity-low {
+    background: oklch(0.22 0.06 145 / 0.4);
+    color: oklch(0.75 0.16 145);
+    border-color: oklch(0.45 0.14 145 / 0.4);
+  }
+
+  .status-active {
+    background: oklch(0.22 0.06 145 / 0.4);
+    color: oklch(0.75 0.16 145);
+    border-color: oklch(0.45 0.14 145 / 0.4);
+  }
+
+  .status-inactive {
+    background: oklch(0.22 0.02 240 / 0.4);
+    color: oklch(0.6 0.02 240);
+    border-color: oklch(0.35 0.02 240 / 0.4);
+  }
+
+  .teal-glow {
+    box-shadow: 0 0 24px oklch(0.72 0.15 175 / 0.15), 0 4px 12px oklch(0.1 0.008 240 / 0.4);
+  }
+
+  .score-bar-fill {
+    background: linear-gradient(90deg, oklch(0.55 0.15 175), oklch(0.75 0.18 155));
+  }
+
+  .score-bar-ops {
+    background: linear-gradient(90deg, oklch(0.55 0.15 240), oklch(0.72 0.18 220));
+  }
+}
