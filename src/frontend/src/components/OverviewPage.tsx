@@ -2,63 +2,79 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Activity,
-  AlertTriangle,
+  AlertCircle,
+  Lightbulb,
+  PauseCircle,
   Plus,
-  TrendingUp,
   Upload,
   Users,
 } from "lucide-react";
 import { type Variants, motion } from "motion/react";
 import { useState } from "react";
-import { Severity } from "../backend";
-import type { Employee, Feedback } from "../backend.d.ts";
+import { Status } from "../backend";
+import type { Employee } from "../backend.d.ts";
+import { useAppSettings } from "../context/AppSettingsContext";
 import {
   useActiveEmployeeCount,
   useAllEmployees,
-  useAllFeedback,
+  useAllIssues,
+  useTopPerformers,
 } from "../hooks/useQueries";
 import { AddEmployeeModal } from "./AddEmployeeModal";
 import { BulkUploadModal } from "./BulkUploadModal";
 import { EmployeeCard } from "./EmployeeCard";
-import { FeedbackCard } from "./FeedbackCard";
+import { IssuesDialog } from "./IssuesDialog";
+import { SuggestionsDialog } from "./SuggestionsDialog";
+import { TopPerformersSection } from "./TopPerformersSection";
 
-const SKELETON_KEYS_5 = ["sk-a", "sk-b", "sk-c", "sk-d", "sk-e"];
-const SKELETON_KEYS_6 = ["sk-a", "sk-b", "sk-c", "sk-d", "sk-e", "sk-f"];
+const SKELETON_KEYS_10 = [
+  "sk-a",
+  "sk-b",
+  "sk-c",
+  "sk-d",
+  "sk-e",
+  "sk-f",
+  "sk-g",
+  "sk-h",
+  "sk-i",
+  "sk-j",
+];
 
 interface OverviewPageProps {
   onSelectEmployee: (employee: Employee) => void;
 }
 
-const severityOrder: Record<string, number> = {
-  [Severity.high]: 0,
-  [Severity.medium]: 1,
-  [Severity.low]: 2,
-};
-
 export function OverviewPage({ onSelectEmployee }: OverviewPageProps) {
   const [addEmployeeOpen, setAddEmployeeOpen] = useState(false);
   const [bulkUploadOpen, setBulkUploadOpen] = useState(false);
+  const [issuesDialogOpen, setIssuesDialogOpen] = useState(false);
+  const [suggestionsDialogOpen, setSuggestionsDialogOpen] = useState(false);
+
+  const { settings } = useAppSettings();
+  const { labels } = settings;
 
   const { data: activeCount, isLoading: countLoading } =
     useActiveEmployeeCount();
   const { data: employees = [], isLoading: employeesLoading } =
     useAllEmployees();
-  const { data: feedback = [], isLoading: feedbackLoading } = useAllFeedback();
+  const { data: issues = [], isLoading: issuesLoading } = useAllIssues();
+  const { data: topPerformers = [], isLoading: topPerformersLoading } =
+    useTopPerformers();
 
-  const sortedFeedback = [...feedback].sort(
-    (a, b) =>
-      (severityOrder[a.severity] ?? 2) - (severityOrder[b.severity] ?? 2),
-  );
-
-  const highSeverityCount = feedback.filter(
-    (f) => f.severity === Severity.high,
-  ).length;
-  const mediumSeverityCount = feedback.filter(
-    (f) => f.severity === Severity.medium,
+  const onHoldCount = employees.filter(
+    (e) => e.status === Status.onHold,
   ).length;
 
-  const getEmployeeName = (id: bigint) =>
-    employees.find((e) => e.id === id)?.name ?? `Employee #${id}`;
+  const issueCount = issues.filter((i) => i.category !== "Suggestion").length;
+  const suggestionCount = issues.filter(
+    (i) => i.category === "Suggestion",
+  ).length;
+
+  // Build directory from top performers only (match fiplCode), capped at 10
+  const topPerformerCodes = new Set(topPerformers.map((tp) => tp.fiplCode));
+  const directoryEmployees = employees
+    .filter((e) => topPerformerCodes.has(e.fiplCode))
+    .slice(0, 10);
 
   const containerVariants: Variants = {
     hidden: { opacity: 0 },
@@ -82,13 +98,13 @@ export function OverviewPage({ onSelectEmployee }: OverviewPageProps) {
         <div className="flex items-start justify-between">
           <div>
             <p className="text-xs uppercase tracking-widest text-primary/70 font-semibold mb-1">
-              Command Center
+              {labels.overviewBadgeLabel}
             </p>
             <h1 className="text-3xl font-display font-bold text-foreground">
-              Workforce Overview
+              {labels.overviewPageTitle}
             </h1>
             <p className="text-muted-foreground mt-1 text-sm">
-              Real-time insights across your organization
+              {labels.overviewPageSubtitle}
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -97,6 +113,7 @@ export function OverviewPage({ onSelectEmployee }: OverviewPageProps) {
               size="sm"
               onClick={() => setBulkUploadOpen(true)}
               className="gap-2 text-xs"
+              data-ocid="overview.upload_button"
             >
               <Upload className="w-3.5 h-3.5" />
               Bulk Upload
@@ -105,6 +122,7 @@ export function OverviewPage({ onSelectEmployee }: OverviewPageProps) {
               size="sm"
               onClick={() => setAddEmployeeOpen(true)}
               className="gap-2 text-xs"
+              data-ocid="overview.open_modal_button"
             >
               <Plus className="w-3.5 h-3.5" />
               Add Employee
@@ -113,12 +131,12 @@ export function OverviewPage({ onSelectEmployee }: OverviewPageProps) {
         </div>
       </motion.div>
 
-      {/* Stat Cards */}
+      {/* Stat Cards — 3 cards */}
       <motion.div
         variants={containerVariants}
         initial="hidden"
         animate="visible"
-        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8"
+        className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6"
       >
         {/* Active Employees */}
         <motion.div variants={itemVariants}>
@@ -139,7 +157,28 @@ export function OverviewPage({ onSelectEmployee }: OverviewPageProps) {
               </p>
             )}
             <p className="text-xs text-muted-foreground mt-1">
-              Active Employees
+              {labels.overviewActiveEmployeesLabel}
+            </p>
+          </div>
+        </motion.div>
+
+        {/* On Hold Employees */}
+        <motion.div variants={itemVariants}>
+          <div className="glass-card rounded-xl p-5">
+            <div className="flex items-start justify-between mb-3">
+              <div className="w-9 h-9 rounded-lg bg-[oklch(0.96_0.04_75_/_0.6)] border border-[oklch(0.7_0.15_75_/_0.3)] flex items-center justify-center">
+                <PauseCircle className="w-4.5 h-4.5 text-[oklch(0.48_0.16_75)]" />
+              </div>
+            </div>
+            {employeesLoading ? (
+              <Skeleton className="h-9 w-16 mb-1 bg-muted/50" />
+            ) : (
+              <p className="text-4xl font-mono-data font-bold text-[oklch(0.48_0.16_75)]">
+                {onHoldCount}
+              </p>
+            )}
+            <p className="text-xs text-muted-foreground mt-1">
+              {labels.overviewOnHoldLabel}
             </p>
           </div>
         </motion.div>
@@ -160,169 +199,174 @@ export function OverviewPage({ onSelectEmployee }: OverviewPageProps) {
               </p>
             )}
             <p className="text-xs text-muted-foreground mt-1">
-              Total Employees
-            </p>
-          </div>
-        </motion.div>
-
-        {/* High Priority Issues */}
-        <motion.div variants={itemVariants}>
-          <div className="glass-card rounded-xl p-5">
-            <div className="flex items-start justify-between mb-3">
-              <div className="w-9 h-9 rounded-lg bg-[oklch(0.25_0.06_25_/_0.3)] border border-[oklch(0.5_0.15_25_/_0.3)] flex items-center justify-center">
-                <AlertTriangle className="w-4.5 h-4.5 text-[oklch(0.8_0.18_25)]" />
-              </div>
-              {highSeverityCount > 0 && (
-                <span className="text-[10px] font-semibold text-[oklch(0.8_0.18_25)] bg-[oklch(0.25_0.06_25_/_0.4)] px-2 py-0.5 rounded-full">
-                  Urgent
-                </span>
-              )}
-            </div>
-            {feedbackLoading ? (
-              <Skeleton className="h-9 w-16 mb-1 bg-muted/50" />
-            ) : (
-              <p className="text-4xl font-mono-data font-bold text-[oklch(0.8_0.18_25)]">
-                {highSeverityCount}
-              </p>
-            )}
-            <p className="text-xs text-muted-foreground mt-1">
-              High Priority Issues
-            </p>
-          </div>
-        </motion.div>
-
-        {/* Total Feedback */}
-        <motion.div variants={itemVariants}>
-          <div className="glass-card rounded-xl p-5">
-            <div className="flex items-start justify-between mb-3">
-              <div className="w-9 h-9 rounded-lg bg-[oklch(0.25_0.06_75_/_0.3)] border border-[oklch(0.5_0.15_75_/_0.3)] flex items-center justify-center">
-                <TrendingUp className="w-4.5 h-4.5 text-[oklch(0.82_0.16_75)]" />
-              </div>
-            </div>
-            {feedbackLoading ? (
-              <Skeleton className="h-9 w-16 mb-1 bg-muted/50" />
-            ) : (
-              <p className="text-4xl font-mono-data font-bold text-[oklch(0.82_0.16_75)]">
-                {mediumSeverityCount}
-              </p>
-            )}
-            <p className="text-xs text-muted-foreground mt-1">
-              Medium Priority Issues
+              {labels.overviewTotalEmployeesLabel}
             </p>
           </div>
         </motion.div>
       </motion.div>
 
-      {/* Main Content Grid */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        {/* Issues & Feedback */}
-        <motion.div
-          initial={{ opacity: 0, x: -16 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.5, delay: 0.3 }}
-          className="xl:col-span-1"
+      {/* Issues & Suggestions Buttons Row */}
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.2 }}
+        className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6"
+      >
+        {/* Issues Button */}
+        <button
+          type="button"
+          onClick={() => setIssuesDialogOpen(true)}
+          className="flex items-center gap-3 px-4 py-3 rounded-xl border transition-all duration-150 text-left group bg-[oklch(0.95_0.04_25_/_0.1)] hover:bg-[oklch(0.95_0.04_25_/_0.2)] text-[oklch(0.45_0.2_25)] border-[oklch(0.7_0.15_25_/_0.3)] hover:border-[oklch(0.7_0.15_25_/_0.5)]"
+          data-ocid="overview.issues_button"
         >
-          <div className="glass-card rounded-xl overflow-hidden">
-            <div className="px-5 py-4 border-b border-border/50 flex items-center justify-between">
-              <div>
-                <h2 className="font-display font-bold text-sm text-foreground">
-                  Issues & Feedback
-                </h2>
-                <p className="text-[10px] text-muted-foreground">
-                  {sortedFeedback.length} total entries
+          <div className="w-9 h-9 rounded-lg bg-[oklch(0.95_0.04_25_/_0.4)] border border-[oklch(0.7_0.15_25_/_0.3)] flex items-center justify-center shrink-0">
+            <AlertCircle className="w-4.5 h-4.5 text-[oklch(0.45_0.2_25)]" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-display font-bold">Issues</p>
+            <p className="text-[11px] opacity-70">
+              Operational &amp; HR issues
+            </p>
+          </div>
+          {issuesLoading ? (
+            <Skeleton className="h-6 w-8 bg-muted/50" />
+          ) : (
+            <span className="text-lg font-mono-data font-bold shrink-0">
+              {issueCount}
+            </span>
+          )}
+        </button>
+
+        {/* Suggestions Button */}
+        <button
+          type="button"
+          onClick={() => setSuggestionsDialogOpen(true)}
+          className="flex items-center gap-3 px-4 py-3 rounded-xl border transition-all duration-150 text-left group bg-[oklch(0.95_0.05_85_/_0.1)] hover:bg-[oklch(0.95_0.05_85_/_0.2)] text-[oklch(0.40_0.14_85)] border-[oklch(0.65_0.12_85_/_0.3)] hover:border-[oklch(0.65_0.12_85_/_0.5)]"
+          data-ocid="overview.suggestions_button"
+        >
+          <div className="w-9 h-9 rounded-lg bg-[oklch(0.95_0.05_85_/_0.4)] border border-[oklch(0.65_0.12_85_/_0.3)] flex items-center justify-center shrink-0">
+            <Lightbulb className="w-4.5 h-4.5 text-[oklch(0.40_0.14_85)]" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-display font-bold">Suggestions</p>
+            <p className="text-[11px] opacity-70">
+              Ideas from the organization
+            </p>
+          </div>
+          {issuesLoading ? (
+            <Skeleton className="h-6 w-8 bg-muted/50" />
+          ) : (
+            <span className="text-lg font-mono-data font-bold shrink-0">
+              {suggestionCount}
+            </span>
+          )}
+        </button>
+      </motion.div>
+
+      {/* Top Performers */}
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.25 }}
+        className="mb-6"
+      >
+        <TopPerformersSection />
+      </motion.div>
+
+      {/* Employee Directory — top performers only */}
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.35 }}
+      >
+        <div className="glass-card rounded-xl overflow-hidden">
+          <div className="px-5 py-4 border-b border-border/50 flex items-center justify-between">
+            <div>
+              <h2 className="font-display font-bold text-sm text-foreground">
+                {labels.overviewDirectoryTitle}
+              </h2>
+              <p className="text-[10px] text-muted-foreground">
+                {topPerformers.length > 0
+                  ? "Showing top performers this month"
+                  : labels.overviewDirectorySubtitle}
+              </p>
+            </div>
+            <span className="text-[10px] font-mono-data text-primary/70 bg-primary/10 px-2 py-0.5 rounded-full">
+              {directoryEmployees.length} shown
+            </span>
+          </div>
+          <div className="p-4">
+            {employeesLoading || topPerformersLoading ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {SKELETON_KEYS_10.slice(0, 6).map((k) => (
+                  <Skeleton key={k} className="h-24 rounded-lg bg-muted/50" />
+                ))}
+              </div>
+            ) : topPerformers.length === 0 ? (
+              <div
+                className="flex flex-col items-center justify-center py-12 text-muted-foreground/50"
+                data-ocid="directory.empty_state"
+              >
+                <Users className="w-8 h-8 mb-3 opacity-30" />
+                <p className="text-sm font-semibold">
+                  No top performers uploaded
+                </p>
+                <p className="text-xs mt-0.5">
+                  Upload top performers to populate the directory
                 </p>
               </div>
-              <div className="flex gap-1.5">
-                {highSeverityCount > 0 && (
-                  <span className="severity-high text-[10px] font-semibold px-2 py-0.5 rounded-full border">
-                    {highSeverityCount} high
-                  </span>
-                )}
-              </div>
-            </div>
-            <div className="max-h-[520px] overflow-y-auto divide-y divide-border/30">
-              {feedbackLoading ? (
-                <div className="p-4 space-y-3">
-                  {SKELETON_KEYS_5.map((k) => (
-                    <Skeleton key={k} className="h-16 rounded-lg bg-muted/50" />
-                  ))}
-                </div>
-              ) : sortedFeedback.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-12 text-muted-foreground/50">
-                  <Activity className="w-8 h-8 mb-3 opacity-40" />
-                  <p className="text-sm">No feedback recorded</p>
-                </div>
-              ) : (
-                sortedFeedback.map((item) => (
-                  <FeedbackCard
-                    key={item.id.toString()}
-                    feedback={item}
-                    employeeName={getEmployeeName(item.employeeId)}
-                  />
-                ))
-              )}
-            </div>
-          </div>
-        </motion.div>
-
-        {/* Employee Grid */}
-        <motion.div
-          initial={{ opacity: 0, x: 16 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.5, delay: 0.35 }}
-          className="xl:col-span-2"
-        >
-          <div className="glass-card rounded-xl overflow-hidden">
-            <div className="px-5 py-4 border-b border-border/50 flex items-center justify-between">
-              <div>
-                <h2 className="font-display font-bold text-sm text-foreground">
-                  Employee Directory
-                </h2>
-                <p className="text-[10px] text-muted-foreground">
-                  Click any card to view full profile
+            ) : directoryEmployees.length === 0 ? (
+              <div
+                className="flex flex-col items-center justify-center py-12 text-muted-foreground/50"
+                data-ocid="directory.empty_state"
+              >
+                <Users className="w-8 h-8 mb-3 opacity-30" />
+                <p className="text-sm font-semibold">
+                  No matching employees found
+                </p>
+                <p className="text-xs mt-0.5">
+                  Make sure top performer FIPL codes match employee records
                 </p>
               </div>
-              <span className="text-[10px] font-mono-data text-primary/70 bg-primary/10 px-2 py-0.5 rounded-full">
-                {employees.length} total
-              </span>
-            </div>
-            <div className="p-4">
-              {employeesLoading ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {SKELETON_KEYS_6.map((k) => (
-                    <Skeleton key={k} className="h-24 rounded-lg bg-muted/50" />
-                  ))}
-                </div>
-              ) : (
-                <motion.div
-                  variants={containerVariants}
-                  initial="hidden"
-                  animate="visible"
-                  className="grid grid-cols-1 sm:grid-cols-2 gap-3"
-                >
-                  {employees.map((employee) => (
-                    <motion.div
-                      key={employee.id.toString()}
-                      variants={itemVariants}
-                    >
-                      <EmployeeCard
-                        employee={employee}
-                        onClick={() => onSelectEmployee(employee)}
-                      />
-                    </motion.div>
-                  ))}
-                </motion.div>
-              )}
-            </div>
+            ) : (
+              <motion.div
+                variants={containerVariants}
+                initial="hidden"
+                animate="visible"
+                className="grid grid-cols-1 sm:grid-cols-2 gap-3"
+              >
+                {directoryEmployees.map((employee, i) => (
+                  <motion.div
+                    key={employee.id.toString()}
+                    variants={itemVariants}
+                    data-ocid={`directory.item.${i + 1}`}
+                  >
+                    <EmployeeCard
+                      employee={employee}
+                      onClick={() => onSelectEmployee(employee)}
+                    />
+                  </motion.div>
+                ))}
+              </motion.div>
+            )}
           </div>
-        </motion.div>
-      </div>
+        </div>
+      </motion.div>
 
+      {/* Modals */}
       <AddEmployeeModal
         open={addEmployeeOpen}
         onOpenChange={setAddEmployeeOpen}
       />
       <BulkUploadModal open={bulkUploadOpen} onOpenChange={setBulkUploadOpen} />
+      <IssuesDialog
+        open={issuesDialogOpen}
+        onOpenChange={setIssuesDialogOpen}
+      />
+      <SuggestionsDialog
+        open={suggestionsDialogOpen}
+        onOpenChange={setSuggestionsDialogOpen}
+      />
     </div>
   );
 }

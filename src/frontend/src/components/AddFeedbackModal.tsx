@@ -16,6 +16,7 @@ import { Loader2, MessageSquarePlus } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Severity } from "../backend";
+import { useAppSettings } from "../context/AppSettingsContext";
 import { useAddFeedback } from "../hooks/useQueries";
 
 interface AddFeedbackModalProps {
@@ -48,32 +49,22 @@ const SEVERITY_OPTIONS: {
     label: "Low",
     description: "Minor issue, no immediate action",
     color:
-      "border-[oklch(0.5_0.16_145_/_0.4)] bg-[oklch(0.18_0.04_145_/_0.5)] text-[oklch(0.75_0.16_145)]",
+      "border-[oklch(0.65_0.14_145_/_0.4)] bg-[oklch(0.93_0.05_145_/_0.5)] text-[oklch(0.38_0.16_145)]",
   },
   {
     value: Severity.medium,
     label: "Medium",
     description: "Needs attention soon",
     color:
-      "border-[oklch(0.5_0.16_75_/_0.4)] bg-[oklch(0.18_0.04_75_/_0.5)] text-[oklch(0.82_0.16_75)]",
+      "border-[oklch(0.65_0.15_75_/_0.4)] bg-[oklch(0.96_0.04_75_/_0.5)] text-[oklch(0.45_0.16_75)]",
   },
   {
     value: Severity.high,
     label: "High",
     description: "Urgent — requires immediate action",
     color:
-      "border-[oklch(0.5_0.18_25_/_0.4)] bg-[oklch(0.18_0.04_25_/_0.5)] text-[oklch(0.8_0.18_25)]",
+      "border-[oklch(0.65_0.18_25_/_0.4)] bg-[oklch(0.96_0.04_25_/_0.5)] text-[oklch(0.45_0.2_25)]",
   },
-];
-
-const CATEGORY_SUGGESTIONS = [
-  "Performance",
-  "HR",
-  "Operations",
-  "Attendance",
-  "Communication",
-  "Leadership",
-  "Team Collaboration",
 ];
 
 export function AddFeedbackModal({
@@ -84,6 +75,8 @@ export function AddFeedbackModal({
 }: AddFeedbackModalProps) {
   const [form, setForm] = useState<FeedbackFormData>(defaultForm);
   const addFeedback = useAddFeedback();
+  const { settings } = useAppSettings();
+  const CATEGORY_SUGGESTIONS = settings.feedbackCategories;
 
   const set = <K extends keyof FeedbackFormData>(
     key: K,

@@ -10,14 +10,34 @@ import type { ActorMethod } from '@icp-sdk/core/agent';
 import type { IDL } from '@icp-sdk/core/candid';
 import type { Principal } from '@icp-sdk/core/principal';
 
+export interface AttendanceRecord {
+  'id' : bigint,
+  'lapseType' : string,
+  'date' : bigint,
+  'employeeId' : EmployeeId,
+  'reason' : string,
+  'daysOff' : bigint,
+}
+export interface AttendanceRecordInput {
+  'lapseType' : string,
+  'date' : bigint,
+  'employeeId' : EmployeeId,
+  'reason' : string,
+  'daysOff' : bigint,
+}
 export interface Employee {
   'id' : EmployeeId,
+  'region' : string,
   'status' : Status,
   'joinDate' : bigint,
   'name' : string,
   'role' : string,
+  'fseCategory' : string,
   'department' : string,
+  'familyDetails' : string,
+  'pastExperience' : Array<string>,
   'avatar' : string,
+  'fiplCode' : string,
 }
 export interface EmployeeDetails {
   'traits' : Array<string>,
@@ -35,12 +55,17 @@ export interface EmployeeFullInput {
 }
 export type EmployeeId = bigint;
 export interface EmployeeInput {
+  'region' : string,
   'status' : Status,
   'joinDate' : bigint,
   'name' : string,
   'role' : string,
+  'fseCategory' : string,
   'department' : string,
+  'familyDetails' : string,
+  'pastExperience' : Array<string>,
   'avatar' : string,
+  'fiplCode' : string,
 }
 export interface Feedback {
   'id' : bigint,
@@ -56,16 +81,33 @@ export interface FeedbackInput {
   'category' : string,
   'severity' : Severity,
 }
+export interface IssueSuggestion {
+  'id' : bigint,
+  'title' : string,
+  'createdAt' : bigint,
+  'description' : string,
+  'updatedAt' : bigint,
+  'category' : string,
+}
+export interface IssueSuggestionInput {
+  'title' : string,
+  'description' : string,
+  'category' : string,
+}
 export interface Performance {
-  'opsScore' : bigint,
+  'operationalDiscipline' : bigint,
+  'softSkillsScore' : bigint,
+  'productKnowledgeScore' : bigint,
+  'salesInfluenceIndex' : bigint,
   'employeeId' : EmployeeId,
   'reviewCount' : bigint,
-  'salesScore' : bigint,
 }
 export interface PerformanceInput {
-  'opsScore' : bigint,
+  'operationalDiscipline' : bigint,
+  'softSkillsScore' : bigint,
+  'productKnowledgeScore' : bigint,
+  'salesInfluenceIndex' : bigint,
   'reviewCount' : bigint,
-  'salesScore' : bigint,
 }
 export interface SWOT {
   'weaknesses' : Array<string>,
@@ -80,25 +122,74 @@ export interface SWOTInput {
   'threats' : Array<string>,
   'opportunities' : Array<string>,
 }
+export interface SalesRecord {
+  'id' : bigint,
+  'totalSalesAmount' : bigint,
+  'accessories' : bigint,
+  'recordDate' : bigint,
+  'employeeId' : EmployeeId,
+  'extendedWarranty' : bigint,
+  'fiplCode' : string,
+}
+export interface SalesRecordInput {
+  'totalSalesAmount' : bigint,
+  'accessories' : bigint,
+  'employeeId' : EmployeeId,
+  'extendedWarranty' : bigint,
+  'fiplCode' : string,
+}
 export type Severity = { 'low' : null } |
   { 'high' : null } |
   { 'medium' : null };
 export type Status = { 'active' : null } |
   { 'inactive' : null } |
   { 'onHold' : null };
+export interface TopPerformer {
+  'accessories' : bigint,
+  'name' : string,
+  'rank' : bigint,
+  'totalSales' : bigint,
+  'extendedWarranty' : bigint,
+  'fiplCode' : string,
+}
+export interface TopPerformerInput {
+  'accessories' : bigint,
+  'name' : string,
+  'rank' : bigint,
+  'totalSales' : bigint,
+  'extendedWarranty' : bigint,
+  'fiplCode' : string,
+}
 export interface _SERVICE {
+  'addAttendanceRecord' : ActorMethod<[AttendanceRecordInput], bigint>,
   'addEmployee' : ActorMethod<[EmployeeFullInput], EmployeeId>,
   'addFeedback' : ActorMethod<[FeedbackInput], bigint>,
+  'addIssueSuggestion' : ActorMethod<[IssueSuggestionInput], bigint>,
+  'addSalesRecord' : ActorMethod<[SalesRecordInput], bigint>,
   'bulkAddEmployees' : ActorMethod<[Array<EmployeeInput>], Array<EmployeeId>>,
   'deleteEmployee' : ActorMethod<[EmployeeId], boolean>,
+  'deleteIssueSuggestion' : ActorMethod<[bigint], boolean>,
   'getActiveEmployeeCount' : ActorMethod<[], bigint>,
   'getAllEmployees' : ActorMethod<[], Array<Employee>>,
   'getAllFeedback' : ActorMethod<[], Array<Feedback>>,
+  'getAllIssues' : ActorMethod<[], Array<IssueSuggestion>>,
+  'getAttendanceByEmployee' : ActorMethod<
+    [EmployeeId],
+    Array<AttendanceRecord>
+  >,
   'getEmployeeDetails' : ActorMethod<[EmployeeId], EmployeeDetails>,
   'getFeedbackByEmployee' : ActorMethod<[EmployeeId], Array<Feedback>>,
+  'getSalesRecords' : ActorMethod<[], Array<SalesRecord>>,
+  'getSalesRecordsByEmployee' : ActorMethod<[EmployeeId], Array<SalesRecord>>,
+  'getTopPerformers' : ActorMethod<[], Array<TopPerformer>>,
   'initialize' : ActorMethod<[], undefined>,
+  'setTopPerformers' : ActorMethod<[Array<TopPerformerInput>], boolean>,
   'updateEmployee' : ActorMethod<[EmployeeId, EmployeeFullInput], boolean>,
   'updateEmployeeStatus' : ActorMethod<[EmployeeId, Status], boolean>,
+  'updateIssueSuggestion' : ActorMethod<
+    [bigint, IssueSuggestionInput],
+    boolean
+  >,
 }
 export declare const idlService: IDL.ServiceClass;
 export declare const idlInitArgs: IDL.Type[];

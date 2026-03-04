@@ -27,48 +27,355 @@ import {
 } from "lucide-react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
+import * as XLSX from "xlsx";
 import { Status } from "../backend";
-import type { EmployeeInput } from "../backend.d.ts";
-import { useBulkAddEmployees } from "../hooks/useQueries";
+import type { Employee, EmployeeInput } from "../backend.d.ts";
+import {
+  useAddAttendanceRecord,
+  useAddSalesRecord,
+  useAllEmployees,
+  useBulkAddEmployees,
+} from "../hooks/useQueries";
 
 interface BulkUploadModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
+interface AttendanceLapse {
+  date: string;
+  lapseType: string;
+  reason: string;
+}
+
+interface DayOff {
+  date: string;
+  reason: string;
+}
+
 interface ParsedRow {
+  fiplCode: string;
   name: string;
   role: string;
   department: string;
+  fseCategory: string;
   status: Status;
   joinDate: string;
   avatar: string;
+  region: string;
+  familyDetails: string;
+  pastExperience: string[];
+  // 5 performance parameters
+  salesInfluenceIndex: number;
+  reviewCount: number;
+  operationalDiscipline: number;
+  productKnowledgeScore: number;
+  softSkillsScore: number;
+  // Sales fields
+  accessories: number;
+  extendedWarranty: number;
+  totalSalesAmount: number;
+  // Attendance fields
+  attendanceLapses: AttendanceLapse[];
+  daysOff: DayOff[];
+  // Advanced fields (informational — set via Edit Employee after import)
+  swotStrengths: string[];
+  swotWeaknesses: string[];
+  swotOpportunities: string[];
+  swotThreats: string[];
+  traits: string[];
+  problems: string[];
+  feedbacks: Array<{ category: string; severity: string; description: string }>;
+  error?: string;
+}
+
+interface ParsedSalesRow {
+  fiplCode: string;
+  name: string;
+  region: string;
+  date: string;
+  amountOfSale: number;
+  // resolved at import time
+  employeeId?: bigint;
   error?: string;
 }
 
 const CSV_HEADERS = [
+  "fiplCode",
   "name",
   "role",
   "department",
+  "fseCategory",
   "status",
   "joinDate",
   "avatar",
+  "region",
+  "familyDetails",
+  "pastExperience",
+  "salesInfluenceIndex",
+  "reviewCount",
+  "operationalDiscipline",
+  "productKnowledgeScore",
+  "softSkillsScore",
+  "accessories",
+  "extendedWarranty",
+  "totalSalesAmount",
+  "attendanceLapses",
+  "daysOff",
+  "swotStrengths",
+  "swotWeaknesses",
+  "swotOpportunities",
+  "swotThreats",
+  "traits",
+  "problems",
+  "feedbacks",
 ];
 
-const CSV_TEMPLATE = `name,role,department,status,joinDate,avatar
-Priya Sharma,Senior Engineer,Engineering,active,2023-03-15,PS
-Raj Mehta,Sales Manager,Sales,active,2022-07-01,RM
-Ananya Iyer,HR Specialist,HR,inactive,2021-11-20,AI
-Carlos Rivera,Operations Lead,Operations,active,2023-01-10,CR`;
-
 function downloadTemplate() {
-  const blob = new Blob([CSV_TEMPLATE], { type: "text/csv" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "employee-bulk-upload-template.csv";
-  a.click();
-  URL.revokeObjectURL(url);
+  const wb = XLSX.utils.book_new();
+
+  // ── Sheet 1: Employee Data ──────────────────────────────────────────────
+  // Human-readable header row (maps 1-to-1 with CSV_HEADERS for parsing)
+  const empDisplayHeaders = [
+    "fiplCode (Primary Key)*",
+    "name*",
+    "role*",
+    "department*",
+    "fseCategory (Cash Cow / Star / Question Mark / Dog)",
+    "status (active / inactive / onhold)",
+    "joinDate (YYYY-MM-DD)",
+    "avatar (initials, e.g. PS)",
+    "region",
+    "familyDetails",
+    "pastExperience (semicolon-separated)",
+    "salesInfluenceIndex (0-100)",
+    "reviewCount",
+    "operationalDiscipline (0-100)",
+    "productKnowledgeScore (0-100)",
+    "softSkillsScore (0-100)",
+    "accessories (count)",
+    "extendedWarranty (count)",
+    "totalSalesAmount (₹)",
+    "attendanceLapses (date|type|reason; separated)",
+    "daysOff (date|reason; separated)",
+    "swotStrengths (semicolon-separated)",
+    "swotWeaknesses (semicolon-separated)",
+    "swotOpportunities (semicolon-separated)",
+    "swotThreats (semicolon-separated)",
+    "traits (semicolon-separated)",
+    "problems (semicolon-separated)",
+    "feedbacks (category|severity|description; separated)",
+  ];
+
+  const employeeRows = [
+    empDisplayHeaders,
+    [
+      "FIPL-001",
+      "Priya Sharma",
+      "Senior Engineer",
+      "Engineering",
+      "Star",
+      "active",
+      "2023-03-15",
+      "PS",
+      "North India",
+      "Married, 2 children",
+      "Infosys - Software Engineer - 3 years;TCS - Senior Engineer - 2 years",
+      88,
+      24,
+      91,
+      85,
+      78,
+      12,
+      3,
+      280000,
+      "2026-01-10|Late Attendance|Forgot to mark on app;2026-02-05|Missing|No reason provided",
+      "2026-03-01|Sick Leave",
+      "Strong technical skills;Fast learner",
+      "Occasionally over-commits;Public speaking",
+      "Cross-team leadership;Architecture ownership",
+      "Rapid tech change;Burnout risk",
+      "Analytical;Collaborative;Detail-oriented",
+      "Work-life balance;Documentation backlog",
+      "Performance|low|Consistently exceeds sprint goals;Culture|low|Great team collaborator",
+    ],
+    [
+      "FIPL-002",
+      "Raj Mehta",
+      "Sales Manager",
+      "Sales",
+      "Cash Cow",
+      "active",
+      "2022-07-01",
+      "RM",
+      "West Coast",
+      "Single",
+      "StartupXYZ - Sales Exec - 2 years",
+      95,
+      31,
+      78,
+      72,
+      88,
+      28,
+      8,
+      420000,
+      "2026-01-15|Late Attendance|Client meeting ran late",
+      "",
+      "Top closer;Persuasive communicator",
+      "Poor CRM hygiene;Misses follow-ups",
+      "Enterprise accounts;Team lead track",
+      "Market downturn;Quota pressure",
+      "Goal-driven;Charismatic;Competitive",
+      "CRM adoption;Pipeline forecasting",
+      "Performance|high|Missed Q3 targets by 12%;Management|low|Excellent team motivator",
+    ],
+  ];
+
+  const ws1 = XLSX.utils.aoa_to_sheet(employeeRows);
+
+  // Set column widths for readability
+  ws1["!cols"] = [
+    { wch: 20 }, // fiplCode
+    { wch: 20 }, // name
+    { wch: 22 }, // role
+    { wch: 18 }, // department
+    { wch: 38 }, // fseCategory
+    { wch: 30 }, // status
+    { wch: 24 }, // joinDate
+    { wch: 22 }, // avatar
+    { wch: 18 }, // region
+    { wch: 25 }, // familyDetails
+    { wch: 40 }, // pastExperience
+    { wch: 26 }, // salesInfluenceIndex
+    { wch: 16 }, // reviewCount
+    { wch: 28 }, // operationalDiscipline
+    { wch: 28 }, // productKnowledgeScore
+    { wch: 24 }, // softSkillsScore
+    { wch: 20 }, // accessories
+    { wch: 22 }, // extendedWarranty
+    { wch: 22 }, // totalSalesAmount
+    { wch: 50 }, // attendanceLapses
+    { wch: 30 }, // daysOff
+    { wch: 35 }, // swotStrengths
+    { wch: 35 }, // swotWeaknesses
+    { wch: 35 }, // swotOpportunities
+    { wch: 35 }, // swotThreats
+    { wch: 35 }, // traits
+    { wch: 35 }, // problems
+    { wch: 50 }, // feedbacks
+  ];
+
+  XLSX.utils.book_append_sheet(wb, ws1, "Employee Data");
+
+  // ── Sheet 2: Sales Data ─────────────────────────────────────────────────
+  const salesDisplayHeaders = [
+    "FIPL Code (Primary Key)*",
+    "Name (auto-filled from FIPL Code)",
+    "Region (auto-filled from FIPL Code)",
+    "Date (YYYY-MM-DD)*",
+    "Amount of Sale (₹)*",
+  ];
+
+  const salesRows = [
+    salesDisplayHeaders,
+    ["FIPL-001", "Priya Sharma", "North India", "2026-03-01", 45000],
+    ["FIPL-001", "Priya Sharma", "North India", "2026-03-05", 52000],
+    ["FIPL-001", "Priya Sharma", "North India", "2026-03-12", 38000],
+    ["FIPL-002", "Raj Mehta", "West Coast", "2026-03-01", 72000],
+    ["FIPL-002", "Raj Mehta", "West Coast", "2026-03-08", 68000],
+    ["FIPL-002", "Raj Mehta", "West Coast", "2026-03-15", 91000],
+  ];
+
+  const ws2 = XLSX.utils.aoa_to_sheet(salesRows);
+
+  ws2["!cols"] = [
+    { wch: 28 }, // FIPL Code
+    { wch: 28 }, // Name
+    { wch: 22 }, // Region
+    { wch: 20 }, // Date
+    { wch: 24 }, // Amount of Sale
+  ];
+
+  XLSX.utils.book_append_sheet(wb, ws2, "Sales Data");
+
+  XLSX.writeFile(wb, "FSE-bulk-upload-template.xlsx");
+}
+
+function parseCSVLine(line: string): string[] {
+  const result: string[] = [];
+  let current = "";
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === '"') {
+      inQuotes = !inQuotes;
+    } else if (ch === "," && !inQuotes) {
+      result.push(current.trim());
+      current = "";
+    } else {
+      current += ch;
+    }
+  }
+  result.push(current.trim());
+  return result;
+}
+
+function parseSemicolon(raw: string): string[] {
+  return raw
+    ? raw
+        .split(";")
+        .map((s) => s.trim())
+        .filter(Boolean)
+    : [];
+}
+
+function parseFeedbacks(
+  raw: string,
+): Array<{ category: string; severity: string; description: string }> {
+  if (!raw) return [];
+  return raw
+    .split(";")
+    .map((entry) => entry.trim())
+    .filter(Boolean)
+    .map((entry) => {
+      const parts = entry.split("|");
+      return {
+        category: parts[0]?.trim() ?? "",
+        severity: parts[1]?.trim() ?? "low",
+        description: parts[2]?.trim() ?? "",
+      };
+    });
+}
+
+function parseAttendanceLapses(raw: string): AttendanceLapse[] {
+  if (!raw) return [];
+  return raw
+    .split(";")
+    .map((entry) => entry.trim())
+    .filter(Boolean)
+    .map((entry) => {
+      const parts = entry.split("|");
+      return {
+        date: parts[0]?.trim() ?? "",
+        lapseType: parts[1]?.trim() ?? "Late Attendance",
+        reason: parts[2]?.trim() ?? "",
+      };
+    });
+}
+
+function parseDaysOff(raw: string): DayOff[] {
+  if (!raw) return [];
+  return raw
+    .split(";")
+    .map((entry) => entry.trim())
+    .filter(Boolean)
+    .map((entry) => {
+      const parts = entry.split("|");
+      return {
+        date: parts[0]?.trim() ?? "",
+        reason: parts[1]?.trim() ?? "",
+      };
+    });
 }
 
 function parseCSV(content: string): ParsedRow[] {
@@ -79,35 +386,113 @@ function parseCSV(content: string): ParsedRow[] {
 
   if (lines.length < 2) return [];
 
-  const headerLine = lines[0].toLowerCase();
-  const headers = headerLine.split(",").map((h) => h.trim());
+  const headers = parseCSVLine(lines[0].toLowerCase());
 
+  const fiplCodeIdx = headers.indexOf("fiplcode");
   const nameIdx = headers.indexOf("name");
   const roleIdx = headers.indexOf("role");
   const deptIdx = headers.indexOf("department");
+  const fseCategoryIdx = headers.indexOf("fsecategory");
   const statusIdx = headers.indexOf("status");
   const joinIdx = headers.indexOf("joindate");
   const avatarIdx = headers.indexOf("avatar");
+  const regionIdx = headers.indexOf("region");
+  const familyDetailsIdx = headers.indexOf("familydetails");
+  const pastExperienceIdx = headers.indexOf("pastexperience");
+  const salesInfluenceIdx = headers.indexOf("salesinfluenceindex");
+  const reviewCountIdx = headers.indexOf("reviewcount");
+  const operationalDisciplineIdx = headers.indexOf("operationaldiscipline");
+  const productKnowledgeIdx = headers.indexOf("productknowledgescore");
+  const softSkillsIdx = headers.indexOf("softskillsscore");
+  const accessoriesIdx = headers.indexOf("accessories");
+  const extendedWarrantyIdx = headers.indexOf("extendedwarranty");
+  const totalSalesAmountIdx = headers.indexOf("totalsalesamount");
+  const attendanceLapsesIdx = headers.indexOf("attendancelapses");
+  const daysOffIdx = headers.indexOf("daysoff");
+  const swotStrengthsIdx = headers.indexOf("swotstrengths");
+  const swotWeaknessesIdx = headers.indexOf("swotweaknesses");
+  const swotOpportunitiesIdx = headers.indexOf("swotopportunities");
+  const swotThreatsIdx = headers.indexOf("swotthreats");
+  const traitsIdx = headers.indexOf("traits");
+  const problemsIdx = headers.indexOf("problems");
+  const feedbacksIdx = headers.indexOf("feedbacks");
 
   const rows: ParsedRow[] = [];
 
   for (let i = 1; i < lines.length; i++) {
-    const cells = lines[i]
-      .split(",")
-      .map((c) => c.trim().replace(/^"(.*)"$/, "$1"));
+    const cells = parseCSVLine(lines[i]);
+    const rawPastExp =
+      pastExperienceIdx >= 0 ? (cells[pastExperienceIdx] ?? "") : "";
     const row: ParsedRow = {
+      fiplCode: fiplCodeIdx >= 0 ? (cells[fiplCodeIdx] ?? "") : "",
       name: nameIdx >= 0 ? (cells[nameIdx] ?? "") : "",
       role: roleIdx >= 0 ? (cells[roleIdx] ?? "") : "",
       department: deptIdx >= 0 ? (cells[deptIdx] ?? "") : "",
+      fseCategory: fseCategoryIdx >= 0 ? (cells[fseCategoryIdx] ?? "") : "",
       status:
         statusIdx >= 0 && cells[statusIdx]?.toLowerCase() === "inactive"
           ? Status.inactive
-          : Status.active,
+          : statusIdx >= 0 && cells[statusIdx]?.toLowerCase() === "onhold"
+            ? Status.onHold
+            : Status.active,
       joinDate: joinIdx >= 0 ? (cells[joinIdx] ?? "") : "",
       avatar: avatarIdx >= 0 ? (cells[avatarIdx] ?? "") : "",
+      region: regionIdx >= 0 ? (cells[regionIdx] ?? "") : "",
+      familyDetails:
+        familyDetailsIdx >= 0 ? (cells[familyDetailsIdx] ?? "") : "",
+      pastExperience: parseSemicolon(rawPastExp),
+      salesInfluenceIndex:
+        salesInfluenceIdx >= 0 ? Number(cells[salesInfluenceIdx] ?? 0) || 0 : 0,
+      reviewCount:
+        reviewCountIdx >= 0 ? Number(cells[reviewCountIdx] ?? 0) || 0 : 0,
+      operationalDiscipline:
+        operationalDisciplineIdx >= 0
+          ? Number(cells[operationalDisciplineIdx] ?? 0) || 0
+          : 0,
+      productKnowledgeScore:
+        productKnowledgeIdx >= 0
+          ? Number(cells[productKnowledgeIdx] ?? 0) || 0
+          : 0,
+      softSkillsScore:
+        softSkillsIdx >= 0 ? Number(cells[softSkillsIdx] ?? 0) || 0 : 0,
+      accessories:
+        accessoriesIdx >= 0 ? Number(cells[accessoriesIdx] ?? 0) || 0 : 0,
+      extendedWarranty:
+        extendedWarrantyIdx >= 0
+          ? Number(cells[extendedWarrantyIdx] ?? 0) || 0
+          : 0,
+      totalSalesAmount:
+        totalSalesAmountIdx >= 0
+          ? Number(cells[totalSalesAmountIdx] ?? 0) || 0
+          : 0,
+      attendanceLapses: parseAttendanceLapses(
+        attendanceLapsesIdx >= 0 ? (cells[attendanceLapsesIdx] ?? "") : "",
+      ),
+      daysOff: parseDaysOff(daysOffIdx >= 0 ? (cells[daysOffIdx] ?? "") : ""),
+      swotStrengths: parseSemicolon(
+        swotStrengthsIdx >= 0 ? (cells[swotStrengthsIdx] ?? "") : "",
+      ),
+      swotWeaknesses: parseSemicolon(
+        swotWeaknessesIdx >= 0 ? (cells[swotWeaknessesIdx] ?? "") : "",
+      ),
+      swotOpportunities: parseSemicolon(
+        swotOpportunitiesIdx >= 0 ? (cells[swotOpportunitiesIdx] ?? "") : "",
+      ),
+      swotThreats: parseSemicolon(
+        swotThreatsIdx >= 0 ? (cells[swotThreatsIdx] ?? "") : "",
+      ),
+      traits: parseSemicolon(traitsIdx >= 0 ? (cells[traitsIdx] ?? "") : ""),
+      problems: parseSemicolon(
+        problemsIdx >= 0 ? (cells[problemsIdx] ?? "") : "",
+      ),
+      feedbacks: parseFeedbacks(
+        feedbacksIdx >= 0 ? (cells[feedbacksIdx] ?? "") : "",
+      ),
     };
 
-    if (!row.name) {
+    if (!row.fiplCode) {
+      row.error = "FIPL Code is required";
+    } else if (!row.name) {
       row.error = "Name is required";
     } else if (!row.role) {
       row.error = "Role is required";
@@ -119,6 +504,67 @@ function parseCSV(content: string): ParsedRow[] {
   }
 
   return rows;
+}
+
+/** Parse the Sales Data sheet from an xlsx workbook */
+function parseSalesSheet(wb: XLSX.WorkBook): ParsedSalesRow[] | null {
+  const sheetName = wb.SheetNames.find(
+    (n) => n.toLowerCase().replace(/\s+/g, "") === "salesdata",
+  );
+  if (!sheetName) return null;
+  const ws = wb.Sheets[sheetName];
+  if (!ws) return null;
+  const raw = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, {
+    defval: "",
+  });
+
+  return raw.map((r) => {
+    // Normalise header names
+    const normalised: Record<string, string> = {};
+    for (const [k, v] of Object.entries(r)) {
+      normalised[k.toLowerCase().replace(/\s+/g, "")] = String(v ?? "").trim();
+    }
+    const fiplCode = normalised.fiplcode ?? "";
+    const name = normalised.name ?? "";
+    const region = normalised.region ?? "";
+    const dateRaw = normalised.date ?? "";
+    const amountRaw = normalised.amountofsale ?? normalised.amount ?? "0";
+
+    // Parse date — xlsx may give a serial number or a string
+    let dateStr = dateRaw;
+    const serial = Number(dateRaw);
+    if (!Number.isNaN(serial) && serial > 1000) {
+      // Excel serial date
+      const jsDate = XLSX.SSF.parse_date_code(serial);
+      if (jsDate) {
+        dateStr = `${jsDate.y}-${String(jsDate.m).padStart(2, "0")}-${String(jsDate.d).padStart(2, "0")}`;
+      }
+    }
+
+    const row: ParsedSalesRow = {
+      fiplCode,
+      name,
+      region,
+      date: dateStr,
+      amountOfSale: Number(amountRaw) || 0,
+    };
+    if (!fiplCode) row.error = "FIPL Code required";
+    else if (!dateStr) row.error = "Date required";
+    else if (row.amountOfSale <= 0) row.error = "Amount must be > 0";
+    return row;
+  });
+}
+
+/** Parse employee data sheet from xlsx workbook */
+function parseEmployeeSheet(wb: XLSX.WorkBook): ParsedRow[] | null {
+  const sheetName = wb.SheetNames.find(
+    (n) => n.toLowerCase().replace(/\s+/g, "") === "employeedata",
+  );
+  if (!sheetName) return null;
+  const ws = wb.Sheets[sheetName];
+  if (!ws) return null;
+  const csv = XLSX.utils.sheet_to_csv(ws);
+  return parseCSV(csv);
 }
 
 function rowToEmployeeInput(row: ParsedRow): EmployeeInput {
@@ -138,45 +584,146 @@ function rowToEmployeeInput(row: ParsedRow): EmployeeInput {
       .slice(0, 2);
 
   return {
+    fiplCode: row.fiplCode,
+    fseCategory: row.fseCategory,
     name: row.name,
     role: row.role,
     department: row.department,
     status: row.status,
     joinDate: joinDateNs,
     avatar,
-  };
+    region: row.region,
+    familyDetails: row.familyDetails,
+    pastExperience: row.pastExperience,
+  } as EmployeeInput;
 }
 
+export type { ParsedRow };
 type Step = "upload" | "preview" | "done";
+type UploadMode = "employees" | "sales" | "both";
+
+const FSE_CATEGORY_COLORS: Record<string, string> = {
+  "Cash Cow":
+    "bg-[oklch(0.93_0.05_165_/_0.6)] text-[oklch(0.35_0.15_165)] border-[oklch(0.65_0.12_165_/_0.3)]",
+  Star: "bg-[oklch(0.95_0.05_85_/_0.6)] text-[oklch(0.40_0.14_85)] border-[oklch(0.65_0.12_85_/_0.3)]",
+  "Question Mark":
+    "bg-[oklch(0.93_0.04_240_/_0.6)] text-[oklch(0.38_0.14_240)] border-[oklch(0.65_0.12_240_/_0.3)]",
+  Dog: "bg-[oklch(0.95_0.04_25_/_0.6)] text-[oklch(0.42_0.18_25)] border-[oklch(0.65_0.14_25_/_0.3)]",
+};
 
 export function BulkUploadModal({ open, onOpenChange }: BulkUploadModalProps) {
   const [step, setStep] = useState<Step>("upload");
+  const [uploadMode, setUploadMode] = useState<UploadMode>("employees");
   const [parsedRows, setParsedRows] = useState<ParsedRow[]>([]);
+  const [parsedSalesRows, setParsedSalesRows] = useState<ParsedSalesRow[]>([]);
   const [addedCount, setAddedCount] = useState(0);
+  const [addedSalesCount, setAddedSalesCount] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const bulkAdd = useBulkAddEmployees();
+  const addSalesRecord = useAddSalesRecord();
+  const addAttendanceRecord = useAddAttendanceRecord();
+  const { data: existingEmployees = [] } = useAllEmployees();
+
+  // Build FIPL -> employee lookup from existing employees
+  const fiplToEmployee: Map<string, Employee> = new Map(
+    existingEmployees.map((e) => [e.fiplCode.toUpperCase(), e]),
+  );
 
   const validRows = parsedRows.filter((r) => !r.error);
   const errorRows = parsedRows.filter((r) => r.error);
+  const validSalesRows = parsedSalesRows.filter((r) => !r.error);
+  const errorSalesRows = parsedSalesRows.filter((r) => r.error);
 
   const handleFile = (file: File) => {
-    if (!file.name.endsWith(".csv") && file.type !== "text/csv") {
-      toast.error("Please upload a CSV file");
+    const isXlsx =
+      file.name.endsWith(".xlsx") ||
+      file.name.endsWith(".xls") ||
+      file.type.includes("spreadsheetml") ||
+      file.type.includes("excel");
+    const isCsv = file.name.endsWith(".csv") || file.type === "text/csv";
+
+    if (!isXlsx && !isCsv) {
+      toast.error("Please upload a CSV or Excel (.xlsx) file");
       return;
     }
+
     const reader = new FileReader();
     reader.onload = (e) => {
-      const content = e.target?.result as string;
-      const rows = parseCSV(content);
-      if (rows.length === 0) {
-        toast.error("No data rows found in CSV");
-        return;
+      const result = e.target?.result;
+      if (!result) return;
+
+      if (isXlsx) {
+        const data = new Uint8Array(result as ArrayBuffer);
+        const wb = XLSX.read(data, { type: "array" });
+
+        const empRows = parseEmployeeSheet(wb);
+        const salesRows = parseSalesSheet(wb);
+
+        if (
+          empRows &&
+          empRows.length > 0 &&
+          salesRows &&
+          salesRows.length > 0
+        ) {
+          setUploadMode("both");
+          setParsedRows(empRows);
+          // Enrich sales rows with auto-detected name/region from employee sheet
+          const empFiplMap = new Map(
+            empRows.map((r) => [r.fiplCode.toUpperCase(), r]),
+          );
+          const enriched = salesRows.map((sr) => {
+            const key = sr.fiplCode.toUpperCase();
+            const emp = empFiplMap.get(key) ?? fiplToEmployee.get(key);
+            return {
+              ...sr,
+              name: emp ? emp.name : sr.name,
+              region: emp ? emp.region : sr.region,
+            };
+          });
+          setParsedSalesRows(enriched);
+        } else if (empRows && empRows.length > 0) {
+          setUploadMode("employees");
+          setParsedRows(empRows);
+          setParsedSalesRows([]);
+        } else if (salesRows && salesRows.length > 0) {
+          setUploadMode("sales");
+          setParsedRows([]);
+          // Enrich from existing employees
+          const enriched = salesRows.map((sr) => {
+            const emp = fiplToEmployee.get(sr.fiplCode.toUpperCase());
+            return {
+              ...sr,
+              name: emp ? emp.name : sr.name,
+              region: emp ? emp.region : sr.region,
+            };
+          });
+          setParsedSalesRows(enriched);
+        } else {
+          toast.error("No recognisable data sheets found in this file");
+          return;
+        }
+        setStep("preview");
+      } else {
+        // Legacy CSV — employee data only
+        const content = result as string;
+        const rows = parseCSV(content);
+        if (rows.length === 0) {
+          toast.error("No data rows found in CSV");
+          return;
+        }
+        setUploadMode("employees");
+        setParsedRows(rows);
+        setParsedSalesRows([]);
+        setStep("preview");
       }
-      setParsedRows(rows);
-      setStep("preview");
     };
-    reader.readAsText(file);
+
+    if (isXlsx) {
+      reader.readAsArrayBuffer(file);
+    } else {
+      reader.readAsText(file);
+    }
   };
 
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -192,41 +739,178 @@ export function BulkUploadModal({ open, onOpenChange }: BulkUploadModalProps) {
     if (file) handleFile(file);
   };
 
-  const handleConfirm = () => {
-    const inputs = validRows.map(rowToEmployeeInput);
-    bulkAdd.mutate(inputs, {
-      onSuccess: (ids) => {
-        setAddedCount(ids.length);
-        setStep("done");
+  const handleConfirm = async () => {
+    let importedEmployeeIds: bigint[] = [];
+
+    // Step 1: Import employees if needed
+    if (
+      (uploadMode === "employees" || uploadMode === "both") &&
+      validRows.length > 0
+    ) {
+      try {
+        const inputs = validRows.map(rowToEmployeeInput);
+        importedEmployeeIds = await bulkAdd.mutateAsync(inputs);
+        setAddedCount(importedEmployeeIds.length);
         toast.success(
-          `${ids.length} employee${ids.length === 1 ? "" : "s"} added successfully`,
+          `${importedEmployeeIds.length} employee${importedEmployeeIds.length === 1 ? "" : "s"} added`,
         );
-      },
-      onError: (err) => {
-        toast.error(`Bulk upload failed: ${err.message}`);
-      },
-    });
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "Unknown error";
+        toast.error(`Employee import failed: ${msg}`);
+        return;
+      }
+    }
+
+    // Step 2: Process employee-linked sales + attendance records
+    if (
+      (uploadMode === "employees" || uploadMode === "both") &&
+      importedEmployeeIds.length > 0
+    ) {
+      const salesPromises: Promise<unknown>[] = [];
+      const attendancePromises: Promise<unknown>[] = [];
+
+      for (let idx = 0; idx < importedEmployeeIds.length; idx++) {
+        const employeeId = importedEmployeeIds[idx];
+        const row = validRows[idx];
+        if (!employeeId || !row) continue;
+
+        if (
+          row.totalSalesAmount > 0 ||
+          row.accessories > 0 ||
+          row.extendedWarranty > 0
+        ) {
+          salesPromises.push(
+            addSalesRecord
+              .mutateAsync({
+                employeeId,
+                fiplCode: row.fiplCode,
+                accessories: BigInt(row.accessories),
+                extendedWarranty: BigInt(row.extendedWarranty),
+                totalSalesAmount: BigInt(row.totalSalesAmount),
+              })
+              .catch(() => null),
+          );
+        }
+
+        for (const lapse of row.attendanceLapses) {
+          const dateMs = lapse.date
+            ? new Date(lapse.date).getTime()
+            : Date.now();
+          const dateNs =
+            BigInt(Number.isNaN(dateMs) ? Date.now() : dateMs) * 1_000_000n;
+          attendancePromises.push(
+            addAttendanceRecord
+              .mutateAsync({
+                employeeId,
+                lapseType: lapse.lapseType,
+                date: dateNs,
+                reason: lapse.reason,
+                daysOff: 0n,
+              })
+              .catch(() => null),
+          );
+        }
+
+        for (const dayOff of row.daysOff) {
+          const dateMs = dayOff.date
+            ? new Date(dayOff.date).getTime()
+            : Date.now();
+          const dateNs =
+            BigInt(Number.isNaN(dateMs) ? Date.now() : dateMs) * 1_000_000n;
+          attendancePromises.push(
+            addAttendanceRecord
+              .mutateAsync({
+                employeeId,
+                lapseType: "Day Off",
+                date: dateNs,
+                reason: dayOff.reason,
+                daysOff: 1n,
+              })
+              .catch(() => null),
+          );
+        }
+      }
+
+      await Promise.all([...salesPromises, ...attendancePromises]);
+    }
+
+    // Step 3: Import Sales Data sheet rows — resolve employee IDs via FIPL Code
+    if (
+      (uploadMode === "sales" || uploadMode === "both") &&
+      validSalesRows.length > 0
+    ) {
+      // Build a fresh lookup that includes newly imported employees
+      const freshLookup = new Map<string, bigint>(
+        existingEmployees.map((e) => [e.fiplCode.toUpperCase(), e.id]),
+      );
+      // Also add newly imported IDs from this session
+      for (let i = 0; i < importedEmployeeIds.length; i++) {
+        const row = validRows[i];
+        if (row) {
+          freshLookup.set(row.fiplCode.toUpperCase(), importedEmployeeIds[i]);
+        }
+      }
+
+      let salesAdded = 0;
+      const salesPromises = validSalesRows.map(async (sr) => {
+        const employeeId = freshLookup.get(sr.fiplCode.toUpperCase());
+        if (!employeeId) return; // skip if employee not found
+        const dateMs = sr.date ? new Date(sr.date).getTime() : Date.now();
+        const dateNs =
+          BigInt(Number.isNaN(dateMs) ? Date.now() : dateMs) * 1_000_000n;
+        // Use date as a proxy for recordDate — pass totalSalesAmount = amountOfSale
+        try {
+          await addSalesRecord.mutateAsync({
+            employeeId,
+            fiplCode: sr.fiplCode,
+            accessories: 0n,
+            extendedWarranty: 0n,
+            totalSalesAmount: BigInt(sr.amountOfSale),
+          });
+          salesAdded++;
+        } catch {
+          /* skip individual failure */
+        }
+        return dateNs; // returned but not used
+      });
+      await Promise.all(salesPromises);
+      setAddedSalesCount(salesAdded);
+      if (salesAdded > 0) {
+        toast.success(
+          `${salesAdded} sales record${salesAdded === 1 ? "" : "s"} imported`,
+        );
+      }
+    }
+
+    setStep("done");
   };
 
   const handleClose = () => {
     if (!bulkAdd.isPending) {
       setStep("upload");
       setParsedRows([]);
+      setParsedSalesRows([]);
       setAddedCount(0);
+      setAddedSalesCount(0);
+      setUploadMode("employees");
       onOpenChange(false);
     }
   };
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col gap-0 p-0">
+      <DialogContent
+        className="max-w-3xl max-h-[90vh] overflow-hidden flex flex-col gap-0 p-0"
+        data-ocid="bulk_upload.dialog"
+      >
         <DialogHeader className="px-6 pt-6 pb-4 shrink-0">
           <DialogTitle className="font-display text-lg font-bold flex items-center gap-2">
             <Users className="w-5 h-5 text-primary" />
-            Bulk Upload Employees
+            Bulk Upload
           </DialogTitle>
           <DialogDescription className="text-xs text-muted-foreground">
-            Upload a CSV file to add multiple employees at once.
+            Upload the Excel template (.xlsx) — it contains two sheets: Employee
+            Data and Sales Data. FIPL Code is the primary key linking both.
           </DialogDescription>
         </DialogHeader>
 
@@ -243,8 +927,9 @@ export function BulkUploadModal({ open, onOpenChange }: BulkUploadModalProps) {
                     Download Template
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    CSV with columns: name, role, department, status, joinDate,
-                    avatar
+                    Excel file with two sheets: <strong>Employee Data</strong>{" "}
+                    &amp; <strong>Sales Data</strong> (FIPL Code, Name, Region,
+                    Date, Amount of Sale)
                   </p>
                 </div>
                 <Button
@@ -253,6 +938,7 @@ export function BulkUploadModal({ open, onOpenChange }: BulkUploadModalProps) {
                   size="sm"
                   onClick={downloadTemplate}
                   className="gap-2 shrink-0"
+                  data-ocid="bulk_upload.upload_button"
                 >
                   <Download className="w-3.5 h-3.5" />
                   Template
@@ -275,11 +961,12 @@ export function BulkUploadModal({ open, onOpenChange }: BulkUploadModalProps) {
                     ? "border-primary bg-primary/10"
                     : "border-border hover:border-primary/50 hover:bg-accent/20",
                 )}
+                data-ocid="bulk_upload.dropzone"
               >
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept=".csv,text/csv"
+                  accept=".csv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                   className="hidden"
                   onChange={handleFileInput}
                 />
@@ -302,54 +989,175 @@ export function BulkUploadModal({ open, onOpenChange }: BulkUploadModalProps) {
                   <div>
                     <p className="text-sm font-semibold text-foreground">
                       {isDragging
-                        ? "Drop CSV file here"
-                        : "Click or drag CSV file here"}
+                        ? "Drop file here"
+                        : "Click or drag file here"}
                     </p>
                     <p className="text-xs text-muted-foreground mt-1">
-                      Only .csv files are accepted
+                      .xlsx (recommended) or .csv files accepted
                     </p>
                   </div>
                 </div>
               </button>
 
-              {/* Format info */}
-              <div className="rounded-lg bg-muted/20 border border-border px-4 py-3 space-y-1">
-                <p className="text-xs font-semibold text-foreground/70">
-                  Expected columns:
+              {/* Sheets legend */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {/* Employee Data sheet */}
+                <div className="rounded-lg bg-muted/20 border border-border px-4 py-3 space-y-2">
+                  <p className="text-xs font-semibold text-foreground/70">
+                    Sheet 1 — Employee Data
+                  </p>
+                  <div>
+                    <p className="text-[10px] text-muted-foreground/60 mb-1.5 uppercase tracking-wider font-semibold">
+                      Core fields (required)
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {CSV_HEADERS.slice(0, 11).map((h) => (
+                        <code
+                          key={h}
+                          className={cn(
+                            "text-[10px] font-mono px-1.5 py-0.5 rounded border",
+                            h === "fiplCode"
+                              ? "bg-amber-50 text-amber-700 border-amber-200 font-bold"
+                              : "bg-primary/10 text-primary border-primary/20",
+                          )}
+                        >
+                          {h}
+                        </code>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-muted-foreground/60 mb-1.5 uppercase tracking-wider font-semibold">
+                      Performance
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {CSV_HEADERS.slice(11, 16).map((h) => (
+                        <code
+                          key={h}
+                          className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[oklch(0.93_0.04_165_/_0.5)] text-[oklch(0.35_0.14_165)] border border-[oklch(0.65_0.12_165_/_0.3)]"
+                        >
+                          {h}
+                        </code>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-muted-foreground/60 mb-1.5 uppercase tracking-wider font-semibold">
+                      Sales &amp; Attendance
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {CSV_HEADERS.slice(16, 21).map((h) => (
+                        <code
+                          key={h}
+                          className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[oklch(0.93_0.05_85_/_0.5)] text-[oklch(0.38_0.14_85)] border border-[oklch(0.65_0.12_85_/_0.3)]"
+                        >
+                          {h}
+                        </code>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Sales Data sheet */}
+                <div className="rounded-lg bg-[oklch(0.97_0.03_85_/_0.4)] border border-[oklch(0.75_0.1_85_/_0.4)] px-4 py-3 space-y-2">
+                  <p className="text-xs font-semibold text-[oklch(0.35_0.14_85)]">
+                    Sheet 2 — Sales Data
+                  </p>
+                  <p className="text-[10px] text-muted-foreground leading-relaxed">
+                    Each row is one sale event. FIPL Code auto-resolves the
+                    employee name and region — no need to re-enter them.
+                  </p>
+                  <div className="flex flex-wrap gap-1.5 mt-1">
+                    {[
+                      { label: "FIPL Code", pk: true },
+                      { label: "Name", pk: false },
+                      { label: "Region", pk: false },
+                      { label: "Date", pk: false },
+                      { label: "Amount of Sale", pk: false },
+                    ].map(({ label, pk }) => (
+                      <code
+                        key={label}
+                        className={cn(
+                          "text-[10px] font-mono px-1.5 py-0.5 rounded border",
+                          pk
+                            ? "bg-amber-50 text-amber-700 border-amber-200 font-bold"
+                            : "bg-[oklch(0.93_0.05_85_/_0.5)] text-[oklch(0.38_0.14_85)] border-[oklch(0.65_0.12_85_/_0.3)]",
+                        )}
+                      >
+                        {label}
+                      </code>
+                    ))}
+                  </div>
+                  <p className="text-[10px] text-muted-foreground/60 pt-1">
+                    Name &amp; Region are auto-filled from FIPL Code — you may
+                    leave them blank.
+                  </p>
+                </div>
+              </div>
+
+              {/* FSE Category legend */}
+              <div className="rounded-lg border border-border/50 px-4 py-3 space-y-2">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
+                  FSE Category Reference
                 </p>
-                <div className="flex flex-wrap gap-1.5">
-                  {CSV_HEADERS.map((h) => (
-                    <code
-                      key={h}
-                      className="text-[10px] font-mono-data px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/20"
-                    >
-                      {h}
-                    </code>
+                <div className="grid grid-cols-2 gap-1.5">
+                  {Object.entries({
+                    "Cash Cow": "Experienced, stable, high-trust",
+                    Star: "High-growth, high-energy top performers",
+                    "Question Mark": "Inconsistent but high-potential",
+                    Dog: "Underperforming and at-risk",
+                  }).map(([cat, desc]) => (
+                    <div key={cat} className="flex items-center gap-2">
+                      <span
+                        className={cn(
+                          "text-[10px] font-semibold px-2 py-0.5 rounded-full border",
+                          FSE_CATEGORY_COLORS[cat] ??
+                            "bg-muted/30 text-muted-foreground",
+                        )}
+                      >
+                        {cat}
+                      </span>
+                      <span className="text-[10px] text-muted-foreground">
+                        {desc}
+                      </span>
+                    </div>
                   ))}
                 </div>
-                <p className="text-[10px] text-muted-foreground/60 pt-1">
-                  status: "active" or "inactive" · joinDate: YYYY-MM-DD format
-                </p>
               </div>
             </div>
           )}
 
           {/* Step: Preview */}
           {step === "preview" && (
-            <div className="px-6 py-4 space-y-3">
+            <div className="px-6 py-4 space-y-4">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <span className="text-xs font-semibold text-foreground">
-                    {parsedRows.length} rows detected
-                  </span>
-                  {validRows.length > 0 && (
-                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[oklch(0.18_0.04_145_/_0.5)] border border-[oklch(0.5_0.16_145_/_0.3)] text-[oklch(0.72_0.18_145)]">
-                      {validRows.length} valid
+                <div className="flex items-center gap-2 flex-wrap">
+                  {(uploadMode === "employees" || uploadMode === "both") && (
+                    <span className="text-xs font-semibold text-foreground">
+                      {parsedRows.length} employee rows
                     </span>
                   )}
-                  {errorRows.length > 0 && (
-                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[oklch(0.18_0.04_25_/_0.5)] border border-[oklch(0.5_0.18_25_/_0.3)] text-[oklch(0.8_0.18_25)]">
-                      {errorRows.length} errors
+                  {uploadMode === "both" && (
+                    <span className="text-muted-foreground/50 text-xs">·</span>
+                  )}
+                  {(uploadMode === "sales" || uploadMode === "both") && (
+                    <span className="text-xs font-semibold text-foreground">
+                      {parsedSalesRows.length} sales rows
+                    </span>
+                  )}
+                  {validRows.length > 0 && (
+                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[oklch(0.93_0.05_145_/_0.6)] border border-[oklch(0.65_0.14_145_/_0.3)] text-[oklch(0.38_0.16_145)]">
+                      {validRows.length} valid employees
+                    </span>
+                  )}
+                  {validSalesRows.length > 0 && (
+                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[oklch(0.93_0.05_85_/_0.6)] border border-[oklch(0.65_0.12_85_/_0.3)] text-[oklch(0.38_0.14_85)]">
+                      {validSalesRows.length} valid sales
+                    </span>
+                  )}
+                  {(errorRows.length > 0 || errorSalesRows.length > 0) && (
+                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[oklch(0.96_0.04_25_/_0.6)] border border-[oklch(0.65_0.18_25_/_0.3)] text-[oklch(0.45_0.2_25)]">
+                      {errorRows.length + errorSalesRows.length} errors
                     </span>
                   )}
                 </div>
@@ -364,111 +1172,236 @@ export function BulkUploadModal({ open, onOpenChange }: BulkUploadModalProps) {
                 </Button>
               </div>
 
-              <div className="rounded-xl border border-border overflow-hidden">
-                <div className="max-h-[320px] overflow-y-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="bg-muted/20">
-                        <TableHead className="text-[10px] font-bold uppercase tracking-wider py-2">
-                          Name
-                        </TableHead>
-                        <TableHead className="text-[10px] font-bold uppercase tracking-wider py-2">
-                          Role
-                        </TableHead>
-                        <TableHead className="text-[10px] font-bold uppercase tracking-wider py-2">
-                          Dept
-                        </TableHead>
-                        <TableHead className="text-[10px] font-bold uppercase tracking-wider py-2">
-                          Status
-                        </TableHead>
-                        <TableHead className="text-[10px] font-bold uppercase tracking-wider py-2">
-                          Join Date
-                        </TableHead>
-                        <TableHead className="text-[10px] font-bold uppercase tracking-wider py-2 text-right">
-                          Valid
-                        </TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {parsedRows.map((row, i) => (
-                        <TableRow
-                          key={`row-${i}-${row.name}`}
-                          className={cn(
-                            row.error && "bg-[oklch(0.18_0.04_25_/_0.2)]",
-                          )}
-                        >
-                          <TableCell className="text-xs py-2 font-medium">
-                            {row.name || (
-                              <span className="text-muted-foreground/50 italic">
-                                —
-                              </span>
-                            )}
-                          </TableCell>
-                          <TableCell className="text-xs py-2 text-muted-foreground">
-                            {row.role || (
-                              <span className="text-muted-foreground/50 italic">
-                                —
-                              </span>
-                            )}
-                          </TableCell>
-                          <TableCell className="text-xs py-2 text-muted-foreground">
-                            {row.department || (
-                              <span className="text-muted-foreground/50 italic">
-                                —
-                              </span>
-                            )}
-                          </TableCell>
-                          <TableCell className="text-xs py-2">
-                            <span
-                              className={cn(
-                                "text-[10px] font-semibold px-1.5 py-0.5 rounded-full",
-                                row.status === Status.active
-                                  ? "bg-[oklch(0.18_0.04_145_/_0.5)] text-[oklch(0.72_0.18_145)]"
-                                  : "bg-muted/30 text-muted-foreground",
-                              )}
-                            >
-                              {row.status}
-                            </span>
-                          </TableCell>
-                          <TableCell className="text-xs py-2 font-mono-data text-muted-foreground">
-                            {row.joinDate || "—"}
-                          </TableCell>
-                          <TableCell className="py-2 text-right">
-                            {row.error ? (
-                              <div className="flex items-center justify-end gap-1">
-                                <AlertCircle className="w-3.5 h-3.5 text-[oklch(0.8_0.18_25)]" />
-                                <span className="text-[10px] text-[oklch(0.8_0.18_25)]">
-                                  {row.error}
-                                </span>
-                              </div>
-                            ) : (
-                              <CheckCircle2 className="w-3.5 h-3.5 text-[oklch(0.72_0.18_145)] ml-auto" />
-                            )}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              </div>
+              {/* Employee rows preview */}
+              {(uploadMode === "employees" || uploadMode === "both") &&
+                parsedRows.length > 0 && (
+                  <div>
+                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-2">
+                      Employee Data
+                    </p>
+                    <div className="rounded-xl border border-border overflow-hidden">
+                      <div className="max-h-[220px] overflow-y-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow className="bg-muted/20">
+                              <TableHead className="text-[10px] font-bold uppercase tracking-wider py-2">
+                                FIPL Code
+                              </TableHead>
+                              <TableHead className="text-[10px] font-bold uppercase tracking-wider py-2">
+                                Name
+                              </TableHead>
+                              <TableHead className="text-[10px] font-bold uppercase tracking-wider py-2">
+                                Category
+                              </TableHead>
+                              <TableHead className="text-[10px] font-bold uppercase tracking-wider py-2">
+                                Region
+                              </TableHead>
+                              <TableHead className="text-[10px] font-bold uppercase tracking-wider py-2">
+                                Status
+                              </TableHead>
+                              <TableHead className="text-[10px] font-bold uppercase tracking-wider py-2 text-right">
+                                Valid
+                              </TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {parsedRows.map((row, i) => (
+                              <TableRow
+                                key={`emp-row-${i}-${row.fiplCode || row.name}`}
+                                className={cn(
+                                  row.error && "bg-[oklch(0.97_0.03_25_/_0.4)]",
+                                )}
+                                data-ocid={`bulk_upload.item.${i + 1}`}
+                              >
+                                <TableCell className="text-xs py-2 font-mono font-medium text-primary">
+                                  {row.fiplCode || (
+                                    <span className="text-muted-foreground/50 italic">
+                                      —
+                                    </span>
+                                  )}
+                                </TableCell>
+                                <TableCell className="text-xs py-2 font-medium">
+                                  {row.name || (
+                                    <span className="text-muted-foreground/50 italic">
+                                      —
+                                    </span>
+                                  )}
+                                </TableCell>
+                                <TableCell className="text-xs py-2">
+                                  {row.fseCategory ? (
+                                    <span
+                                      className={cn(
+                                        "text-[10px] font-semibold px-1.5 py-0.5 rounded-full border",
+                                        FSE_CATEGORY_COLORS[row.fseCategory] ??
+                                          "bg-muted/30 text-muted-foreground border-border",
+                                      )}
+                                    >
+                                      {row.fseCategory}
+                                    </span>
+                                  ) : (
+                                    <span className="text-muted-foreground/50 italic text-[10px]">
+                                      —
+                                    </span>
+                                  )}
+                                </TableCell>
+                                <TableCell className="text-xs py-2 text-muted-foreground">
+                                  {row.region || (
+                                    <span className="text-muted-foreground/50 italic">
+                                      —
+                                    </span>
+                                  )}
+                                </TableCell>
+                                <TableCell className="text-xs py-2">
+                                  <span
+                                    className={cn(
+                                      "text-[10px] font-semibold px-1.5 py-0.5 rounded-full",
+                                      row.status === Status.active
+                                        ? "bg-[oklch(0.93_0.05_145_/_0.5)] text-[oklch(0.38_0.16_145)]"
+                                        : "bg-muted/30 text-muted-foreground",
+                                    )}
+                                  >
+                                    {row.status}
+                                  </span>
+                                </TableCell>
+                                <TableCell className="py-2 text-right">
+                                  {row.error ? (
+                                    <div className="flex items-center justify-end gap-1">
+                                      <AlertCircle className="w-3.5 h-3.5 text-[oklch(0.48_0.2_25)]" />
+                                      <span className="text-[10px] text-[oklch(0.48_0.2_25)]">
+                                        {row.error}
+                                      </span>
+                                    </div>
+                                  ) : (
+                                    <CheckCircle2 className="w-3.5 h-3.5 text-[oklch(0.42_0.16_145)] ml-auto" />
+                                  )}
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
-              {errorRows.length > 0 && (
+              {/* Sales rows preview */}
+              {(uploadMode === "sales" || uploadMode === "both") &&
+                parsedSalesRows.length > 0 && (
+                  <div>
+                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-2">
+                      Sales Data
+                    </p>
+                    <div className="rounded-xl border border-[oklch(0.75_0.1_85_/_0.4)] overflow-hidden">
+                      <div className="max-h-[220px] overflow-y-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow className="bg-[oklch(0.97_0.03_85_/_0.3)]">
+                              <TableHead className="text-[10px] font-bold uppercase tracking-wider py-2">
+                                FIPL Code
+                              </TableHead>
+                              <TableHead className="text-[10px] font-bold uppercase tracking-wider py-2">
+                                Name
+                              </TableHead>
+                              <TableHead className="text-[10px] font-bold uppercase tracking-wider py-2">
+                                Region
+                              </TableHead>
+                              <TableHead className="text-[10px] font-bold uppercase tracking-wider py-2">
+                                Date
+                              </TableHead>
+                              <TableHead className="text-[10px] font-bold uppercase tracking-wider py-2 text-right">
+                                Amount
+                              </TableHead>
+                              <TableHead className="text-[10px] font-bold uppercase tracking-wider py-2 text-right">
+                                Valid
+                              </TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {parsedSalesRows.map((row, i) => (
+                              <TableRow
+                                key={`sales-row-${i}-${row.fiplCode}-${row.date}`}
+                                className={cn(
+                                  row.error && "bg-[oklch(0.97_0.03_25_/_0.4)]",
+                                )}
+                                data-ocid={`bulk_upload.sales.item.${i + 1}`}
+                              >
+                                <TableCell className="text-xs py-2 font-mono font-medium text-[oklch(0.40_0.14_85)]">
+                                  {row.fiplCode || (
+                                    <span className="text-muted-foreground/50 italic">
+                                      —
+                                    </span>
+                                  )}
+                                </TableCell>
+                                <TableCell className="text-xs py-2 font-medium">
+                                  {row.name || (
+                                    <span className="text-muted-foreground/50 italic text-[10px]">
+                                      auto-detect
+                                    </span>
+                                  )}
+                                </TableCell>
+                                <TableCell className="text-xs py-2 text-muted-foreground">
+                                  {row.region || (
+                                    <span className="text-muted-foreground/50 italic text-[10px]">
+                                      auto-detect
+                                    </span>
+                                  )}
+                                </TableCell>
+                                <TableCell className="text-xs py-2 text-muted-foreground font-mono">
+                                  {row.date || "—"}
+                                </TableCell>
+                                <TableCell className="text-xs py-2 text-right font-semibold text-foreground">
+                                  {row.amountOfSale > 0
+                                    ? `₹${row.amountOfSale.toLocaleString()}`
+                                    : "—"}
+                                </TableCell>
+                                <TableCell className="py-2 text-right">
+                                  {row.error ? (
+                                    <div className="flex items-center justify-end gap-1">
+                                      <AlertCircle className="w-3.5 h-3.5 text-[oklch(0.48_0.2_25)]" />
+                                      <span className="text-[10px] text-[oklch(0.48_0.2_25)]">
+                                        {row.error}
+                                      </span>
+                                    </div>
+                                  ) : (
+                                    <CheckCircle2 className="w-3.5 h-3.5 text-[oklch(0.42_0.16_145)] ml-auto" />
+                                  )}
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </div>
+                    {uploadMode === "sales" && (
+                      <p className="text-[10px] text-muted-foreground/70 mt-2">
+                        Name and Region will be automatically resolved from
+                        existing employee records using FIPL Code.
+                      </p>
+                    )}
+                  </div>
+                )}
+
+              {errorRows.length + errorSalesRows.length > 0 && (
                 <p className="text-xs text-muted-foreground">
-                  <span className="font-semibold text-[oklch(0.8_0.18_25)]">
-                    {errorRows.length} row{errorRows.length > 1 ? "s" : ""} with
-                    errors
+                  <span className="font-semibold text-[oklch(0.48_0.2_25)]">
+                    {errorRows.length + errorSalesRows.length} row
+                    {errorRows.length + errorSalesRows.length > 1 ? "s" : ""}{" "}
+                    with errors
                   </span>{" "}
                   will be skipped. Only valid rows will be imported.
                 </p>
               )}
 
-              {validRows.length === 0 && (
-                <div className="rounded-lg border border-[oklch(0.5_0.18_25_/_0.3)] bg-[oklch(0.18_0.04_25_/_0.2)] px-4 py-3">
-                  <p className="text-xs text-[oklch(0.8_0.18_25)] font-semibold">
+              {validRows.length === 0 && validSalesRows.length === 0 && (
+                <div
+                  className="rounded-lg border border-[oklch(0.65_0.18_25_/_0.3)] bg-[oklch(0.96_0.04_25_/_0.3)] px-4 py-3"
+                  data-ocid="bulk_upload.error_state"
+                >
+                  <p className="text-xs text-[oklch(0.45_0.2_25)] font-semibold">
                     No valid rows to import
                   </p>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    Please fix the CSV and upload again.
+                    Please fix the file and upload again.
                   </p>
                 </div>
               )}
@@ -477,19 +1410,35 @@ export function BulkUploadModal({ open, onOpenChange }: BulkUploadModalProps) {
 
           {/* Step: Done */}
           {step === "done" && (
-            <div className="px-6 py-10 flex flex-col items-center text-center gap-4">
-              <div className="w-16 h-16 rounded-full bg-[oklch(0.18_0.04_145_/_0.5)] border border-[oklch(0.5_0.16_145_/_0.3)] flex items-center justify-center">
-                <CheckCircle2 className="w-8 h-8 text-[oklch(0.72_0.18_145)]" />
+            <div
+              className="px-6 py-10 flex flex-col items-center text-center gap-4"
+              data-ocid="bulk_upload.success_state"
+            >
+              <div className="w-16 h-16 rounded-full bg-[oklch(0.93_0.05_145_/_0.6)] border border-[oklch(0.65_0.14_145_/_0.3)] flex items-center justify-center">
+                <CheckCircle2 className="w-8 h-8 text-[oklch(0.42_0.16_145)]" />
               </div>
               <div>
-                <p className="text-2xl font-display font-bold text-foreground">
-                  {addedCount} Employee{addedCount !== 1 ? "s" : ""} Added
-                </p>
+                {addedCount > 0 && (
+                  <p className="text-xl font-display font-bold text-foreground">
+                    {addedCount} Employee{addedCount !== 1 ? "s" : ""} Added
+                  </p>
+                )}
+                {addedSalesCount > 0 && (
+                  <p className="text-xl font-display font-bold text-foreground mt-1">
+                    {addedSalesCount} Sales Record
+                    {addedSalesCount !== 1 ? "s" : ""} Imported
+                  </p>
+                )}
                 <p className="text-sm text-muted-foreground mt-1">
-                  The directory has been updated successfully.
+                  All data has been saved to the backend.
                 </p>
               </div>
-              <Button size="sm" onClick={handleClose} className="mt-2">
+              <Button
+                size="sm"
+                onClick={handleClose}
+                className="mt-2"
+                data-ocid="bulk_upload.confirm_button"
+              >
                 Done
               </Button>
             </div>
@@ -506,6 +1455,7 @@ export function BulkUploadModal({ open, onOpenChange }: BulkUploadModalProps) {
                 size="sm"
                 onClick={handleClose}
                 disabled={bulkAdd.isPending}
+                data-ocid="bulk_upload.cancel_button"
               >
                 Cancel
               </Button>
@@ -513,9 +1463,13 @@ export function BulkUploadModal({ open, onOpenChange }: BulkUploadModalProps) {
                 <Button
                   type="button"
                   size="sm"
-                  disabled={validRows.length === 0 || bulkAdd.isPending}
+                  disabled={
+                    (validRows.length === 0 && validSalesRows.length === 0) ||
+                    bulkAdd.isPending
+                  }
                   onClick={handleConfirm}
                   className="gap-2"
+                  data-ocid="bulk_upload.submit_button"
                 >
                   {bulkAdd.isPending ? (
                     <>
@@ -525,8 +1479,12 @@ export function BulkUploadModal({ open, onOpenChange }: BulkUploadModalProps) {
                   ) : (
                     <>
                       <Users className="w-3.5 h-3.5" />
-                      Import {validRows.length} Employee
-                      {validRows.length !== 1 ? "s" : ""}
+                      Import{" "}
+                      {uploadMode === "employees"
+                        ? `${validRows.length} Employee${validRows.length !== 1 ? "s" : ""}`
+                        : uploadMode === "sales"
+                          ? `${validSalesRows.length} Sales Record${validSalesRows.length !== 1 ? "s" : ""}`
+                          : `${validRows.length} Emp + ${validSalesRows.length} Sales`}
                     </>
                   )}
                 </Button>

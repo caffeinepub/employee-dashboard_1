@@ -27,58 +27,58 @@
   :root {
     --radius: 0.5rem;
 
-    /* Dark-first palette: deep slate with teal accent */
-    --background: 0.14 0.008 240;
-    --foreground: 0.92 0.008 240;
+    /* Light palette: clean white with teal/emerald accent */
+    --background: 0.98 0.003 240;
+    --foreground: 0.18 0.01 240;
 
-    --card: 0.17 0.01 240;
-    --card-foreground: 0.92 0.008 240;
+    --card: 1 0 0;
+    --card-foreground: 0.18 0.01 240;
 
-    --popover: 0.2 0.012 240;
-    --popover-foreground: 0.92 0.008 240;
+    --popover: 1 0 0;
+    --popover-foreground: 0.18 0.01 240;
 
     /* Teal/emerald primary */
-    --primary: 0.72 0.15 175;
-    --primary-foreground: 0.1 0.008 240;
+    --primary: 0.52 0.14 175;
+    --primary-foreground: 0.98 0 0;
 
-    --secondary: 0.22 0.012 240;
-    --secondary-foreground: 0.85 0.008 240;
+    --secondary: 0.95 0.005 240;
+    --secondary-foreground: 0.25 0.01 240;
 
-    --muted: 0.2 0.01 240;
-    --muted-foreground: 0.58 0.012 240;
+    --muted: 0.94 0.006 240;
+    --muted-foreground: 0.5 0.012 240;
 
-    --accent: 0.25 0.015 240;
-    --accent-foreground: 0.92 0.008 240;
+    --accent: 0.94 0.006 240;
+    --accent-foreground: 0.18 0.01 240;
 
-    --destructive: 0.6 0.22 25;
+    --destructive: 0.55 0.22 25;
     --destructive-foreground: 0.98 0 0;
 
-    --border: 0.28 0.015 240;
-    --input: 0.25 0.012 240;
-    --ring: 0.72 0.15 175;
+    --border: 0.88 0.008 240;
+    --input: 0.9 0.006 240;
+    --ring: 0.52 0.14 175;
 
     /* Status colors */
-    --success: 0.72 0.18 145;
-    --success-foreground: 0.1 0.008 240;
-    --warning: 0.78 0.18 75;
-    --warning-foreground: 0.1 0.008 240;
+    --success: 0.52 0.16 145;
+    --success-foreground: 0.98 0 0;
+    --warning: 0.62 0.16 75;
+    --warning-foreground: 0.98 0 0;
 
     /* Charts */
-    --chart-1: 0.72 0.15 175;
-    --chart-2: 0.68 0.18 145;
-    --chart-3: 0.78 0.18 75;
-    --chart-4: 0.6 0.22 25;
-    --chart-5: 0.62 0.2 290;
+    --chart-1: 0.52 0.14 175;
+    --chart-2: 0.52 0.16 145;
+    --chart-3: 0.62 0.16 75;
+    --chart-4: 0.55 0.22 25;
+    --chart-5: 0.52 0.16 290;
 
-    /* Sidebar */
-    --sidebar: 0.12 0.008 240;
-    --sidebar-foreground: 0.92 0.008 240;
-    --sidebar-primary: 0.72 0.15 175;
-    --sidebar-primary-foreground: 0.1 0.008 240;
-    --sidebar-accent: 0.2 0.012 240;
-    --sidebar-accent-foreground: 0.92 0.008 240;
-    --sidebar-border: 0.22 0.012 240;
-    --sidebar-ring: 0.72 0.15 175;
+    /* Sidebar — slightly off-white with subtle border */
+    --sidebar: 0.97 0.004 240;
+    --sidebar-foreground: 0.18 0.01 240;
+    --sidebar-primary: 0.52 0.14 175;
+    --sidebar-primary-foreground: 0.98 0 0;
+    --sidebar-accent: 0.92 0.007 240;
+    --sidebar-accent-foreground: 0.18 0.01 240;
+    --sidebar-border: 0.88 0.008 240;
+    --sidebar-ring: 0.52 0.14 175;
   }
 
   * {
@@ -88,8 +88,8 @@
   body {
     @apply bg-background text-foreground font-body antialiased;
     background-image:
-      radial-gradient(ellipse 80% 60% at 50% -10%, oklch(0.18 0.04 175 / 0.3) 0%, transparent 70%),
-      radial-gradient(ellipse 60% 40% at 90% 80%, oklch(0.16 0.03 240 / 0.2) 0%, transparent 60%);
+      radial-gradient(ellipse 80% 60% at 50% -10%, oklch(0.92 0.04 175 / 0.25) 0%, transparent 70%),
+      radial-gradient(ellipse 60% 40% at 90% 80%, oklch(0.94 0.03 240 / 0.15) 0%, transparent 60%);
     min-height: 100vh;
   }
 
@@ -105,76 +105,77 @@
   }
 
   .glass-card {
-    background: oklch(var(--card) / 0.85);
+    background: oklch(var(--card) / 0.92);
     backdrop-filter: blur(12px);
-    border: 1px solid oklch(var(--border) / 0.6);
+    border: 1px solid oklch(var(--border) / 0.8);
+    box-shadow: 0 1px 3px oklch(0.18 0.01 240 / 0.06), 0 1px 2px oklch(0.18 0.01 240 / 0.04);
   }
 
   .swot-strength {
-    background: linear-gradient(135deg, oklch(0.2 0.04 155 / 0.5), oklch(0.18 0.02 175 / 0.3));
-    border-color: oklch(0.4 0.12 155 / 0.4);
+    background: linear-gradient(135deg, oklch(0.93 0.04 155 / 0.6), oklch(0.96 0.02 175 / 0.4));
+    border-color: oklch(0.7 0.12 155 / 0.35);
   }
 
   .swot-weakness {
-    background: linear-gradient(135deg, oklch(0.2 0.04 25 / 0.5), oklch(0.18 0.02 15 / 0.3));
-    border-color: oklch(0.5 0.15 25 / 0.4);
+    background: linear-gradient(135deg, oklch(0.95 0.03 25 / 0.5), oklch(0.97 0.02 15 / 0.3));
+    border-color: oklch(0.65 0.15 25 / 0.3);
   }
 
   .swot-opportunity {
-    background: linear-gradient(135deg, oklch(0.2 0.04 240 / 0.5), oklch(0.18 0.02 260 / 0.3));
-    border-color: oklch(0.45 0.12 240 / 0.4);
+    background: linear-gradient(135deg, oklch(0.93 0.03 240 / 0.5), oklch(0.96 0.02 260 / 0.3));
+    border-color: oklch(0.65 0.12 240 / 0.3);
   }
 
   .swot-threat {
-    background: linear-gradient(135deg, oklch(0.2 0.04 75 / 0.5), oklch(0.18 0.02 60 / 0.3));
-    border-color: oklch(0.5 0.15 75 / 0.4);
+    background: linear-gradient(135deg, oklch(0.95 0.04 75 / 0.5), oklch(0.97 0.02 60 / 0.3));
+    border-color: oklch(0.65 0.15 75 / 0.3);
   }
 
   .severity-high {
-    background: oklch(0.25 0.06 25 / 0.4);
-    color: oklch(0.8 0.18 25);
-    border-color: oklch(0.5 0.18 25 / 0.4);
+    background: oklch(0.96 0.04 25 / 0.6);
+    color: oklch(0.45 0.2 25);
+    border-color: oklch(0.6 0.18 25 / 0.35);
   }
 
   .severity-medium {
-    background: oklch(0.25 0.06 75 / 0.4);
-    color: oklch(0.82 0.16 75);
-    border-color: oklch(0.55 0.16 75 / 0.4);
+    background: oklch(0.96 0.04 75 / 0.6);
+    color: oklch(0.48 0.16 75);
+    border-color: oklch(0.6 0.16 75 / 0.35);
   }
 
   .severity-low {
-    background: oklch(0.22 0.06 145 / 0.4);
-    color: oklch(0.75 0.16 145);
-    border-color: oklch(0.45 0.14 145 / 0.4);
+    background: oklch(0.93 0.05 145 / 0.5);
+    color: oklch(0.42 0.16 145);
+    border-color: oklch(0.58 0.14 145 / 0.35);
   }
 
   .status-active {
-    background: oklch(0.22 0.06 145 / 0.4);
-    color: oklch(0.75 0.16 145);
-    border-color: oklch(0.45 0.14 145 / 0.4);
+    background: oklch(0.93 0.05 145 / 0.5);
+    color: oklch(0.42 0.16 145);
+    border-color: oklch(0.58 0.14 145 / 0.35);
   }
 
   .status-inactive {
-    background: oklch(0.22 0.02 240 / 0.4);
-    color: oklch(0.6 0.02 240);
-    border-color: oklch(0.35 0.02 240 / 0.4);
+    background: oklch(0.92 0.005 240 / 0.6);
+    color: oklch(0.48 0.01 240);
+    border-color: oklch(0.7 0.01 240 / 0.35);
   }
 
   .status-onhold {
-    background: oklch(0.25 0.07 75 / 0.4);
-    color: oklch(0.82 0.16 75);
-    border-color: oklch(0.5 0.15 75 / 0.4);
+    background: oklch(0.96 0.04 75 / 0.6);
+    color: oklch(0.48 0.16 75);
+    border-color: oklch(0.6 0.16 75 / 0.35);
   }
 
   .teal-glow {
-    box-shadow: 0 0 24px oklch(0.72 0.15 175 / 0.15), 0 4px 12px oklch(0.1 0.008 240 / 0.4);
+    box-shadow: 0 0 24px oklch(0.52 0.14 175 / 0.1), 0 4px 12px oklch(0.18 0.01 240 / 0.06);
   }
 
   .score-bar-fill {
-    background: linear-gradient(90deg, oklch(0.55 0.15 175), oklch(0.75 0.18 155));
+    background: linear-gradient(90deg, oklch(0.48 0.14 175), oklch(0.6 0.16 155));
   }
 
   .score-bar-ops {
-    background: linear-gradient(90deg, oklch(0.55 0.15 240), oklch(0.72 0.18 220));
+    background: linear-gradient(90deg, oklch(0.48 0.14 240), oklch(0.58 0.16 220));
   }
 }

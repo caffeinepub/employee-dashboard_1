@@ -6,23 +6,24 @@ interface FeedbackCardProps {
   feedback: Feedback;
   employeeName: string;
   compact?: boolean;
+  showFrom?: boolean;
 }
 
 const severityConfig = {
   [Severity.high]: {
     label: "High",
     className: "severity-high",
-    dot: "bg-[oklch(0.8_0.18_25)]",
+    dot: "bg-[oklch(0.48_0.2_25)]",
   },
   [Severity.medium]: {
     label: "Medium",
     className: "severity-medium",
-    dot: "bg-[oklch(0.82_0.16_75)]",
+    dot: "bg-[oklch(0.55_0.16_75)]",
   },
   [Severity.low]: {
     label: "Low",
     className: "severity-low",
-    dot: "bg-[oklch(0.75_0.16_145)]",
+    dot: "bg-[oklch(0.48_0.16_145)]",
   },
 };
 
@@ -30,6 +31,7 @@ export function FeedbackCard({
   feedback,
   employeeName,
   compact = false,
+  showFrom = false,
 }: FeedbackCardProps) {
   const config =
     severityConfig[feedback.severity] ?? severityConfig[Severity.low];
@@ -60,9 +62,18 @@ export function FeedbackCard({
         />
         <div className="flex-1 min-w-0">
           <div className="flex items-center flex-wrap gap-1.5 mb-1">
-            <span className="text-xs font-semibold text-foreground truncate">
-              {employeeName}
-            </span>
+            {showFrom ? (
+              <span className="text-xs font-semibold text-foreground truncate flex items-center gap-1">
+                <span className="text-[10px] font-normal text-muted-foreground/70 uppercase tracking-wider">
+                  From:
+                </span>
+                {employeeName}
+              </span>
+            ) : (
+              <span className="text-xs font-semibold text-foreground truncate">
+                {employeeName}
+              </span>
+            )}
             <span
               className={cn(
                 "text-[10px] font-semibold px-1.5 py-0.5 rounded border",

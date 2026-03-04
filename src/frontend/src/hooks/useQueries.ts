@@ -1,12 +1,19 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Status } from "../backend";
 import type {
+  AttendanceRecord,
+  AttendanceRecordInput,
   Employee,
   EmployeeDetails,
   EmployeeFullInput,
   EmployeeInput,
   Feedback,
   FeedbackInput,
+  IssueSuggestion,
+  IssueSuggestionInput,
+  SalesRecord,
+  TopPerformer,
+  TopPerformerInput,
 } from "../backend.d.ts";
 import { useActor } from "./useActor";
 
@@ -187,6 +194,166 @@ export function useUpdateEmployee() {
       queryClient.invalidateQueries({ queryKey: ["activeEmployeeCount"] });
       queryClient.invalidateQueries({
         queryKey: ["employeeDetails", variables.id.toString()],
+      });
+    },
+  });
+}
+
+// Issues & Suggestions
+export function useAllIssues() {
+  const { actor, isFetching } = useActor();
+  return useQuery<IssueSuggestion[]>({
+    queryKey: ["allIssues"],
+    queryFn: async () => {
+      if (!actor) return [];
+      return actor.getAllIssues();
+    },
+    enabled: !!actor && !isFetching,
+  });
+}
+
+export function useAddIssueSuggestion() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: IssueSuggestionInput) => {
+      if (!actor) throw new Error("Actor not available");
+      return actor.addIssueSuggestion(input);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["allIssues"] });
+    },
+  });
+}
+
+export function useUpdateIssueSuggestion() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      id,
+      input,
+    }: { id: bigint; input: IssueSuggestionInput }) => {
+      if (!actor) throw new Error("Actor not available");
+      return actor.updateIssueSuggestion(id, input);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["allIssues"] });
+    },
+  });
+}
+
+export function useDeleteIssueSuggestion() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: bigint) => {
+      if (!actor) throw new Error("Actor not available");
+      return actor.deleteIssueSuggestion(id);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["allIssues"] });
+    },
+  });
+}
+
+// Top Performers
+export function useTopPerformers() {
+  const { actor, isFetching } = useActor();
+  return useQuery<TopPerformer[]>({
+    queryKey: ["topPerformers"],
+    queryFn: async () => {
+      if (!actor) return [];
+      return actor.getTopPerformers();
+    },
+    enabled: !!actor && !isFetching,
+  });
+}
+
+export function useSetTopPerformers() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (inputs: TopPerformerInput[]) => {
+      if (!actor) throw new Error("Actor not available");
+      return actor.setTopPerformers(inputs);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["topPerformers"] });
+    },
+  });
+}
+
+// Sales Records
+export function useSalesRecords() {
+  const { actor, isFetching } = useActor();
+  return useQuery<SalesRecord[]>({
+    queryKey: ["salesRecords"],
+    queryFn: async () => {
+      if (!actor) return [];
+      return actor.getSalesRecords();
+    },
+    enabled: !!actor && !isFetching,
+  });
+}
+
+export function useSalesRecordsByEmployee(employeeId: bigint | null) {
+  const { actor, isFetching } = useActor();
+  return useQuery<SalesRecord[]>({
+    queryKey: ["salesRecordsByEmployee", employeeId?.toString()],
+    queryFn: async () => {
+      if (!actor || employeeId === null) return [];
+      return actor.getSalesRecordsByEmployee(employeeId);
+    },
+    enabled: !!actor && !isFetching && employeeId !== null,
+  });
+}
+
+export function useAddSalesRecord() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: {
+      employeeId: bigint;
+      fiplCode: string;
+      accessories: bigint;
+      extendedWarranty: bigint;
+      totalSalesAmount: bigint;
+    }) => {
+      if (!actor) throw new Error("Actor not available");
+      return actor.addSalesRecord(input);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["salesRecords"] });
+      queryClient.invalidateQueries({ queryKey: ["salesRecordsByEmployee"] });
+    },
+  });
+}
+
+// Attendance Records
+export function useAttendanceByEmployee(employeeId: bigint | null) {
+  const { actor, isFetching } = useActor();
+  return useQuery<AttendanceRecord[]>({
+    queryKey: ["attendanceByEmployee", employeeId?.toString()],
+    queryFn: async () => {
+      if (!actor || employeeId === null) return [];
+      return actor.getAttendanceByEmployee(employeeId);
+    },
+    enabled: !!actor && !isFetching && employeeId !== null,
+  });
+}
+
+export function useAddAttendanceRecord() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: AttendanceRecordInput) => {
+      if (!actor) throw new Error("Actor not available");
+      return actor.addAttendanceRecord(input);
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: ["attendanceByEmployee", variables.employeeId.toString()],
       });
     },
   });

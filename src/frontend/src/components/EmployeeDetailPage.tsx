@@ -11,6 +11,15 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import {
   Select,
@@ -20,32 +29,52 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import {
   AlertCircle,
   ArrowLeft,
   BarChart2,
+  Briefcase,
   Building2,
   Calendar,
   CheckCircle2,
+  ClipboardList,
   Lightbulb,
   Loader2,
+  MapPin,
   MessageSquare,
   MessageSquarePlus,
   Pencil,
+  Plus,
   ShieldAlert,
+  ShoppingBag,
   Star,
   Trash2,
+  Users,
 } from "lucide-react";
 import { AnimatePresence, type Variants, motion } from "motion/react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Status } from "../backend";
 import type { Employee } from "../backend.d.ts";
+import { useAppSettings } from "../context/AppSettingsContext";
 import {
+  useAddAttendanceRecord,
+  useAddSalesRecord,
+  useAttendanceByEmployee,
   useDeleteEmployee,
   useEmployeeDetails,
   useFeedbackByEmployee,
+  useSalesRecordsByEmployee,
   useUpdateEmployeeStatus,
 } from "../hooks/useQueries";
 import { AddFeedbackModal } from "./AddFeedbackModal";
@@ -63,6 +92,21 @@ const SKELETON_KEYS_3 = ["sk-a", "sk-b", "sk-c"];
 const SKELETON_KEYS_4 = ["sk-a", "sk-b", "sk-c", "sk-d"];
 const SKELETON_KEYS_6 = ["sk-a", "sk-b", "sk-c", "sk-d", "sk-e", "sk-f"];
 
+function getFseCategoryClassName(category: string): string {
+  switch (category) {
+    case "Cash Cow":
+      return "bg-[oklch(0.93_0.05_165_/_0.5)] text-[oklch(0.32_0.15_165)] border-[oklch(0.65_0.12_165_/_0.4)]";
+    case "Star":
+      return "bg-[oklch(0.95_0.05_85_/_0.5)] text-[oklch(0.38_0.14_85)] border-[oklch(0.65_0.12_85_/_0.4)]";
+    case "Question Mark":
+      return "bg-[oklch(0.93_0.04_240_/_0.5)] text-[oklch(0.35_0.14_240)] border-[oklch(0.65_0.12_240_/_0.4)]";
+    case "Dog":
+      return "bg-[oklch(0.95_0.04_25_/_0.5)] text-[oklch(0.40_0.18_25)] border-[oklch(0.65_0.14_25_/_0.4)]";
+    default:
+      return "bg-muted/30 text-muted-foreground border-border/40";
+  }
+}
+
 export function EmployeeDetailPage({
   employee,
   onBack,
@@ -71,15 +115,40 @@ export function EmployeeDetailPage({
   const [addFeedbackOpen, setAddFeedbackOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
+  const [addSalesOpen, setAddSalesOpen] = useState(false);
+  const [addAttendanceOpen, setAddAttendanceOpen] = useState(false);
+
+  // Add Sales form state
+  const [salesForm, setSalesForm] = useState({
+    accessories: "",
+    extendedWarranty: "",
+    totalSalesAmount: "",
+  });
+  // Add Attendance form state
+  const [attendanceForm, setAttendanceForm] = useState({
+    date: new Date().toISOString().split("T")[0],
+    lapseType: "Late Attendance",
+    reason: "",
+    daysOff: "0",
+  });
+
+  const { settings } = useAppSettings();
+  const { labels } = settings;
 
   const { data: details, isLoading: detailsLoading } = useEmployeeDetails(
     employee.id,
   );
   const { data: feedbackItems = [], isLoading: feedbackLoading } =
     useFeedbackByEmployee(employee.id);
+  const { data: salesRecords = [], isLoading: salesLoading } =
+    useSalesRecordsByEmployee(employee.id);
+  const { data: attendanceRecords = [], isLoading: attendanceLoading } =
+    useAttendanceByEmployee(employee.id);
 
   const updateStatus = useUpdateEmployeeStatus();
   const deleteEmployee = useDeleteEmployee();
+  const addSalesRecord = useAddSalesRecord();
+  const addAttendanceRecord = useAddAttendanceRecord();
 
   const getInitials = (name: string) =>
     name
@@ -132,6 +201,82 @@ export function EmployeeDetailPage({
     } catch {
       return "—";
     }
+  };
+
+  const formatDate = (ts: bigint) => {
+    try {
+      const ms = Number(ts) / 1_000_000;
+      const date = new Date(ms);
+      if (Number.isNaN(date.getTime())) return "—";
+      return date.toLocaleDateString("en-IN", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      });
+    } catch {
+      return "—";
+    }
+  };
+
+  const formatCurrency = (amount: bigint) =>
+    new Intl.NumberFormat("en-IN", {
+      style: "currency",
+      currency: "INR",
+      maximumFractionDigits: 0,
+    }).format(Number(amount));
+
+  const handleAddSales = () => {
+    addSalesRecord.mutate(
+      {
+        employeeId: employee.id,
+        fiplCode: employee.fiplCode ?? "",
+        accessories: BigInt(Number(salesForm.accessories) || 0),
+        extendedWarranty: BigInt(Number(salesForm.extendedWarranty) || 0),
+        totalSalesAmount: BigInt(Number(salesForm.totalSalesAmount) || 0),
+      },
+      {
+        onSuccess: () => {
+          toast.success("Sales record added");
+          setSalesForm({
+            accessories: "",
+            extendedWarranty: "",
+            totalSalesAmount: "",
+          });
+          setAddSalesOpen(false);
+        },
+        onError: () => toast.error("Failed to add sales record"),
+      },
+    );
+  };
+
+  const handleAddAttendance = () => {
+    const dateMs = attendanceForm.date
+      ? new Date(attendanceForm.date).getTime()
+      : Date.now();
+    const dateNs =
+      BigInt(Number.isNaN(dateMs) ? Date.now() : dateMs) * 1_000_000n;
+    addAttendanceRecord.mutate(
+      {
+        employeeId: employee.id,
+        lapseType: attendanceForm.lapseType,
+        date: dateNs,
+        reason: attendanceForm.reason,
+        daysOff: BigInt(Number(attendanceForm.daysOff) || 0),
+      },
+      {
+        onSuccess: () => {
+          toast.success("Attendance record added");
+          setAttendanceForm({
+            date: new Date().toISOString().split("T")[0],
+            lapseType: "Late Attendance",
+            reason: "",
+            daysOff: "0",
+          });
+          setAddAttendanceOpen(false);
+        },
+        onError: () => toast.error("Failed to add attendance record"),
+      },
+    );
   };
 
   const containerVariants: Variants = {
@@ -249,6 +394,24 @@ export function EmployeeDetailPage({
                     >
                       ● {getStatusLabel(employee.status)}
                     </span>
+                    {/* FSE Category badge */}
+                    {(employee as unknown as Record<string, string>)
+                      .fseCategory && (
+                      <span
+                        className={cn(
+                          "text-xs font-semibold px-2.5 py-1 rounded-full border",
+                          getFseCategoryClassName(
+                            (employee as unknown as Record<string, string>)
+                              .fseCategory,
+                          ),
+                        )}
+                      >
+                        {
+                          (employee as unknown as Record<string, string>)
+                            .fseCategory
+                        }
+                      </span>
+                    )}
                   </div>
 
                   <p className="text-primary/80 font-semibold text-sm mb-2">
@@ -264,6 +427,16 @@ export function EmployeeDetailPage({
                       <Calendar className="w-3.5 h-3.5" />
                       Joined {formatJoinDate(employee.joinDate)}
                     </span>
+                    {(employee as unknown as Record<string, string>)
+                      .fiplCode && (
+                      <span className="flex items-center gap-1.5 font-mono-data text-primary/80 font-semibold">
+                        <span className="text-muted-foreground/50">FIPL:</span>
+                        {
+                          (employee as unknown as Record<string, string>)
+                            .fiplCode
+                        }
+                      </span>
+                    )}
                     <span className="flex items-center gap-1.5 font-mono-data">
                       <span className="text-muted-foreground/50">#</span>
                       {employee.id.toString()}
@@ -293,7 +466,7 @@ export function EmployeeDetailPage({
                       <SelectContent>
                         <SelectItem value={Status.active} className="text-xs">
                           <span className="flex items-center gap-2">
-                            <span className="w-2 h-2 rounded-full bg-[oklch(0.72_0.18_145)] inline-block" />
+                            <span className="w-2 h-2 rounded-full bg-[oklch(0.52_0.18_145)] inline-block" />
                             Active
                           </span>
                         </SelectItem>
@@ -305,7 +478,7 @@ export function EmployeeDetailPage({
                         </SelectItem>
                         <SelectItem value={Status.onHold} className="text-xs">
                           <span className="flex items-center gap-2">
-                            <span className="w-2 h-2 rounded-full bg-[oklch(0.82_0.16_75)] inline-block" />
+                            <span className="w-2 h-2 rounded-full bg-[oklch(0.62_0.16_75)] inline-block" />
                             On Hold
                           </span>
                         </SelectItem>
@@ -317,94 +490,253 @@ export function EmployeeDetailPage({
             </div>
           </motion.div>
 
+          {/* Personal & Background */}
+          <motion.div variants={sectionVariants}>
+            <h2 className="text-xs uppercase tracking-widest text-muted-foreground font-semibold mb-3 flex items-center gap-2">
+              <Briefcase className="w-3.5 h-3.5" />
+              {labels.detailPersonalSectionTitle}
+            </h2>
+            {detailsLoading ? (
+              <div className="glass-card rounded-xl p-5 space-y-4">
+                <Skeleton className="h-5 w-48 bg-muted/50" />
+                <Skeleton className="h-5 w-64 bg-muted/50" />
+                <Skeleton className="h-16 w-full bg-muted/50" />
+              </div>
+            ) : (
+              <div className="glass-card rounded-xl p-5 space-y-5">
+                {/* Region */}
+                <div className="flex items-start gap-3">
+                  <div className="shrink-0 w-7 h-7 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center mt-0.5">
+                    <MapPin className="w-3.5 h-3.5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-0.5">
+                      Region
+                    </p>
+                    <p className="text-sm text-foreground/80">
+                      {details?.info.region || "—"}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="h-px bg-border/40" />
+
+                {/* Family Details */}
+                <div className="flex items-start gap-3">
+                  <div className="shrink-0 w-7 h-7 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center mt-0.5">
+                    <Users className="w-3.5 h-3.5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-0.5">
+                      Family Details
+                    </p>
+                    <p className="text-sm text-foreground/80">
+                      {details?.info.familyDetails || "—"}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="h-px bg-border/40" />
+
+                {/* Past Work Experience */}
+                <div className="flex items-start gap-3">
+                  <div className="shrink-0 w-7 h-7 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center mt-0.5">
+                    <Briefcase className="w-3.5 h-3.5 text-primary" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-1.5">
+                      Past Work Experience
+                    </p>
+                    {(details?.info.pastExperience ?? []).length === 0 ? (
+                      <p className="text-xs text-muted-foreground/60 italic">
+                        No past experience recorded
+                      </p>
+                    ) : (
+                      <ol className="space-y-1.5">
+                        {(details?.info.pastExperience ?? []).map((exp, i) => (
+                          <li
+                            key={`exp-${i}-${exp.slice(0, 12)}`}
+                            className="flex items-start gap-2.5 text-xs text-foreground/80"
+                          >
+                            <span className="font-mono-data text-[10px] text-primary/60 mt-0.5 shrink-0 w-4 text-right">
+                              {String(i + 1).padStart(2, "0")}
+                            </span>
+                            <span className="leading-relaxed">{exp}</span>
+                          </li>
+                        ))}
+                      </ol>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+          </motion.div>
+
           {/* Performance Metrics */}
           <motion.div variants={sectionVariants}>
             <h2 className="text-xs uppercase tracking-widest text-muted-foreground font-semibold mb-3 flex items-center gap-2">
               <BarChart2 className="w-3.5 h-3.5" />
-              Performance Metrics
+              {labels.detailPerformanceSectionTitle}
             </h2>
 
             {detailsLoading ? (
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                {SKELETON_KEYS_3.map((k) => (
+              <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+                {["sk-a", "sk-b", "sk-c", "sk-d", "sk-e"].map((k) => (
                   <Skeleton key={k} className="h-28 rounded-xl bg-muted/50" />
                 ))}
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                {/* Sales Score */}
-                <div className="glass-card rounded-xl p-5">
-                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-2">
-                    Sales Score
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                {/* Sales Influence Index */}
+                <div className="glass-card rounded-xl p-4">
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-2 leading-tight">
+                    {labels.detailSalesInfluenceLabel}
                   </p>
-                  <p className="text-3xl font-mono-data font-bold text-primary mb-3">
+                  <p className="text-2xl font-mono-data font-bold text-primary mb-2">
                     {details?.performance
-                      ? Number(details.performance.salesScore)
+                      ? Number(
+                          (
+                            details.performance as unknown as Record<
+                              string,
+                              bigint
+                            >
+                          ).salesInfluenceIndex ??
+                            (
+                              details.performance as unknown as Record<
+                                string,
+                                bigint
+                              >
+                            ).salesScore ??
+                            0n,
+                        )
                       : 0}
-                    <span className="text-sm text-muted-foreground font-normal">
-                      /100
-                    </span>
                   </p>
-                  <Progress
-                    value={
-                      details?.performance
-                        ? Number(details.performance.salesScore)
-                        : 0
-                    }
-                    className="h-2 bg-muted/50"
-                  />
-                  <div className="mt-2 flex justify-between text-[10px] text-muted-foreground/60">
-                    <span>0</span>
-                    <span>100</span>
-                  </div>
-                </div>
-
-                {/* Ops Score */}
-                <div className="glass-card rounded-xl p-5">
-                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-2">
-                    Operational Discipline
-                  </p>
-                  <p className="text-3xl font-mono-data font-bold text-[oklch(0.72_0.18_220)] mb-3">
-                    {details?.performance
-                      ? Number(details.performance.opsScore)
-                      : 0}
-                    <span className="text-sm text-muted-foreground font-normal">
-                      /100
-                    </span>
-                  </p>
-                  <div className="relative h-2 rounded-full bg-muted/50 overflow-hidden">
+                  <div className="h-1.5 rounded-full bg-muted/50 overflow-hidden">
                     <div
-                      className="absolute inset-y-0 left-0 rounded-full score-bar-ops transition-all duration-700"
+                      className="h-full rounded-full bg-primary transition-all duration-700"
                       style={{
-                        width: `${details?.performance ? Number(details.performance.opsScore) : 0}%`,
+                        width: `${Math.min(100, details?.performance ? Number((details.performance as unknown as Record<string, bigint>).salesInfluenceIndex ?? (details.performance as unknown as Record<string, bigint>).salesScore ?? 0n) : 0)}%`,
                       }}
                     />
                   </div>
-                  <div className="mt-2 flex justify-between text-[10px] text-muted-foreground/60">
-                    <span>0</span>
-                    <span>100</span>
-                  </div>
                 </div>
 
-                {/* Reviews */}
-                <div className="glass-card rounded-xl p-5">
-                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-2">
-                    Total Reviews
+                {/* Review Count */}
+                <div className="glass-card rounded-xl p-4">
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-2 leading-tight">
+                    {labels.detailReviewsLabel}
                   </p>
-                  <div className="flex items-end gap-2 mb-3">
-                    <p className="text-3xl font-mono-data font-bold text-[oklch(0.82_0.16_75)]">
+                  <div className="flex items-end gap-1.5 mb-2">
+                    <p className="text-2xl font-mono-data font-bold text-[oklch(0.48_0.16_75)]">
                       {details?.performance
                         ? Number(details.performance.reviewCount)
                         : 0}
                     </p>
                     <Star
-                      className="w-5 h-5 text-[oklch(0.82_0.16_75)] mb-1"
+                      className="w-4 h-4 text-[oklch(0.48_0.16_75)] mb-0.5"
                       fill="currentColor"
                     />
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    Performance reviews received
+                  <p className="text-[10px] text-muted-foreground">
+                    Customer feedbacks
                   </p>
+                </div>
+
+                {/* Operational Discipline */}
+                <div className="glass-card rounded-xl p-4">
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-2 leading-tight">
+                    {labels.detailOperationalDisciplineLabel}
+                  </p>
+                  <p className="text-2xl font-mono-data font-bold text-[oklch(0.42_0.16_220)] mb-2">
+                    {details?.performance
+                      ? Number(
+                          (
+                            details.performance as unknown as Record<
+                              string,
+                              bigint
+                            >
+                          ).operationalDiscipline ??
+                            (
+                              details.performance as unknown as Record<
+                                string,
+                                bigint
+                              >
+                            ).opsScore ??
+                            0n,
+                        )
+                      : 0}
+                    <span className="text-xs text-muted-foreground font-normal">
+                      /100
+                    </span>
+                  </p>
+                  <div className="h-1.5 rounded-full bg-muted/50 overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-[oklch(0.48_0.16_220)] transition-all duration-700"
+                      style={{
+                        width: `${details?.performance ? Number((details.performance as unknown as Record<string, bigint>).operationalDiscipline ?? (details.performance as unknown as Record<string, bigint>).opsScore ?? 0n) : 0}%`,
+                      }}
+                    />
+                  </div>
+                </div>
+
+                {/* Product Knowledge */}
+                <div className="glass-card rounded-xl p-4">
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-2 leading-tight">
+                    {labels.detailProductKnowledgeLabel}
+                  </p>
+                  <p className="text-2xl font-mono-data font-bold text-[oklch(0.42_0.14_290)] mb-2">
+                    {details?.performance
+                      ? Number(
+                          (
+                            details.performance as unknown as Record<
+                              string,
+                              bigint
+                            >
+                          ).productKnowledgeScore ?? 0n,
+                        )
+                      : 0}
+                    <span className="text-xs text-muted-foreground font-normal">
+                      /100
+                    </span>
+                  </p>
+                  <div className="h-1.5 rounded-full bg-muted/50 overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-[oklch(0.48_0.16_290)] transition-all duration-700"
+                      style={{
+                        width: `${details?.performance ? Number((details.performance as unknown as Record<string, bigint>).productKnowledgeScore ?? 0n) : 0}%`,
+                      }}
+                    />
+                  </div>
+                </div>
+
+                {/* Soft Skills */}
+                <div className="glass-card rounded-xl p-4">
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-2 leading-tight">
+                    {labels.detailSoftSkillsLabel}
+                  </p>
+                  <p className="text-2xl font-mono-data font-bold text-[oklch(0.42_0.14_175)] mb-2">
+                    {details?.performance
+                      ? Number(
+                          (
+                            details.performance as unknown as Record<
+                              string,
+                              bigint
+                            >
+                          ).softSkillsScore ?? 0n,
+                        )
+                      : 0}
+                    <span className="text-xs text-muted-foreground font-normal">
+                      /100
+                    </span>
+                  </p>
+                  <div className="h-1.5 rounded-full bg-muted/50 overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-[oklch(0.48_0.16_175)] transition-all duration-700"
+                      style={{
+                        width: `${details?.performance ? Number((details.performance as unknown as Record<string, bigint>).softSkillsScore ?? 0n) : 0}%`,
+                      }}
+                    />
+                  </div>
                 </div>
               </div>
             )}
@@ -413,7 +745,7 @@ export function EmployeeDetailPage({
           {/* SWOT Analysis */}
           <motion.div variants={sectionVariants}>
             <h2 className="text-xs uppercase tracking-widest text-muted-foreground font-semibold mb-3">
-              SWOT Analysis
+              {labels.detailSwotSectionTitle}
             </h2>
             {detailsLoading ? (
               <div className="grid grid-cols-2 gap-3">
@@ -426,8 +758,8 @@ export function EmployeeDetailPage({
                 {/* Strengths */}
                 <div className="swot-strength rounded-xl p-5 border">
                   <div className="flex items-center gap-2 mb-3">
-                    <CheckCircle2 className="w-4 h-4 text-[oklch(0.72_0.18_145)]" />
-                    <span className="text-xs font-bold uppercase tracking-wider text-[oklch(0.72_0.18_145)]">
+                    <CheckCircle2 className="w-4 h-4 text-[oklch(0.42_0.16_145)]" />
+                    <span className="text-xs font-bold uppercase tracking-wider text-[oklch(0.42_0.16_145)]">
                       Strengths
                     </span>
                   </div>
@@ -442,7 +774,7 @@ export function EmployeeDetailPage({
                           key={s}
                           className="flex items-start gap-2 text-xs text-foreground/80"
                         >
-                          <span className="text-[oklch(0.72_0.18_145)] mt-0.5 shrink-0">
+                          <span className="text-[oklch(0.42_0.16_145)] mt-0.5 shrink-0">
                             ▸
                           </span>
                           {s}
@@ -455,8 +787,8 @@ export function EmployeeDetailPage({
                 {/* Weaknesses */}
                 <div className="swot-weakness rounded-xl p-5 border">
                   <div className="flex items-center gap-2 mb-3">
-                    <AlertCircle className="w-4 h-4 text-[oklch(0.8_0.18_25)]" />
-                    <span className="text-xs font-bold uppercase tracking-wider text-[oklch(0.8_0.18_25)]">
+                    <AlertCircle className="w-4 h-4 text-[oklch(0.48_0.2_25)]" />
+                    <span className="text-xs font-bold uppercase tracking-wider text-[oklch(0.48_0.2_25)]">
                       Weaknesses
                     </span>
                   </div>
@@ -471,7 +803,7 @@ export function EmployeeDetailPage({
                           key={s}
                           className="flex items-start gap-2 text-xs text-foreground/80"
                         >
-                          <span className="text-[oklch(0.8_0.18_25)] mt-0.5 shrink-0">
+                          <span className="text-[oklch(0.48_0.2_25)] mt-0.5 shrink-0">
                             ▸
                           </span>
                           {s}
@@ -484,8 +816,8 @@ export function EmployeeDetailPage({
                 {/* Opportunities */}
                 <div className="swot-opportunity rounded-xl p-5 border">
                   <div className="flex items-center gap-2 mb-3">
-                    <Lightbulb className="w-4 h-4 text-[oklch(0.7_0.18_240)]" />
-                    <span className="text-xs font-bold uppercase tracking-wider text-[oklch(0.7_0.18_240)]">
+                    <Lightbulb className="w-4 h-4 text-[oklch(0.42_0.16_240)]" />
+                    <span className="text-xs font-bold uppercase tracking-wider text-[oklch(0.42_0.16_240)]">
                       Opportunities
                     </span>
                   </div>
@@ -500,7 +832,7 @@ export function EmployeeDetailPage({
                           key={s}
                           className="flex items-start gap-2 text-xs text-foreground/80"
                         >
-                          <span className="text-[oklch(0.7_0.18_240)] mt-0.5 shrink-0">
+                          <span className="text-[oklch(0.42_0.16_240)] mt-0.5 shrink-0">
                             ▸
                           </span>
                           {s}
@@ -513,8 +845,8 @@ export function EmployeeDetailPage({
                 {/* Threats */}
                 <div className="swot-threat rounded-xl p-5 border">
                   <div className="flex items-center gap-2 mb-3">
-                    <ShieldAlert className="w-4 h-4 text-[oklch(0.82_0.16_75)]" />
-                    <span className="text-xs font-bold uppercase tracking-wider text-[oklch(0.82_0.16_75)]">
+                    <ShieldAlert className="w-4 h-4 text-[oklch(0.48_0.16_75)]" />
+                    <span className="text-xs font-bold uppercase tracking-wider text-[oklch(0.48_0.16_75)]">
                       Threats
                     </span>
                   </div>
@@ -529,7 +861,7 @@ export function EmployeeDetailPage({
                           key={s}
                           className="flex items-start gap-2 text-xs text-foreground/80"
                         >
-                          <span className="text-[oklch(0.82_0.16_75)] mt-0.5 shrink-0">
+                          <span className="text-[oklch(0.48_0.16_75)] mt-0.5 shrink-0">
                             ▸
                           </span>
                           {s}
@@ -550,7 +882,7 @@ export function EmployeeDetailPage({
             {/* Behavioral Traits */}
             <div>
               <h2 className="text-xs uppercase tracking-widest text-muted-foreground font-semibold mb-3">
-                Behavioral Traits
+                {labels.detailTraitsSectionTitle}
               </h2>
               <div className="glass-card rounded-xl p-5 min-h-[100px]">
                 {detailsLoading ? (
@@ -584,7 +916,7 @@ export function EmployeeDetailPage({
             {/* Problems Faced */}
             <div>
               <h2 className="text-xs uppercase tracking-widest text-muted-foreground font-semibold mb-3">
-                Problems Faced
+                {labels.detailProblemsSectionTitle}
               </h2>
               <div className="glass-card rounded-xl p-5 min-h-[100px]">
                 {detailsLoading ? (
@@ -621,7 +953,7 @@ export function EmployeeDetailPage({
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-xs uppercase tracking-widest text-muted-foreground font-semibold flex items-center gap-2">
                 <MessageSquare className="w-3.5 h-3.5" />
-                Employee Feedback
+                {labels.detailFeedbackSectionTitle}
                 {!feedbackLoading && (
                   <span className="font-mono-data text-[10px] text-primary/60 bg-primary/10 px-2 py-0.5 rounded-full">
                     {feedbackItems.length}
@@ -664,8 +996,385 @@ export function EmployeeDetailPage({
               )}
             </div>
           </motion.div>
+
+          {/* Sales Records */}
+          <motion.div variants={sectionVariants}>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-xs uppercase tracking-widest text-muted-foreground font-semibold flex items-center gap-2">
+                <ShoppingBag className="w-3.5 h-3.5" />
+                Sales Records
+                {!salesLoading && (
+                  <span className="font-mono-data text-[10px] text-primary/60 bg-primary/10 px-2 py-0.5 rounded-full">
+                    {salesRecords.length}
+                  </span>
+                )}
+              </h2>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setAddSalesOpen(true)}
+                className="gap-1.5 text-xs h-7 px-3"
+                data-ocid="sales.open_modal_button"
+              >
+                <Plus className="w-3 h-3" />
+                Add Sales Record
+              </Button>
+            </div>
+            <div className="glass-card rounded-xl overflow-hidden">
+              {salesLoading ? (
+                <div className="p-4 space-y-3">
+                  {SKELETON_KEYS_3.map((k) => (
+                    <Skeleton key={k} className="h-10 rounded-lg bg-muted/50" />
+                  ))}
+                </div>
+              ) : salesRecords.length === 0 ? (
+                <div
+                  className="flex flex-col items-center justify-center py-8 text-muted-foreground/50"
+                  data-ocid="sales.empty_state"
+                >
+                  <ShoppingBag className="w-7 h-7 mb-2 opacity-30" />
+                  <p className="text-sm">No sales records</p>
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/10">
+                      <TableHead className="text-[10px] font-bold uppercase py-2">
+                        Date
+                      </TableHead>
+                      <TableHead className="text-[10px] font-bold uppercase py-2 text-right">
+                        Accessories
+                      </TableHead>
+                      <TableHead className="text-[10px] font-bold uppercase py-2 text-right">
+                        Ext. Warranty
+                      </TableHead>
+                      <TableHead className="text-[10px] font-bold uppercase py-2 text-right">
+                        Total Sales
+                      </TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {salesRecords.map((record, i) => (
+                      <TableRow
+                        key={record.id.toString()}
+                        data-ocid={`sales.item.${i + 1}`}
+                      >
+                        <TableCell className="text-xs py-2 text-muted-foreground">
+                          {formatDate(record.recordDate)}
+                        </TableCell>
+                        <TableCell className="text-xs py-2 text-right font-mono-data">
+                          {Number(record.accessories)}
+                        </TableCell>
+                        <TableCell className="text-xs py-2 text-right font-mono-data">
+                          {Number(record.extendedWarranty)}
+                        </TableCell>
+                        <TableCell className="text-xs py-2 text-right font-mono-data font-bold text-primary">
+                          {formatCurrency(record.totalSalesAmount)}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </div>
+          </motion.div>
+
+          {/* Attendance Records */}
+          <motion.div variants={sectionVariants}>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-xs uppercase tracking-widest text-muted-foreground font-semibold flex items-center gap-2">
+                <ClipboardList className="w-3.5 h-3.5" />
+                Attendance Records
+                {!attendanceLoading && (
+                  <span className="font-mono-data text-[10px] text-primary/60 bg-primary/10 px-2 py-0.5 rounded-full">
+                    {attendanceRecords.length}
+                  </span>
+                )}
+              </h2>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setAddAttendanceOpen(true)}
+                className="gap-1.5 text-xs h-7 px-3"
+                data-ocid="attendance.open_modal_button"
+              >
+                <Plus className="w-3 h-3" />
+                Add Attendance Record
+              </Button>
+            </div>
+            <div className="glass-card rounded-xl overflow-hidden">
+              {attendanceLoading ? (
+                <div className="p-4 space-y-3">
+                  {SKELETON_KEYS_3.map((k) => (
+                    <Skeleton key={k} className="h-10 rounded-lg bg-muted/50" />
+                  ))}
+                </div>
+              ) : attendanceRecords.length === 0 ? (
+                <div
+                  className="flex flex-col items-center justify-center py-8 text-muted-foreground/50"
+                  data-ocid="attendance.empty_state"
+                >
+                  <ClipboardList className="w-7 h-7 mb-2 opacity-30" />
+                  <p className="text-sm">No attendance records</p>
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/10">
+                      <TableHead className="text-[10px] font-bold uppercase py-2">
+                        Date
+                      </TableHead>
+                      <TableHead className="text-[10px] font-bold uppercase py-2">
+                        Type
+                      </TableHead>
+                      <TableHead className="text-[10px] font-bold uppercase py-2">
+                        Reason
+                      </TableHead>
+                      <TableHead className="text-[10px] font-bold uppercase py-2 text-right">
+                        Days Off
+                      </TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {attendanceRecords.map((record, i) => (
+                      <TableRow
+                        key={record.id.toString()}
+                        data-ocid={`attendance.item.${i + 1}`}
+                      >
+                        <TableCell className="text-xs py-2 text-muted-foreground">
+                          {formatDate(record.date)}
+                        </TableCell>
+                        <TableCell className="text-xs py-2">
+                          <span
+                            className={cn(
+                              "text-[10px] font-semibold px-2 py-0.5 rounded-full border",
+                              record.lapseType === "Day Off"
+                                ? "bg-[oklch(0.93_0.04_240_/_0.5)] text-[oklch(0.38_0.14_240)] border-[oklch(0.65_0.12_240_/_0.3)]"
+                                : "bg-[oklch(0.95_0.04_25_/_0.5)] text-[oklch(0.42_0.18_25)] border-[oklch(0.65_0.14_25_/_0.3)]",
+                            )}
+                          >
+                            {record.lapseType}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-xs py-2 text-muted-foreground/80">
+                          {record.reason || "—"}
+                        </TableCell>
+                        <TableCell className="text-xs py-2 text-right font-mono-data">
+                          {Number(record.daysOff) > 0
+                            ? Number(record.daysOff)
+                            : "—"}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </div>
+          </motion.div>
         </motion.div>
       </motion.div>
+
+      {/* Add Sales Record Dialog */}
+      <Dialog open={addSalesOpen} onOpenChange={setAddSalesOpen}>
+        <DialogContent className="max-w-sm" data-ocid="sales.dialog">
+          <DialogHeader>
+            <DialogTitle className="font-display text-base font-bold">
+              Add Sales Record
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-foreground/80">
+                Accessories (count)
+              </Label>
+              <Input
+                type="number"
+                min={0}
+                placeholder="e.g. 12"
+                value={salesForm.accessories}
+                onChange={(e) =>
+                  setSalesForm((f) => ({ ...f, accessories: e.target.value }))
+                }
+                className="text-sm"
+                data-ocid="sales.input"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-foreground/80">
+                Extended Warranty (count)
+              </Label>
+              <Input
+                type="number"
+                min={0}
+                placeholder="e.g. 3"
+                value={salesForm.extendedWarranty}
+                onChange={(e) =>
+                  setSalesForm((f) => ({
+                    ...f,
+                    extendedWarranty: e.target.value,
+                  }))
+                }
+                className="text-sm"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-foreground/80">
+                Total Sales Amount (₹)
+              </Label>
+              <Input
+                type="number"
+                min={0}
+                placeholder="e.g. 280000"
+                value={salesForm.totalSalesAmount}
+                onChange={(e) =>
+                  setSalesForm((f) => ({
+                    ...f,
+                    totalSalesAmount: e.target.value,
+                  }))
+                }
+                className="text-sm"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setAddSalesOpen(false)}
+              data-ocid="sales.cancel_button"
+            >
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleAddSales}
+              disabled={addSalesRecord.isPending}
+              data-ocid="sales.submit_button"
+            >
+              {addSalesRecord.isPending ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                "Save Record"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Attendance Record Dialog */}
+      <Dialog open={addAttendanceOpen} onOpenChange={setAddAttendanceOpen}>
+        <DialogContent className="max-w-sm" data-ocid="attendance.dialog">
+          <DialogHeader>
+            <DialogTitle className="font-display text-base font-bold">
+              Add Attendance Record
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-foreground/80">
+                Date
+              </Label>
+              <Input
+                type="date"
+                value={attendanceForm.date}
+                onChange={(e) =>
+                  setAttendanceForm((f) => ({ ...f, date: e.target.value }))
+                }
+                className="text-sm"
+                data-ocid="attendance.input"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-foreground/80">
+                Type
+              </Label>
+              <Select
+                value={attendanceForm.lapseType}
+                onValueChange={(v) =>
+                  setAttendanceForm((f) => ({ ...f, lapseType: v }))
+                }
+              >
+                <SelectTrigger
+                  className="text-sm"
+                  data-ocid="attendance.select"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Late Attendance" className="text-xs">
+                    Late Attendance
+                  </SelectItem>
+                  <SelectItem value="Missing" className="text-xs">
+                    Missing Attendance
+                  </SelectItem>
+                  <SelectItem value="Day Off" className="text-xs">
+                    Day Off
+                  </SelectItem>
+                  <SelectItem value="Other" className="text-xs">
+                    Other
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-foreground/80">
+                Reason
+              </Label>
+              <Textarea
+                placeholder="Reason for lapse or day off..."
+                value={attendanceForm.reason}
+                onChange={(e) =>
+                  setAttendanceForm((f) => ({ ...f, reason: e.target.value }))
+                }
+                className="text-sm resize-none min-h-[60px]"
+                data-ocid="attendance.textarea"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-foreground/80">
+                Days Off (0 for lapse, 1+ for absent)
+              </Label>
+              <Input
+                type="number"
+                min={0}
+                value={attendanceForm.daysOff}
+                onChange={(e) =>
+                  setAttendanceForm((f) => ({ ...f, daysOff: e.target.value }))
+                }
+                className="text-sm"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setAddAttendanceOpen(false)}
+              data-ocid="attendance.cancel_button"
+            >
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleAddAttendance}
+              disabled={addAttendanceRecord.isPending}
+              data-ocid="attendance.submit_button"
+            >
+              {addAttendanceRecord.isPending ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                "Save Record"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <AddFeedbackModal
         open={addFeedbackOpen}

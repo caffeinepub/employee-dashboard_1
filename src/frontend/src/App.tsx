@@ -1,6 +1,7 @@
 import { Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Dashboard } from "./components/Dashboard";
+import { AppSettingsProvider } from "./context/AppSettingsContext";
 import { useActor } from "./hooks/useActor";
 import { useInitialize } from "./hooks/useQueries";
 
@@ -37,5 +38,9 @@ export default function App() {
     );
   }
 
-  return <Dashboard />;
+  return (
+    <AppSettingsProvider>
+      <Dashboard />
+    </AppSettingsProvider>
+  );
 }

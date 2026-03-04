@@ -96,22 +96,19 @@ export interface SWOT {
     opportunities: Array<string>;
     employeeId: EmployeeId;
 }
-export interface SWOTInput {
-    weaknesses: Array<string>;
-    strengths: Array<string>;
-    threats: Array<string>;
-    opportunities: Array<string>;
+export interface AttendanceRecord {
+    id: bigint;
+    lapseType: string;
+    date: bigint;
+    employeeId: EmployeeId;
+    reason: string;
+    daysOff: bigint;
 }
-export interface Employee {
-    id: EmployeeId;
-    status: Status;
-    joinDate: bigint;
-    name: string;
-    role: string;
-    department: string;
-    avatar: string;
+export interface IssueSuggestionInput {
+    title: string;
+    description: string;
+    category: string;
 }
-export type EmployeeId = bigint;
 export interface Feedback {
     id: bigint;
     date: bigint;
@@ -120,29 +117,52 @@ export interface Feedback {
     category: string;
     severity: Severity;
 }
+export interface SalesRecordInput {
+    totalSalesAmount: bigint;
+    accessories: bigint;
+    employeeId: EmployeeId;
+    extendedWarranty: bigint;
+    fiplCode: string;
+}
 export interface Performance {
-    opsScore: bigint;
+    operationalDiscipline: bigint;
+    softSkillsScore: bigint;
+    productKnowledgeScore: bigint;
+    salesInfluenceIndex: bigint;
     employeeId: EmployeeId;
     reviewCount: bigint;
-    salesScore: bigint;
 }
-export interface EmployeeDetails {
-    traits: Array<string>;
-    info: Employee;
-    swot: SWOT;
-    performance: Performance;
-    problems: Array<string>;
+export interface IssueSuggestion {
+    id: bigint;
+    title: string;
+    createdAt: bigint;
+    description: string;
+    updatedAt: bigint;
+    category: string;
+}
+export interface TopPerformerInput {
+    accessories: bigint;
+    name: string;
+    rank: bigint;
+    totalSales: bigint;
+    extendedWarranty: bigint;
+    fiplCode: string;
+}
+export interface SalesRecord {
+    id: bigint;
+    totalSalesAmount: bigint;
+    accessories: bigint;
+    recordDate: bigint;
+    employeeId: EmployeeId;
+    extendedWarranty: bigint;
+    fiplCode: string;
 }
 export interface PerformanceInput {
-    opsScore: bigint;
+    operationalDiscipline: bigint;
+    softSkillsScore: bigint;
+    productKnowledgeScore: bigint;
+    salesInfluenceIndex: bigint;
     reviewCount: bigint;
-    salesScore: bigint;
-}
-export interface FeedbackInput {
-    description: string;
-    employeeId: EmployeeId;
-    category: string;
-    severity: Severity;
 }
 export interface EmployeeFullInput {
     swotAnalysis: SWOTInput;
@@ -151,13 +171,67 @@ export interface EmployeeFullInput {
     performance: PerformanceInput;
     problems: Array<string>;
 }
-export interface EmployeeInput {
+export interface SWOTInput {
+    weaknesses: Array<string>;
+    strengths: Array<string>;
+    threats: Array<string>;
+    opportunities: Array<string>;
+}
+export type EmployeeId = bigint;
+export interface AttendanceRecordInput {
+    lapseType: string;
+    date: bigint;
+    employeeId: EmployeeId;
+    reason: string;
+    daysOff: bigint;
+}
+export interface TopPerformer {
+    accessories: bigint;
+    name: string;
+    rank: bigint;
+    totalSales: bigint;
+    extendedWarranty: bigint;
+    fiplCode: string;
+}
+export interface EmployeeDetails {
+    traits: Array<string>;
+    info: Employee;
+    swot: SWOT;
+    performance: Performance;
+    problems: Array<string>;
+}
+export interface FeedbackInput {
+    description: string;
+    employeeId: EmployeeId;
+    category: string;
+    severity: Severity;
+}
+export interface Employee {
+    id: EmployeeId;
+    region: string;
     status: Status;
     joinDate: bigint;
     name: string;
     role: string;
+    fseCategory: string;
     department: string;
+    familyDetails: string;
+    pastExperience: Array<string>;
     avatar: string;
+    fiplCode: string;
+}
+export interface EmployeeInput {
+    region: string;
+    status: Status;
+    joinDate: bigint;
+    name: string;
+    role: string;
+    fseCategory: string;
+    department: string;
+    familyDetails: string;
+    pastExperience: Array<string>;
+    avatar: string;
+    fiplCode: string;
 }
 export enum Severity {
     low = "low",
@@ -170,22 +244,47 @@ export enum Status {
     onHold = "onHold"
 }
 export interface backendInterface {
-    addEmployee(employeeInput: EmployeeFullInput): Promise<EmployeeId>;
-    addFeedback(feedbackInput: FeedbackInput): Promise<bigint>;
-    bulkAddEmployees(basicInputs: Array<EmployeeInput>): Promise<Array<EmployeeId>>;
+    addAttendanceRecord(input: AttendanceRecordInput): Promise<bigint>;
+    addEmployee(input: EmployeeFullInput): Promise<EmployeeId>;
+    addFeedback(input: FeedbackInput): Promise<bigint>;
+    addIssueSuggestion(input: IssueSuggestionInput): Promise<bigint>;
+    addSalesRecord(input: SalesRecordInput): Promise<bigint>;
+    bulkAddEmployees(inputs: Array<EmployeeInput>): Promise<Array<EmployeeId>>;
     deleteEmployee(id: EmployeeId): Promise<boolean>;
+    deleteIssueSuggestion(id: bigint): Promise<boolean>;
     getActiveEmployeeCount(): Promise<bigint>;
     getAllEmployees(): Promise<Array<Employee>>;
     getAllFeedback(): Promise<Array<Feedback>>;
+    getAllIssues(): Promise<Array<IssueSuggestion>>;
+    getAttendanceByEmployee(employeeId: EmployeeId): Promise<Array<AttendanceRecord>>;
     getEmployeeDetails(id: EmployeeId): Promise<EmployeeDetails>;
     getFeedbackByEmployee(employeeId: EmployeeId): Promise<Array<Feedback>>;
+    getSalesRecords(): Promise<Array<SalesRecord>>;
+    getSalesRecordsByEmployee(employeeId: EmployeeId): Promise<Array<SalesRecord>>;
+    getTopPerformers(): Promise<Array<TopPerformer>>;
     initialize(): Promise<void>;
+    setTopPerformers(inputs: Array<TopPerformerInput>): Promise<boolean>;
     updateEmployee(id: EmployeeId, input: EmployeeFullInput): Promise<boolean>;
     updateEmployeeStatus(id: EmployeeId, newStatus: Status): Promise<boolean>;
+    updateIssueSuggestion(id: bigint, input: IssueSuggestionInput): Promise<boolean>;
 }
 import type { Employee as _Employee, EmployeeDetails as _EmployeeDetails, EmployeeFullInput as _EmployeeFullInput, EmployeeId as _EmployeeId, EmployeeInput as _EmployeeInput, Feedback as _Feedback, FeedbackInput as _FeedbackInput, Performance as _Performance, PerformanceInput as _PerformanceInput, SWOT as _SWOT, SWOTInput as _SWOTInput, Severity as _Severity, Status as _Status } from "./declarations/backend.did.d.ts";
 export class Backend implements backendInterface {
     constructor(private actor: ActorSubclass<_SERVICE>, private _uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, private _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, private processError?: (error: unknown) => never){}
+    async addAttendanceRecord(arg0: AttendanceRecordInput): Promise<bigint> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.addAttendanceRecord(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.addAttendanceRecord(arg0);
+            return result;
+        }
+    }
     async addEmployee(arg0: EmployeeFullInput): Promise<EmployeeId> {
         if (this.processError) {
             try {
@@ -214,6 +313,34 @@ export class Backend implements backendInterface {
             return result;
         }
     }
+    async addIssueSuggestion(arg0: IssueSuggestionInput): Promise<bigint> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.addIssueSuggestion(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.addIssueSuggestion(arg0);
+            return result;
+        }
+    }
+    async addSalesRecord(arg0: SalesRecordInput): Promise<bigint> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.addSalesRecord(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.addSalesRecord(arg0);
+            return result;
+        }
+    }
     async bulkAddEmployees(arg0: Array<EmployeeInput>): Promise<Array<EmployeeId>> {
         if (this.processError) {
             try {
@@ -239,6 +366,20 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.deleteEmployee(arg0);
+            return result;
+        }
+    }
+    async deleteIssueSuggestion(arg0: bigint): Promise<boolean> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.deleteIssueSuggestion(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.deleteIssueSuggestion(arg0);
             return result;
         }
     }
@@ -284,6 +425,34 @@ export class Backend implements backendInterface {
             return from_candid_vec_n17(this._uploadFile, this._downloadFile, result);
         }
     }
+    async getAllIssues(): Promise<Array<IssueSuggestion>> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getAllIssues();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getAllIssues();
+            return result;
+        }
+    }
+    async getAttendanceByEmployee(arg0: EmployeeId): Promise<Array<AttendanceRecord>> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getAttendanceByEmployee(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getAttendanceByEmployee(arg0);
+            return result;
+        }
+    }
     async getEmployeeDetails(arg0: EmployeeId): Promise<EmployeeDetails> {
         if (this.processError) {
             try {
@@ -312,6 +481,48 @@ export class Backend implements backendInterface {
             return from_candid_vec_n17(this._uploadFile, this._downloadFile, result);
         }
     }
+    async getSalesRecords(): Promise<Array<SalesRecord>> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getSalesRecords();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getSalesRecords();
+            return result;
+        }
+    }
+    async getSalesRecordsByEmployee(arg0: EmployeeId): Promise<Array<SalesRecord>> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getSalesRecordsByEmployee(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getSalesRecordsByEmployee(arg0);
+            return result;
+        }
+    }
+    async getTopPerformers(): Promise<Array<TopPerformer>> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getTopPerformers();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getTopPerformers();
+            return result;
+        }
+    }
     async initialize(): Promise<void> {
         if (this.processError) {
             try {
@@ -323,6 +534,20 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.initialize();
+            return result;
+        }
+    }
+    async setTopPerformers(arg0: Array<TopPerformerInput>): Promise<boolean> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.setTopPerformers(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.setTopPerformers(arg0);
             return result;
         }
     }
@@ -354,6 +579,20 @@ export class Backend implements backendInterface {
             return result;
         }
     }
+    async updateIssueSuggestion(arg0: bigint, arg1: IssueSuggestionInput): Promise<boolean> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.updateIssueSuggestion(arg0, arg1);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.updateIssueSuggestion(arg0, arg1);
+            return result;
+        }
+    }
 }
 function from_candid_EmployeeDetails_n22(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _EmployeeDetails): EmployeeDetails {
     return from_candid_record_n23(_uploadFile, _downloadFile, value);
@@ -372,29 +611,44 @@ function from_candid_Status_n15(_uploadFile: (file: ExternalBlob) => Promise<Uin
 }
 function from_candid_record_n14(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
     id: _EmployeeId;
+    region: string;
     status: _Status;
     joinDate: bigint;
     name: string;
     role: string;
+    fseCategory: string;
     department: string;
+    familyDetails: string;
+    pastExperience: Array<string>;
     avatar: string;
+    fiplCode: string;
 }): {
     id: EmployeeId;
+    region: string;
     status: Status;
     joinDate: bigint;
     name: string;
     role: string;
+    fseCategory: string;
     department: string;
+    familyDetails: string;
+    pastExperience: Array<string>;
     avatar: string;
+    fiplCode: string;
 } {
     return {
         id: value.id,
+        region: value.region,
         status: from_candid_Status_n15(_uploadFile, _downloadFile, value.status),
         joinDate: value.joinDate,
         name: value.name,
         role: value.role,
+        fseCategory: value.fseCategory,
         department: value.department,
-        avatar: value.avatar
+        familyDetails: value.familyDetails,
+        pastExperience: value.pastExperience,
+        avatar: value.avatar,
+        fiplCode: value.fiplCode
     };
 }
 function from_candid_record_n19(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
@@ -503,27 +757,42 @@ function to_candid_record_n2(_uploadFile: (file: ExternalBlob) => Promise<Uint8A
     };
 }
 function to_candid_record_n4(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
+    region: string;
     status: Status;
     joinDate: bigint;
     name: string;
     role: string;
+    fseCategory: string;
     department: string;
+    familyDetails: string;
+    pastExperience: Array<string>;
     avatar: string;
+    fiplCode: string;
 }): {
+    region: string;
     status: _Status;
     joinDate: bigint;
     name: string;
     role: string;
+    fseCategory: string;
     department: string;
+    familyDetails: string;
+    pastExperience: Array<string>;
     avatar: string;
+    fiplCode: string;
 } {
     return {
+        region: value.region,
         status: to_candid_Status_n5(_uploadFile, _downloadFile, value.status),
         joinDate: value.joinDate,
         name: value.name,
         role: value.role,
+        fseCategory: value.fseCategory,
         department: value.department,
-        avatar: value.avatar
+        familyDetails: value.familyDetails,
+        pastExperience: value.pastExperience,
+        avatar: value.avatar,
+        fiplCode: value.fiplCode
     };
 }
 function to_candid_record_n8(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {

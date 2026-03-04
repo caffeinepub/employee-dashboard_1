@@ -63,11 +63,11 @@ export function getStatusClassName(status: Status): string {
 export function getStatusDotColor(status: Status): string {
   switch (status) {
     case Status.active:
-      return "bg-[oklch(0.72_0.18_145)]";
+      return "bg-[oklch(0.52_0.18_145)]";
     case Status.inactive:
       return "bg-muted-foreground/40";
     case Status.onHold:
-      return "bg-[oklch(0.82_0.16_75)]";
+      return "bg-[oklch(0.62_0.16_75)]";
     default:
       return "bg-muted-foreground/40";
   }
@@ -203,7 +203,7 @@ export function EmployeeCard({ employee, onClick }: EmployeeCardProps) {
               <SelectContent>
                 <SelectItem value={Status.active} className="text-xs">
                   <span className="flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-[oklch(0.72_0.18_145)] inline-block" />
+                    <span className="w-2 h-2 rounded-full bg-[oklch(0.52_0.18_145)] inline-block" />
                     Active
                   </span>
                 </SelectItem>
@@ -215,7 +215,7 @@ export function EmployeeCard({ employee, onClick }: EmployeeCardProps) {
                 </SelectItem>
                 <SelectItem value={Status.onHold} className="text-xs">
                   <span className="flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-[oklch(0.82_0.16_75)] inline-block" />
+                    <span className="w-2 h-2 rounded-full bg-[oklch(0.62_0.16_75)] inline-block" />
                     On Hold
                   </span>
                 </SelectItem>

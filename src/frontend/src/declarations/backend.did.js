@@ -8,6 +8,14 @@
 
 import { IDL } from '@icp-sdk/core/candid';
 
+export const EmployeeId = IDL.Nat;
+export const AttendanceRecordInput = IDL.Record({
+  'lapseType' : IDL.Text,
+  'date' : IDL.Int,
+  'employeeId' : EmployeeId,
+  'reason' : IDL.Text,
+  'daysOff' : IDL.Nat,
+});
 export const SWOTInput = IDL.Record({
   'weaknesses' : IDL.Vec(IDL.Text),
   'strengths' : IDL.Vec(IDL.Text),
@@ -20,17 +28,24 @@ export const Status = IDL.Variant({
   'onHold' : IDL.Null,
 });
 export const EmployeeInput = IDL.Record({
+  'region' : IDL.Text,
   'status' : Status,
   'joinDate' : IDL.Int,
   'name' : IDL.Text,
   'role' : IDL.Text,
+  'fseCategory' : IDL.Text,
   'department' : IDL.Text,
+  'familyDetails' : IDL.Text,
+  'pastExperience' : IDL.Vec(IDL.Text),
   'avatar' : IDL.Text,
+  'fiplCode' : IDL.Text,
 });
 export const PerformanceInput = IDL.Record({
-  'opsScore' : IDL.Nat,
+  'operationalDiscipline' : IDL.Nat,
+  'softSkillsScore' : IDL.Nat,
+  'productKnowledgeScore' : IDL.Nat,
+  'salesInfluenceIndex' : IDL.Nat,
   'reviewCount' : IDL.Nat,
-  'salesScore' : IDL.Nat,
 });
 export const EmployeeFullInput = IDL.Record({
   'swotAnalysis' : SWOTInput,
@@ -39,7 +54,6 @@ export const EmployeeFullInput = IDL.Record({
   'performance' : PerformanceInput,
   'problems' : IDL.Vec(IDL.Text),
 });
-export const EmployeeId = IDL.Nat;
 export const Severity = IDL.Variant({
   'low' : IDL.Null,
   'high' : IDL.Null,
@@ -51,14 +65,31 @@ export const FeedbackInput = IDL.Record({
   'category' : IDL.Text,
   'severity' : Severity,
 });
+export const IssueSuggestionInput = IDL.Record({
+  'title' : IDL.Text,
+  'description' : IDL.Text,
+  'category' : IDL.Text,
+});
+export const SalesRecordInput = IDL.Record({
+  'totalSalesAmount' : IDL.Nat,
+  'accessories' : IDL.Nat,
+  'employeeId' : EmployeeId,
+  'extendedWarranty' : IDL.Nat,
+  'fiplCode' : IDL.Text,
+});
 export const Employee = IDL.Record({
   'id' : EmployeeId,
+  'region' : IDL.Text,
   'status' : Status,
   'joinDate' : IDL.Int,
   'name' : IDL.Text,
   'role' : IDL.Text,
+  'fseCategory' : IDL.Text,
   'department' : IDL.Text,
+  'familyDetails' : IDL.Text,
+  'pastExperience' : IDL.Vec(IDL.Text),
   'avatar' : IDL.Text,
+  'fiplCode' : IDL.Text,
 });
 export const Feedback = IDL.Record({
   'id' : IDL.Nat,
@@ -68,6 +99,22 @@ export const Feedback = IDL.Record({
   'category' : IDL.Text,
   'severity' : Severity,
 });
+export const IssueSuggestion = IDL.Record({
+  'id' : IDL.Nat,
+  'title' : IDL.Text,
+  'createdAt' : IDL.Int,
+  'description' : IDL.Text,
+  'updatedAt' : IDL.Int,
+  'category' : IDL.Text,
+});
+export const AttendanceRecord = IDL.Record({
+  'id' : IDL.Nat,
+  'lapseType' : IDL.Text,
+  'date' : IDL.Int,
+  'employeeId' : EmployeeId,
+  'reason' : IDL.Text,
+  'daysOff' : IDL.Nat,
+});
 export const SWOT = IDL.Record({
   'weaknesses' : IDL.Vec(IDL.Text),
   'strengths' : IDL.Vec(IDL.Text),
@@ -76,10 +123,12 @@ export const SWOT = IDL.Record({
   'employeeId' : EmployeeId,
 });
 export const Performance = IDL.Record({
-  'opsScore' : IDL.Nat,
+  'operationalDiscipline' : IDL.Nat,
+  'softSkillsScore' : IDL.Nat,
+  'productKnowledgeScore' : IDL.Nat,
+  'salesInfluenceIndex' : IDL.Nat,
   'employeeId' : EmployeeId,
   'reviewCount' : IDL.Nat,
-  'salesScore' : IDL.Nat,
 });
 export const EmployeeDetails = IDL.Record({
   'traits' : IDL.Vec(IDL.Text),
@@ -88,33 +137,89 @@ export const EmployeeDetails = IDL.Record({
   'performance' : Performance,
   'problems' : IDL.Vec(IDL.Text),
 });
+export const SalesRecord = IDL.Record({
+  'id' : IDL.Nat,
+  'totalSalesAmount' : IDL.Nat,
+  'accessories' : IDL.Nat,
+  'recordDate' : IDL.Int,
+  'employeeId' : EmployeeId,
+  'extendedWarranty' : IDL.Nat,
+  'fiplCode' : IDL.Text,
+});
+export const TopPerformer = IDL.Record({
+  'accessories' : IDL.Nat,
+  'name' : IDL.Text,
+  'rank' : IDL.Nat,
+  'totalSales' : IDL.Nat,
+  'extendedWarranty' : IDL.Nat,
+  'fiplCode' : IDL.Text,
+});
+export const TopPerformerInput = IDL.Record({
+  'accessories' : IDL.Nat,
+  'name' : IDL.Text,
+  'rank' : IDL.Nat,
+  'totalSales' : IDL.Nat,
+  'extendedWarranty' : IDL.Nat,
+  'fiplCode' : IDL.Text,
+});
 
 export const idlService = IDL.Service({
+  'addAttendanceRecord' : IDL.Func([AttendanceRecordInput], [IDL.Nat], []),
   'addEmployee' : IDL.Func([EmployeeFullInput], [EmployeeId], []),
   'addFeedback' : IDL.Func([FeedbackInput], [IDL.Nat], []),
+  'addIssueSuggestion' : IDL.Func([IssueSuggestionInput], [IDL.Nat], []),
+  'addSalesRecord' : IDL.Func([SalesRecordInput], [IDL.Nat], []),
   'bulkAddEmployees' : IDL.Func(
       [IDL.Vec(EmployeeInput)],
       [IDL.Vec(EmployeeId)],
       [],
     ),
   'deleteEmployee' : IDL.Func([EmployeeId], [IDL.Bool], []),
+  'deleteIssueSuggestion' : IDL.Func([IDL.Nat], [IDL.Bool], []),
   'getActiveEmployeeCount' : IDL.Func([], [IDL.Nat], ['query']),
   'getAllEmployees' : IDL.Func([], [IDL.Vec(Employee)], ['query']),
   'getAllFeedback' : IDL.Func([], [IDL.Vec(Feedback)], ['query']),
+  'getAllIssues' : IDL.Func([], [IDL.Vec(IssueSuggestion)], ['query']),
+  'getAttendanceByEmployee' : IDL.Func(
+      [EmployeeId],
+      [IDL.Vec(AttendanceRecord)],
+      ['query'],
+    ),
   'getEmployeeDetails' : IDL.Func([EmployeeId], [EmployeeDetails], ['query']),
   'getFeedbackByEmployee' : IDL.Func(
       [EmployeeId],
       [IDL.Vec(Feedback)],
       ['query'],
     ),
+  'getSalesRecords' : IDL.Func([], [IDL.Vec(SalesRecord)], ['query']),
+  'getSalesRecordsByEmployee' : IDL.Func(
+      [EmployeeId],
+      [IDL.Vec(SalesRecord)],
+      ['query'],
+    ),
+  'getTopPerformers' : IDL.Func([], [IDL.Vec(TopPerformer)], ['query']),
   'initialize' : IDL.Func([], [], []),
+  'setTopPerformers' : IDL.Func([IDL.Vec(TopPerformerInput)], [IDL.Bool], []),
   'updateEmployee' : IDL.Func([EmployeeId, EmployeeFullInput], [IDL.Bool], []),
   'updateEmployeeStatus' : IDL.Func([EmployeeId, Status], [IDL.Bool], []),
+  'updateIssueSuggestion' : IDL.Func(
+      [IDL.Nat, IssueSuggestionInput],
+      [IDL.Bool],
+      [],
+    ),
 });
 
 export const idlInitArgs = [];
 
 export const idlFactory = ({ IDL }) => {
+  const EmployeeId = IDL.Nat;
+  const AttendanceRecordInput = IDL.Record({
+    'lapseType' : IDL.Text,
+    'date' : IDL.Int,
+    'employeeId' : EmployeeId,
+    'reason' : IDL.Text,
+    'daysOff' : IDL.Nat,
+  });
   const SWOTInput = IDL.Record({
     'weaknesses' : IDL.Vec(IDL.Text),
     'strengths' : IDL.Vec(IDL.Text),
@@ -127,17 +232,24 @@ export const idlFactory = ({ IDL }) => {
     'onHold' : IDL.Null,
   });
   const EmployeeInput = IDL.Record({
+    'region' : IDL.Text,
     'status' : Status,
     'joinDate' : IDL.Int,
     'name' : IDL.Text,
     'role' : IDL.Text,
+    'fseCategory' : IDL.Text,
     'department' : IDL.Text,
+    'familyDetails' : IDL.Text,
+    'pastExperience' : IDL.Vec(IDL.Text),
     'avatar' : IDL.Text,
+    'fiplCode' : IDL.Text,
   });
   const PerformanceInput = IDL.Record({
-    'opsScore' : IDL.Nat,
+    'operationalDiscipline' : IDL.Nat,
+    'softSkillsScore' : IDL.Nat,
+    'productKnowledgeScore' : IDL.Nat,
+    'salesInfluenceIndex' : IDL.Nat,
     'reviewCount' : IDL.Nat,
-    'salesScore' : IDL.Nat,
   });
   const EmployeeFullInput = IDL.Record({
     'swotAnalysis' : SWOTInput,
@@ -146,7 +258,6 @@ export const idlFactory = ({ IDL }) => {
     'performance' : PerformanceInput,
     'problems' : IDL.Vec(IDL.Text),
   });
-  const EmployeeId = IDL.Nat;
   const Severity = IDL.Variant({
     'low' : IDL.Null,
     'high' : IDL.Null,
@@ -158,14 +269,31 @@ export const idlFactory = ({ IDL }) => {
     'category' : IDL.Text,
     'severity' : Severity,
   });
+  const IssueSuggestionInput = IDL.Record({
+    'title' : IDL.Text,
+    'description' : IDL.Text,
+    'category' : IDL.Text,
+  });
+  const SalesRecordInput = IDL.Record({
+    'totalSalesAmount' : IDL.Nat,
+    'accessories' : IDL.Nat,
+    'employeeId' : EmployeeId,
+    'extendedWarranty' : IDL.Nat,
+    'fiplCode' : IDL.Text,
+  });
   const Employee = IDL.Record({
     'id' : EmployeeId,
+    'region' : IDL.Text,
     'status' : Status,
     'joinDate' : IDL.Int,
     'name' : IDL.Text,
     'role' : IDL.Text,
+    'fseCategory' : IDL.Text,
     'department' : IDL.Text,
+    'familyDetails' : IDL.Text,
+    'pastExperience' : IDL.Vec(IDL.Text),
     'avatar' : IDL.Text,
+    'fiplCode' : IDL.Text,
   });
   const Feedback = IDL.Record({
     'id' : IDL.Nat,
@@ -175,6 +303,22 @@ export const idlFactory = ({ IDL }) => {
     'category' : IDL.Text,
     'severity' : Severity,
   });
+  const IssueSuggestion = IDL.Record({
+    'id' : IDL.Nat,
+    'title' : IDL.Text,
+    'createdAt' : IDL.Int,
+    'description' : IDL.Text,
+    'updatedAt' : IDL.Int,
+    'category' : IDL.Text,
+  });
+  const AttendanceRecord = IDL.Record({
+    'id' : IDL.Nat,
+    'lapseType' : IDL.Text,
+    'date' : IDL.Int,
+    'employeeId' : EmployeeId,
+    'reason' : IDL.Text,
+    'daysOff' : IDL.Nat,
+  });
   const SWOT = IDL.Record({
     'weaknesses' : IDL.Vec(IDL.Text),
     'strengths' : IDL.Vec(IDL.Text),
@@ -183,10 +327,12 @@ export const idlFactory = ({ IDL }) => {
     'employeeId' : EmployeeId,
   });
   const Performance = IDL.Record({
-    'opsScore' : IDL.Nat,
+    'operationalDiscipline' : IDL.Nat,
+    'softSkillsScore' : IDL.Nat,
+    'productKnowledgeScore' : IDL.Nat,
+    'salesInfluenceIndex' : IDL.Nat,
     'employeeId' : EmployeeId,
     'reviewCount' : IDL.Nat,
-    'salesScore' : IDL.Nat,
   });
   const EmployeeDetails = IDL.Record({
     'traits' : IDL.Vec(IDL.Text),
@@ -195,32 +341,80 @@ export const idlFactory = ({ IDL }) => {
     'performance' : Performance,
     'problems' : IDL.Vec(IDL.Text),
   });
+  const SalesRecord = IDL.Record({
+    'id' : IDL.Nat,
+    'totalSalesAmount' : IDL.Nat,
+    'accessories' : IDL.Nat,
+    'recordDate' : IDL.Int,
+    'employeeId' : EmployeeId,
+    'extendedWarranty' : IDL.Nat,
+    'fiplCode' : IDL.Text,
+  });
+  const TopPerformer = IDL.Record({
+    'accessories' : IDL.Nat,
+    'name' : IDL.Text,
+    'rank' : IDL.Nat,
+    'totalSales' : IDL.Nat,
+    'extendedWarranty' : IDL.Nat,
+    'fiplCode' : IDL.Text,
+  });
+  const TopPerformerInput = IDL.Record({
+    'accessories' : IDL.Nat,
+    'name' : IDL.Text,
+    'rank' : IDL.Nat,
+    'totalSales' : IDL.Nat,
+    'extendedWarranty' : IDL.Nat,
+    'fiplCode' : IDL.Text,
+  });
   
   return IDL.Service({
+    'addAttendanceRecord' : IDL.Func([AttendanceRecordInput], [IDL.Nat], []),
     'addEmployee' : IDL.Func([EmployeeFullInput], [EmployeeId], []),
     'addFeedback' : IDL.Func([FeedbackInput], [IDL.Nat], []),
+    'addIssueSuggestion' : IDL.Func([IssueSuggestionInput], [IDL.Nat], []),
+    'addSalesRecord' : IDL.Func([SalesRecordInput], [IDL.Nat], []),
     'bulkAddEmployees' : IDL.Func(
         [IDL.Vec(EmployeeInput)],
         [IDL.Vec(EmployeeId)],
         [],
       ),
     'deleteEmployee' : IDL.Func([EmployeeId], [IDL.Bool], []),
+    'deleteIssueSuggestion' : IDL.Func([IDL.Nat], [IDL.Bool], []),
     'getActiveEmployeeCount' : IDL.Func([], [IDL.Nat], ['query']),
     'getAllEmployees' : IDL.Func([], [IDL.Vec(Employee)], ['query']),
     'getAllFeedback' : IDL.Func([], [IDL.Vec(Feedback)], ['query']),
+    'getAllIssues' : IDL.Func([], [IDL.Vec(IssueSuggestion)], ['query']),
+    'getAttendanceByEmployee' : IDL.Func(
+        [EmployeeId],
+        [IDL.Vec(AttendanceRecord)],
+        ['query'],
+      ),
     'getEmployeeDetails' : IDL.Func([EmployeeId], [EmployeeDetails], ['query']),
     'getFeedbackByEmployee' : IDL.Func(
         [EmployeeId],
         [IDL.Vec(Feedback)],
         ['query'],
       ),
+    'getSalesRecords' : IDL.Func([], [IDL.Vec(SalesRecord)], ['query']),
+    'getSalesRecordsByEmployee' : IDL.Func(
+        [EmployeeId],
+        [IDL.Vec(SalesRecord)],
+        ['query'],
+      ),
+    'getTopPerformers' : IDL.Func([], [IDL.Vec(TopPerformer)], ['query']),
     'initialize' : IDL.Func([], [], []),
+    'setTopPerformers' : IDL.Func([IDL.Vec(TopPerformerInput)], [IDL.Bool], []),
     'updateEmployee' : IDL.Func(
         [EmployeeId, EmployeeFullInput],
         [IDL.Bool],
         [],
       ),
     'updateEmployeeStatus' : IDL.Func([EmployeeId, Status], [IDL.Bool], []),
+    'updateIssueSuggestion' : IDL.Func(
+        [IDL.Nat, IssueSuggestionInput],
+        [IDL.Bool],
+        [],
+      ),
   });
 };
 

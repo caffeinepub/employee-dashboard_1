@@ -114,16 +114,39 @@ function TagInput({
   );
 }
 
+const FSE_CATEGORIES = [
+  { value: "Cash Cow", desc: "Experienced, stable, high-trust" },
+  { value: "Star", desc: "High-growth, high-energy top performers" },
+  { value: "Question Mark", desc: "Inconsistent but high-potential" },
+  { value: "Dog", desc: "Underperforming and at-risk" },
+];
+
+const FSE_CATEGORY_BADGE_STYLES: Record<string, string> = {
+  "Cash Cow":
+    "bg-[oklch(0.93_0.05_165_/_0.5)] text-[oklch(0.35_0.15_165)] border-[oklch(0.65_0.12_165_/_0.4)]",
+  Star: "bg-[oklch(0.95_0.05_85_/_0.5)] text-[oklch(0.40_0.14_85)] border-[oklch(0.65_0.12_85_/_0.4)]",
+  "Question Mark":
+    "bg-[oklch(0.93_0.04_240_/_0.5)] text-[oklch(0.38_0.14_240)] border-[oklch(0.65_0.12_240_/_0.4)]",
+  Dog: "bg-[oklch(0.95_0.04_25_/_0.5)] text-[oklch(0.42_0.18_25)] border-[oklch(0.65_0.14_25_/_0.4)]",
+};
+
 interface FormData {
+  fiplCode: string;
+  fseCategory: string;
   name: string;
   role: string;
   department: string;
   status: Status;
   joinDate: string;
   avatar: string;
-  salesScore: string;
-  opsScore: string;
+  region: string;
+  familyDetails: string;
+  pastExperience: string[];
+  salesInfluenceIndex: string;
   reviewCount: string;
+  operationalDiscipline: string;
+  productKnowledgeScore: string;
+  softSkillsScore: string;
   strengths: string[];
   weaknesses: string[];
   opportunities: string[];
@@ -141,8 +164,50 @@ const SECTIONS: { key: SectionKey; label: string }[] = [
   { key: "traits", label: "Traits & Problems" },
 ];
 
+const PERF_BARS = [
+  {
+    key: "salesInfluenceIndex" as const,
+    label: "Sales Influence Index",
+    color: "bg-primary",
+    maxVal: 9999,
+    isCount: false,
+  },
+  {
+    key: "reviewCount" as const,
+    label: "Review Count",
+    color: "bg-[oklch(0.48_0.16_75)]",
+    maxVal: 999,
+    isCount: true,
+  },
+  {
+    key: "operationalDiscipline" as const,
+    label: "Operational Discipline",
+    color: "bg-[oklch(0.48_0.16_220)]",
+    maxVal: 100,
+    isCount: false,
+  },
+  {
+    key: "productKnowledgeScore" as const,
+    label: "Product Knowledge",
+    color: "bg-[oklch(0.48_0.16_290)]",
+    maxVal: 100,
+    isCount: false,
+  },
+  {
+    key: "softSkillsScore" as const,
+    label: "Soft Skills",
+    color: "bg-[oklch(0.48_0.16_175)]",
+    maxVal: 100,
+    isCount: false,
+  },
+];
+
 function buildFormFromDetails(details: EmployeeDetails): FormData {
   const { info, performance, swot, traits, problems } = details;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const infoAny = info as any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const perfAny = performance as any;
 
   // Convert nanosecond timestamp to date string
   let joinDate = new Date().toISOString().split("T")[0];
@@ -157,15 +222,26 @@ function buildFormFromDetails(details: EmployeeDetails): FormData {
   }
 
   return {
+    fiplCode: infoAny.fiplCode ?? "",
+    fseCategory: infoAny.fseCategory ?? "",
     name: info.name,
     role: info.role,
     department: info.department,
     status: info.status,
     joinDate,
     avatar: info.avatar,
-    salesScore: String(Number(performance.salesScore)),
-    opsScore: String(Number(performance.opsScore)),
+    region: info.region ?? "",
+    familyDetails: info.familyDetails ?? "",
+    pastExperience: info.pastExperience ? [...info.pastExperience] : [],
+    salesInfluenceIndex: String(
+      Number(perfAny.salesInfluenceIndex ?? perfAny.salesScore ?? 0),
+    ),
     reviewCount: String(Number(performance.reviewCount)),
+    operationalDiscipline: String(
+      Number(perfAny.operationalDiscipline ?? perfAny.opsScore ?? 0),
+    ),
+    productKnowledgeScore: String(Number(perfAny.productKnowledgeScore ?? 0)),
+    softSkillsScore: String(Number(perfAny.softSkillsScore ?? 0)),
     strengths: [...swot.strengths],
     weaknesses: [...swot.weaknesses],
     opportunities: [...swot.opportunities],
@@ -207,6 +283,10 @@ export function EditEmployeeModal({
       .toUpperCase()
       .slice(0, 2);
 
+  const selectedCategoryDesc = FSE_CATEGORIES.find(
+    (c) => c.value === form.fseCategory,
+  )?.desc;
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -224,17 +304,24 @@ export function EditEmployeeModal({
 
     const input = {
       employeeInfo: {
+        fiplCode: form.fiplCode.trim(),
+        fseCategory: form.fseCategory,
         name: form.name.trim(),
         role: form.role.trim(),
         department: form.department.trim(),
         status: form.status,
         joinDate: joinDateNs,
         avatar: avatarValue,
+        region: form.region.trim(),
+        familyDetails: form.familyDetails.trim(),
+        pastExperience: form.pastExperience,
       },
       performance: {
-        salesScore: BigInt(Number(form.salesScore) || 0),
-        opsScore: BigInt(Number(form.opsScore) || 0),
+        salesInfluenceIndex: BigInt(Number(form.salesInfluenceIndex) || 0),
         reviewCount: BigInt(Number(form.reviewCount) || 0),
+        operationalDiscipline: BigInt(Number(form.operationalDiscipline) || 0),
+        productKnowledgeScore: BigInt(Number(form.productKnowledgeScore) || 0),
+        softSkillsScore: BigInt(Number(form.softSkillsScore) || 0),
       },
       swotAnalysis: {
         strengths: form.strengths,
@@ -247,7 +334,8 @@ export function EditEmployeeModal({
     };
 
     updateEmployee.mutate(
-      { id: employeeId, input },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      { id: employeeId, input: input as any },
       {
         onSuccess: () => {
           toast.success(`${form.name}'s details have been updated`);
@@ -268,7 +356,10 @@ export function EditEmployeeModal({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col gap-0 p-0">
+      <DialogContent
+        className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col gap-0 p-0"
+        data-ocid="edit_employee.dialog"
+      >
         <DialogHeader className="px-6 pt-6 pb-4 shrink-0">
           <DialogTitle className="font-display text-lg font-bold">
             Edit Employee
@@ -291,6 +382,7 @@ export function EditEmployeeModal({
                   ? "bg-primary text-primary-foreground"
                   : "text-muted-foreground hover:text-foreground hover:bg-accent",
               )}
+              data-ocid="edit_employee.tab"
             >
               {section.label}
             </button>
@@ -305,6 +397,78 @@ export function EditEmployeeModal({
             {activeSection === "basic" && (
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
+                  {/* FIPL Code */}
+                  <div className="col-span-2 space-y-1.5">
+                    <Label
+                      htmlFor="edit-emp-fipl"
+                      className="text-xs font-semibold text-foreground/80"
+                    >
+                      FIPL Code
+                      <span className="ml-1.5 text-[10px] font-normal text-primary/60 bg-primary/8 px-1.5 py-0.5 rounded-full border border-primary/15">
+                        Primary Key
+                      </span>
+                    </Label>
+                    <Input
+                      id="edit-emp-fipl"
+                      placeholder="e.g. FIPL-001"
+                      value={form.fiplCode}
+                      onChange={(e) => set("fiplCode", e.target.value)}
+                      className="text-sm font-mono-data"
+                      data-ocid="edit_employee.input"
+                    />
+                  </div>
+
+                  {/* FSE Category */}
+                  <div className="col-span-2 space-y-1.5">
+                    <Label
+                      htmlFor="edit-emp-category"
+                      className="text-xs font-semibold text-foreground/80"
+                    >
+                      FSE Category
+                    </Label>
+                    <Select
+                      value={form.fseCategory}
+                      onValueChange={(val) => set("fseCategory", val)}
+                    >
+                      <SelectTrigger
+                        id="edit-emp-category"
+                        className="text-sm"
+                        data-ocid="edit_employee.select"
+                      >
+                        <SelectValue placeholder="Select category..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {FSE_CATEGORIES.map((cat) => (
+                          <SelectItem key={cat.value} value={cat.value}>
+                            <span className="flex items-center gap-2">
+                              <span
+                                className={cn(
+                                  "text-[10px] font-semibold px-1.5 py-0.5 rounded-full border",
+                                  FSE_CATEGORY_BADGE_STYLES[cat.value],
+                                )}
+                              >
+                                {cat.value}
+                              </span>
+                              <span className="text-xs text-muted-foreground">
+                                {cat.desc}
+                              </span>
+                            </span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {form.fseCategory && selectedCategoryDesc && (
+                      <p
+                        className={cn(
+                          "text-[10px] font-semibold px-2.5 py-1 rounded-lg border w-fit",
+                          FSE_CATEGORY_BADGE_STYLES[form.fseCategory],
+                        )}
+                      >
+                        {form.fseCategory}: {selectedCategoryDesc}
+                      </p>
+                    )}
+                  </div>
+
                   <div className="col-span-2 space-y-1.5">
                     <Label
                       htmlFor="edit-emp-name"
@@ -417,102 +581,217 @@ export function EditEmployeeModal({
                       className="text-sm"
                     />
                   </div>
+
+                  <div className="col-span-2 space-y-1.5">
+                    <Label
+                      htmlFor="edit-emp-region"
+                      className="text-xs font-semibold text-foreground/80"
+                    >
+                      Region
+                    </Label>
+                    <Input
+                      id="edit-emp-region"
+                      placeholder="e.g. North India, South-East Asia"
+                      value={form.region}
+                      onChange={(e) => set("region", e.target.value)}
+                      className="text-sm"
+                    />
+                  </div>
+
+                  <div className="col-span-2 space-y-1.5">
+                    <Label
+                      htmlFor="edit-emp-family"
+                      className="text-xs font-semibold text-foreground/80"
+                    >
+                      Family Details
+                    </Label>
+                    <Textarea
+                      id="edit-emp-family"
+                      placeholder="e.g. Married, 2 children"
+                      value={form.familyDetails}
+                      onChange={(e) => set("familyDetails", e.target.value)}
+                      className="text-sm resize-none min-h-[72px]"
+                    />
+                  </div>
+
+                  <div className="col-span-2 space-y-1.5">
+                    <Label className="text-xs font-semibold text-foreground/80">
+                      Past Work Experience
+                    </Label>
+                    <Textarea
+                      placeholder="e.g. Infosys - Software Engineer - 3 years"
+                      value={form.pastExperience.join("\n")}
+                      onChange={(e) => {
+                        const lines = e.target.value
+                          .split("\n")
+                          .map((l) => l.trim())
+                          .filter(Boolean);
+                        set("pastExperience", lines);
+                      }}
+                      className="text-sm min-h-[100px] resize-none"
+                    />
+                    <p className="text-[10px] text-muted-foreground/50">
+                      One entry per line (Company - Role - Duration)
+                    </p>
+                    {form.pastExperience.length > 0 && (
+                      <div className="flex flex-col gap-1 pt-1">
+                        {form.pastExperience.map((exp, i) => (
+                          <div
+                            key={`exp-${i}-${exp.slice(0, 10)}`}
+                            className="flex items-start gap-2 text-xs text-foreground/70"
+                          >
+                            <span className="font-mono-data text-[10px] text-primary/60 shrink-0 mt-0.5">
+                              {String(i + 1).padStart(2, "0")}
+                            </span>
+                            <span>{exp}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             )}
 
             {/* Performance Section */}
             {activeSection === "performance" && (
-              <div className="space-y-4">
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="space-y-1.5">
+              <div className="space-y-5">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="col-span-2 space-y-1.5">
                     <Label
-                      htmlFor="edit-emp-sales"
+                      htmlFor="edit-emp-sales-influence"
                       className="text-xs font-semibold text-foreground/80"
                     >
-                      Sales Score (0–100)
+                      Sales Influence Index
                     </Label>
                     <Input
-                      id="edit-emp-sales"
+                      id="edit-emp-sales-influence"
                       type="number"
                       min={0}
-                      max={100}
-                      value={form.salesScore}
-                      onChange={(e) => set("salesScore", e.target.value)}
+                      value={form.salesInfluenceIndex}
+                      onChange={(e) =>
+                        set("salesInfluenceIndex", e.target.value)
+                      }
                       className="text-sm"
                     />
+                    <p className="text-[10px] text-muted-foreground/50">
+                      Sales performance of the employee
+                    </p>
                   </div>
 
                   <div className="space-y-1.5">
                     <Label
-                      htmlFor="edit-emp-ops"
-                      className="text-xs font-semibold text-foreground/80"
-                    >
-                      Ops Score (0–100)
-                    </Label>
-                    <Input
-                      id="edit-emp-ops"
-                      type="number"
-                      min={0}
-                      max={100}
-                      value={form.opsScore}
-                      onChange={(e) => set("opsScore", e.target.value)}
-                      className="text-sm"
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <Label
-                      htmlFor="edit-emp-reviews"
+                      htmlFor="edit-emp-review-count"
                       className="text-xs font-semibold text-foreground/80"
                     >
                       Review Count
                     </Label>
                     <Input
-                      id="edit-emp-reviews"
+                      id="edit-emp-review-count"
                       type="number"
                       min={0}
                       value={form.reviewCount}
                       onChange={(e) => set("reviewCount", e.target.value)}
                       className="text-sm"
                     />
+                    <p className="text-[10px] text-muted-foreground/50">
+                      Customer feedbacks received
+                    </p>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label
+                      htmlFor="edit-emp-ops-disc"
+                      className="text-xs font-semibold text-foreground/80"
+                    >
+                      Operational Discipline (0–100)
+                    </Label>
+                    <Input
+                      id="edit-emp-ops-disc"
+                      type="number"
+                      min={0}
+                      max={100}
+                      value={form.operationalDiscipline}
+                      onChange={(e) =>
+                        set("operationalDiscipline", e.target.value)
+                      }
+                      className="text-sm"
+                    />
+                    <p className="text-[10px] text-muted-foreground/50">
+                      Lapses and compliance score
+                    </p>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label
+                      htmlFor="edit-emp-product-knowledge"
+                      className="text-xs font-semibold text-foreground/80"
+                    >
+                      Product Knowledge (0–100)
+                    </Label>
+                    <Input
+                      id="edit-emp-product-knowledge"
+                      type="number"
+                      min={0}
+                      max={100}
+                      value={form.productKnowledgeScore}
+                      onChange={(e) =>
+                        set("productKnowledgeScore", e.target.value)
+                      }
+                      className="text-sm"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label
+                      htmlFor="edit-emp-soft-skills"
+                      className="text-xs font-semibold text-foreground/80"
+                    >
+                      Soft Skills (0–100)
+                    </Label>
+                    <Input
+                      id="edit-emp-soft-skills"
+                      type="number"
+                      min={0}
+                      max={100}
+                      value={form.softSkillsScore}
+                      onChange={(e) => set("softSkillsScore", e.target.value)}
+                      className="text-sm"
+                    />
                   </div>
                 </div>
 
                 {/* Live preview bars */}
-                <div className="space-y-3 pt-2">
-                  <div className="space-y-1">
-                    <div className="flex justify-between text-xs text-muted-foreground">
-                      <span>Sales</span>
-                      <span className="font-mono-data">
-                        {form.salesScore}/100
-                      </span>
-                    </div>
-                    <div className="h-2 rounded-full bg-muted/40 overflow-hidden">
-                      <div
-                        className="h-full rounded-full bg-primary transition-all duration-300"
-                        style={{
-                          width: `${Math.min(100, Number(form.salesScore) || 0)}%`,
-                        }}
-                      />
-                    </div>
-                  </div>
-                  <div className="space-y-1">
-                    <div className="flex justify-between text-xs text-muted-foreground">
-                      <span>Ops</span>
-                      <span className="font-mono-data">
-                        {form.opsScore}/100
-                      </span>
-                    </div>
-                    <div className="h-2 rounded-full bg-muted/40 overflow-hidden">
-                      <div
-                        className="h-full rounded-full bg-[oklch(0.72_0.18_220)] transition-all duration-300"
-                        style={{
-                          width: `${Math.min(100, Number(form.opsScore) || 0)}%`,
-                        }}
-                      />
-                    </div>
-                  </div>
+                <div className="space-y-3 pt-2 border-t border-border/30">
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold pt-1">
+                    Performance Preview
+                  </p>
+                  {PERF_BARS.map((bar) => {
+                    const rawVal = Number(form[bar.key]) || 0;
+                    const pct = bar.isCount
+                      ? Math.min(100, (rawVal / bar.maxVal) * 100)
+                      : Math.min(100, rawVal);
+                    return (
+                      <div key={bar.key} className="space-y-1">
+                        <div className="flex justify-between text-xs text-muted-foreground">
+                          <span>{bar.label}</span>
+                          <span className="font-mono-data">
+                            {rawVal}
+                            {!bar.isCount && "/100"}
+                          </span>
+                        </div>
+                        <div className="h-1.5 rounded-full bg-muted/40 overflow-hidden">
+                          <div
+                            className={cn(
+                              "h-full rounded-full transition-all duration-300",
+                              bar.color,
+                            )}
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -622,6 +901,7 @@ export function EditEmployeeModal({
                 size="sm"
                 onClick={handleClose}
                 disabled={updateEmployee.isPending}
+                data-ocid="edit_employee.cancel_button"
               >
                 Cancel
               </Button>
@@ -630,6 +910,7 @@ export function EditEmployeeModal({
                 size="sm"
                 disabled={updateEmployee.isPending}
                 className="gap-2"
+                data-ocid="edit_employee.save_button"
               >
                 {updateEmployee.isPending ? (
                   <>
