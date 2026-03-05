@@ -7,8 +7,15 @@ import { OverviewPage } from "./OverviewPage";
 import { SalesTrendsPage } from "./SalesTrendsPage";
 import { SettingsPage } from "./SettingsPage";
 import { Sidebar } from "./Sidebar";
+import { UploadsPage } from "./UploadsPage";
 
-export type View = "overview" | "employee" | "settings" | "sales" | "employees";
+export type View =
+  | "overview"
+  | "employee"
+  | "settings"
+  | "sales"
+  | "employees"
+  | "uploads";
 
 export function Dashboard() {
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(
@@ -42,6 +49,11 @@ export function Dashboard() {
     setSelectedEmployee(null);
   };
 
+  const handleUploadsClick = () => {
+    setView("uploads");
+    setSelectedEmployee(null);
+  };
+
   return (
     <div className="flex min-h-screen">
       <Sidebar
@@ -53,6 +65,7 @@ export function Dashboard() {
         onSettingsClick={handleSettingsClick}
         onSalesTrendsClick={handleSalesTrendsClick}
         onEmployeesClick={handleEmployeesClick}
+        onUploadsClick={handleUploadsClick}
       />
       <main className="flex-1 overflow-auto">
         {view === "overview" ? (
@@ -68,6 +81,8 @@ export function Dashboard() {
           <SalesTrendsPage />
         ) : view === "employees" ? (
           <EmployeesPage onSelectEmployee={handleSelectEmployee} />
+        ) : view === "uploads" ? (
+          <UploadsPage />
         ) : null}
       </main>
     </div>

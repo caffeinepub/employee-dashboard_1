@@ -41,16 +41,20 @@ import {
   useUpdateIssueSuggestion,
 } from "../hooks/useQueries";
 
-const ISSUE_CATEGORIES = ["Process", "HR", "Technical", "Safety", "Other"];
+const ISSUE_CATEGORIES = [
+  "FSE General Issues",
+  "Brand Issues",
+  "Operational Issues",
+  "Other",
+];
 
 const CATEGORY_BADGE_STYLES: Record<string, string> = {
-  Process:
+  "FSE General Issues":
     "bg-[oklch(0.93_0.04_220_/_0.5)] text-[oklch(0.35_0.14_220)] border-[oklch(0.65_0.12_220_/_0.3)]",
-  HR: "bg-[oklch(0.93_0.05_165_/_0.5)] text-[oklch(0.35_0.15_165)] border-[oklch(0.65_0.12_165_/_0.3)]",
-  Technical:
-    "bg-[oklch(0.93_0.04_240_/_0.5)] text-[oklch(0.38_0.14_240)] border-[oklch(0.65_0.12_240_/_0.3)]",
-  Safety:
-    "bg-[oklch(0.95_0.04_25_/_0.5)] text-[oklch(0.42_0.18_25)] border-[oklch(0.65_0.14_25_/_0.3)]",
+  "Brand Issues":
+    "bg-[oklch(0.93_0.05_165_/_0.5)] text-[oklch(0.35_0.15_165)] border-[oklch(0.65_0.12_165_/_0.3)]",
+  "Operational Issues":
+    "bg-[oklch(0.93_0.04_85_/_0.5)] text-[oklch(0.38_0.14_85)] border-[oklch(0.65_0.12_85_/_0.3)]",
   Other: "bg-muted/30 text-muted-foreground border-border/40",
 };
 
@@ -181,7 +185,7 @@ export function IssuesDialog({ open, onOpenChange }: IssuesDialogProps) {
                   Issues
                 </DialogTitle>
                 <DialogDescription className="text-[11px] text-muted-foreground mt-0.5">
-                  Reported operational &amp; HR issues
+                  Reported FSE and operational issues
                 </DialogDescription>
               </div>
               <div className="flex items-center gap-2">

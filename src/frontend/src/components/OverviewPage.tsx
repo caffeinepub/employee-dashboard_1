@@ -6,7 +6,6 @@ import {
   Lightbulb,
   PauseCircle,
   Plus,
-  Upload,
   Users,
 } from "lucide-react";
 import { type Variants, motion } from "motion/react";
@@ -21,7 +20,6 @@ import {
   useTopPerformers,
 } from "../hooks/useQueries";
 import { AddEmployeeModal } from "./AddEmployeeModal";
-import { BulkUploadModal } from "./BulkUploadModal";
 import { EmployeeCard } from "./EmployeeCard";
 import { IssuesDialog } from "./IssuesDialog";
 import { SuggestionsDialog } from "./SuggestionsDialog";
@@ -46,7 +44,6 @@ interface OverviewPageProps {
 
 export function OverviewPage({ onSelectEmployee }: OverviewPageProps) {
   const [addEmployeeOpen, setAddEmployeeOpen] = useState(false);
-  const [bulkUploadOpen, setBulkUploadOpen] = useState(false);
   const [issuesDialogOpen, setIssuesDialogOpen] = useState(false);
   const [suggestionsDialogOpen, setSuggestionsDialogOpen] = useState(false);
 
@@ -108,16 +105,6 @@ export function OverviewPage({ onSelectEmployee }: OverviewPageProps) {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setBulkUploadOpen(true)}
-              className="gap-2 text-xs"
-              data-ocid="overview.upload_button"
-            >
-              <Upload className="w-3.5 h-3.5" />
-              Bulk Upload
-            </Button>
             <Button
               size="sm"
               onClick={() => setAddEmployeeOpen(true)}
@@ -358,7 +345,6 @@ export function OverviewPage({ onSelectEmployee }: OverviewPageProps) {
         open={addEmployeeOpen}
         onOpenChange={setAddEmployeeOpen}
       />
-      <BulkUploadModal open={bulkUploadOpen} onOpenChange={setBulkUploadOpen} />
       <IssuesDialog
         open={issuesDialogOpen}
         onOpenChange={setIssuesDialogOpen}

@@ -6,6 +6,7 @@ import {
   LayoutDashboard,
   Settings,
   TrendingUp,
+  Upload,
   Users,
 } from "lucide-react";
 import { Status } from "../backend";
@@ -22,6 +23,7 @@ interface SidebarProps {
   onSettingsClick: () => void;
   onSalesTrendsClick: () => void;
   onEmployeesClick: () => void;
+  onUploadsClick: () => void;
 }
 
 export function Sidebar({
@@ -33,6 +35,7 @@ export function Sidebar({
   onSettingsClick,
   onSalesTrendsClick,
   onEmployeesClick,
+  onUploadsClick,
 }: SidebarProps) {
   const { settings } = useAppSettings();
   const { labels } = settings;
@@ -99,6 +102,25 @@ export function Sidebar({
           <TrendingUp className="w-4 h-4 shrink-0" />
           <span>Sales Trends</span>
           {currentView === "sales" && (
+            <ChevronRight className="w-3.5 h-3.5 ml-auto" />
+          )}
+        </button>
+
+        {/* Uploads nav */}
+        <button
+          type="button"
+          onClick={onUploadsClick}
+          className={cn(
+            "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150",
+            currentView === "uploads"
+              ? "bg-primary/15 text-primary border border-primary/25"
+              : "text-muted-foreground hover:text-foreground hover:bg-accent",
+          )}
+          data-ocid="nav.link"
+        >
+          <Upload className="w-4 h-4 shrink-0" />
+          <span>Uploads</span>
+          {currentView === "uploads" && (
             <ChevronRight className="w-3.5 h-3.5 ml-auto" />
           )}
         </button>
