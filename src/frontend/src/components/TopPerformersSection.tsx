@@ -77,6 +77,31 @@ interface ParsedPerformer {
   error?: string;
 }
 
+/** Strip commas/spaces/currency symbols and parse to number safely */
+function parseNum(raw: string | undefined): number {
+  if (!raw) return 0;
+  const cleaned = String(raw)
+    .replace(/[,\s₹$]/g, "")
+    .trim();
+  const n = Number(cleaned);
+  return Number.isNaN(n) ? 0 : n;
+}
+
+/** Normalise a header string: lowercase, strip all non-alphanumeric chars */
+function normHeader(s: string): string {
+  return s.toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+/** Find index of a header by trying multiple normalised candidate names */
+function findIdx(headers: string[], ...candidates: string[]): number {
+  const normHeaders = headers.map(normHeader);
+  for (const c of candidates) {
+    const idx = normHeaders.indexOf(normHeader(c));
+    if (idx >= 0) return idx;
+  }
+  return -1;
+}
+
 function parsePerformersCSV(content: string): ParsedPerformer[] {
   const lines = content
     .split("\n")
@@ -84,24 +109,42 @@ function parsePerformersCSV(content: string): ParsedPerformer[] {
     .filter(Boolean);
   if (lines.length < 2) return [];
 
-  const headers = parseCSVLine(lines[0].toLowerCase());
-  const rankIdx = headers.indexOf("rank");
-  const nameIdx = headers.indexOf("name");
-  const fiplIdx = headers.indexOf("fiplcode");
-  const accessoriesIdx = headers.indexOf("accessories");
-  const ewIdx = headers.indexOf("extendedwarranty");
-  const salesIdx = headers.indexOf("totalsales");
+  const headers = parseCSVLine(lines[0]);
+  const rankIdx = findIdx(headers, "rank", "Rank", "#");
+  const nameIdx = findIdx(headers, "name", "Name", "Employee Name");
+  const fiplIdx = findIdx(headers, "fiplCode", "FIPL Code", "fipl", "fiplcode");
+  const accessoriesIdx = findIdx(
+    headers,
+    "accessories",
+    "Accessories",
+    "Accessory Count",
+  );
+  const ewIdx = findIdx(
+    headers,
+    "extendedWarranty",
+    "Extended Warranty",
+    "ext warranty",
+    "ew",
+  );
+  const salesIdx = findIdx(
+    headers,
+    "totalSales",
+    "Total Sales",
+    "total sales amount",
+    "sales amount",
+    "amount",
+  );
 
   const results: ParsedPerformer[] = [];
   for (let i = 1; i < lines.length; i++) {
     const cells = parseCSVLine(lines[i]);
     const row: ParsedPerformer = {
-      rank: rankIdx >= 0 ? Number(cells[rankIdx]) || i : i,
-      name: nameIdx >= 0 ? (cells[nameIdx] ?? "") : "",
-      fiplCode: fiplIdx >= 0 ? (cells[fiplIdx] ?? "") : "",
-      accessories: accessoriesIdx >= 0 ? Number(cells[accessoriesIdx]) || 0 : 0,
-      extendedWarranty: ewIdx >= 0 ? Number(cells[ewIdx]) || 0 : 0,
-      totalSales: salesIdx >= 0 ? Number(cells[salesIdx]) || 0 : 0,
+      rank: rankIdx >= 0 ? parseNum(cells[rankIdx]) || i : i,
+      name: nameIdx >= 0 ? (cells[nameIdx]?.trim() ?? "") : "",
+      fiplCode: fiplIdx >= 0 ? (cells[fiplIdx]?.trim() ?? "") : "",
+      accessories: accessoriesIdx >= 0 ? parseNum(cells[accessoriesIdx]) : 0,
+      extendedWarranty: ewIdx >= 0 ? parseNum(cells[ewIdx]) : 0,
+      totalSales: salesIdx >= 0 ? parseNum(cells[salesIdx]) : 0,
     };
     if (!row.name) row.error = "Name is required";
     results.push(row);

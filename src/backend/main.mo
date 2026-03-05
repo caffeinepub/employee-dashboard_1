@@ -1,19 +1,20 @@
 import Map "mo:core/Map";
-import Array "mo:core/Array";
 import Iter "mo:core/Iter";
-import Time "mo:core/Time";
+import Array "mo:core/Array";
 import Nat "mo:core/Nat";
 import Text "mo:core/Text";
 import Int "mo:core/Int";
 import Order "mo:core/Order";
+import Time "mo:core/Time";
 
 
 
 actor {
-  // Types
   public type EmployeeId = Nat;
   public type Status = { #active; #inactive; #onHold };
   public type Severity = { #low; #medium; #high };
+  public type SalesBrand = { #ecovacs; #kuvings; #coway; #tineco; #instant };
+  public type SaleType = { #accessories; #extendedWarranty };
 
   public type Employee = {
     id : EmployeeId;
@@ -60,10 +61,13 @@ actor {
     id : Nat;
     employeeId : EmployeeId;
     fiplCode : Text;
-    accessories : Nat;
-    extendedWarranty : Nat;
-    totalSalesAmount : Nat;
+    brand : SalesBrand;
+    product : Text;
+    saleType : SaleType;
+    quantity : Nat;
+    amount : Int;
     recordDate : Int;
+    saleDate : Int;
   };
 
   public type AttendanceRecord = {
@@ -93,7 +97,6 @@ actor {
     totalSales : Nat;
   };
 
-  // Aggregates
   public type EmployeeDetails = {
     info : Employee;
     performance : Performance;
@@ -102,7 +105,6 @@ actor {
     problems : [Text];
   };
 
-  // Input Types
   public type EmployeeInput = {
     fiplCode : Text;
     name : Text;
@@ -150,9 +152,12 @@ actor {
   public type SalesRecordInput = {
     employeeId : EmployeeId;
     fiplCode : Text;
-    accessories : Nat;
-    extendedWarranty : Nat;
-    totalSalesAmount : Nat;
+    brand : SalesBrand;
+    product : Text;
+    saleType : SaleType;
+    quantity : Nat;
+    amount : Int;
+    saleDate : Int;
   };
 
   public type AttendanceRecordInput = {
@@ -184,7 +189,6 @@ actor {
     };
   };
 
-  // Stable Maps
   let employees = Map.empty<EmployeeId, Employee>();
   let performances = Map.empty<EmployeeId, Performance>();
   let swots = Map.empty<EmployeeId, SWOT>();
@@ -201,7 +205,6 @@ actor {
   var nextAttendanceId = 1;
   var nextIssueId = 1;
 
-  // Queries
   public query ({ caller }) func getAllEmployees() : async [Employee] {
     employees.values().toArray().sort();
   };
@@ -281,114 +284,110 @@ actor {
     topPerformers.values().toArray();
   };
 
-  // Mutations
   public shared ({ caller }) func initialize() : async () {
     if (employees.size() > 0) { return () };
-
-    let currentTime = Time.now();
-
     let sampleEmployees = [
       {
         id = nextEmployeeId;
         fiplCode = "FIPL-001";
-        name = "Alice Johnson";
-        role = "Sales Manager";
+        name = "Priya Sharma";
+        role = "Sales Lead";
         department = "Sales";
         status = #active;
-        joinDate = currentTime - 31536000_000_000_000;
-        avatar = "AJ";
-        region = "Northeast";
-        familyDetails = "Married, 2 children";
+        joinDate = Time.now() - 35980800000000000; // 1.14 years in nanoseconds
+        avatar = "https://ui-avatars.com/api/?name=Priya+Sharma";
+        region = "North India";
+        familyDetails = "Married, 1 child";
         pastExperience = [
-          "Acme Corp - Sales Rep - 3 years",
-          "Beta Inc - Account Manager - 2 years",
+          "Reliance Retail - Sales Executive - 3 years",
+          "Tata Motors - Account Manager - 2 years",
         ];
         fseCategory = "Star";
       },
       {
         id = nextEmployeeId + 1;
         fiplCode = "FIPL-002";
-        name = "Bob Smith";
-        role = "Operations Lead";
+        name = "Raj Mehta";
+        role = "Operations Manager";
         department = "Operations";
         status = #active;
-        joinDate = currentTime - 63072000_000_000_000;
-        avatar = "BS";
-        region = "Midwest";
+        joinDate = Time.now() - 71222400000000000; // 2.26 years
+        avatar = "https://ui-avatars.com/api/?name=Raj+Mehta";
+        region = "West Coast";
         familyDetails = "Single";
         pastExperience = [
-          "Gamma LLC - Operations Analyst - 4 years",
-          "Delta Co - Process Manager - 3 years",
-        ];
-        fseCategory = "Question Mark";
-      },
-      {
-        id = nextEmployeeId + 2;
-        fiplCode = "FIPL-003";
-        name = "Cathy Lee";
-        role = "HR Specialist";
-        department = "HR";
-        status = #inactive;
-        joinDate = currentTime - 15768000_000_000_000;
-        avatar = "CL";
-        region = "Southeast";
-        familyDetails = "Married";
-        pastExperience = [
-          "Epsilon Partners - HR Assistant - 2 years",
-          "Zeta Solutions - Recruiter - 1 year",
+          "Hindustan Lever - Process Analyst - 4 years",
+          "Maruti Suzuki - Team Lead - 3 years",
         ];
         fseCategory = "Cash Cow";
       },
       {
+        id = nextEmployeeId + 2;
+        fiplCode = "FIPL-003";
+        name = "Anita Patel";
+        role = "HR Administrator";
+        department = "HR";
+        status = #active;
+        joinDate = Time.now() - 36460800000000000; // 13.5 months
+        avatar = "https://ui-avatars.com/api/?name=Anita+Patel";
+        region = "South India";
+        familyDetails = "Married";
+        pastExperience = [
+          "Infosys - HR Assistant - 2 years",
+          "Wipro - Recruiter - 1 year",
+        ];
+        fseCategory = "Question Mark";
+      },
+      {
         id = nextEmployeeId + 3;
         fiplCode = "FIPL-004";
-        name = "David Kim";
-        role = "Finance Analyst";
+        name = "Suresh Kumar";
+        role = "Finance Specialist";
         department = "Finance";
         status = #active;
-        joinDate = currentTime - 94608000_000_000_000;
-        avatar = "DK";
-        region = "West Coast";
-        familyDetails = "Single";
+        joinDate = Time.now() - 109488000000000000; // 3.48 years
+        avatar = "https://ui-avatars.com/api/?name=Suresh+Kumar";
+        region = "East India";
+        familyDetails = "Single, 2 children";
         pastExperience = [
-          "Eta Group - Junior Analyst - 2 years",
-          "Theta Enterprises - Financial Consultant - 3 years",
+          "L&T Finance - Junior Analyst - 2 years",
+          "Axis Bank - Financial Consultant - 3 years",
         ];
         fseCategory = "Dog";
       },
       {
         id = nextEmployeeId + 4;
         fiplCode = "FIPL-005";
-        name = "Emily Brown";
-        role = "Marketing Director";
+        name = "Deepa Singh";
+        role = "Marketing Manager";
         department = "Marketing";
         status = #active;
-        joinDate = currentTime - 47304000_000_000_000;
-        avatar = "EB";
-        region = "Midwest";
-        familyDetails = "Married, 1 child";
+        joinDate = Time.now() - 71222400000000000; // 2.26 years
+        avatar = "https://ui-avatars.com/api/?name=Deepa+Singh";
+        region = "Central India";
+        familyDetails = "Married, 2 children";
         pastExperience = [
-          "Iota Design - Marketing Coordinator - 2 years",
-          "Kappa Advertising - Brand Manager - 3 years",
+          "Aditya Birla Group - Marketing Coordinator - 2 years",
+          "Flipkart - Brand Manager - 3 years",
         ];
         fseCategory = "Star";
       },
       {
         id = nextEmployeeId + 5;
         fiplCode = "FIPL-006";
-        name = "Frank Wright";
-        role = "IT Support";
+        name = "Vikram Joshi";
+        role = "IT Support Specialist";
         department = "IT";
         status = #active;
-        joinDate = currentTime - 23652000_000_000_000;
-        avatar = "FW";
-        region = "Mountain Region";
+        joinDate = Time.now() - 67046400000000000; // 2.13 years
+        avatar = "https://ui-avatars.com/api/?name=Vikram+Joshi";
+        region = "North India";
         familyDetails = "Single";
         pastExperience = [
-          "Lambda Tech - Helpdesk Analyst - 1 year",
-          "Mu Systems - IT Technician - 2 years",
+          "Tech Mahindra - Helpdesk Analyst - 1 year",
+          "Mindtree - IT Technician - 2 years",
         ];
-        fseCategory = "Question Mark";
+        fseCategory = "Cash Cow";
       },
     ];
 
@@ -557,6 +556,59 @@ actor {
     };
   };
 
+  public shared ({ caller }) func updatePerformanceByFiplCode(fiplCode : Text, input : PerformanceInput) : async Bool {
+    var foundEmployeeId : ?EmployeeId = null;
+
+    for ((_, empData) in employees.entries()) {
+      if (empData.fiplCode == fiplCode) {
+        foundEmployeeId := ?empData.id;
+      };
+    };
+
+    switch (foundEmployeeId) {
+      case (?id) {
+        let performance : Performance = {
+          employeeId = id;
+          salesInfluenceIndex = input.salesInfluenceIndex;
+          reviewCount = input.reviewCount;
+          operationalDiscipline = input.operationalDiscipline;
+          productKnowledgeScore = input.productKnowledgeScore;
+          softSkillsScore = input.softSkillsScore;
+        };
+        performances.add(id, performance);
+        true;
+      };
+      case (null) { false };
+    };
+  };
+
+  public shared ({ caller }) func updateSwotByFiplCode(fiplCode : Text, swotInput : SWOTInput, newTraits : [Text], newProblems : [Text]) : async Bool {
+    var foundEmployeeId : ?EmployeeId = null;
+
+    for ((_, empData) in employees.entries()) {
+      if (empData.fiplCode == fiplCode) {
+        foundEmployeeId := ?empData.id;
+      };
+    };
+
+    switch (foundEmployeeId) {
+      case (?id) {
+        let swot : SWOT = {
+          employeeId = id;
+          strengths = swotInput.strengths;
+          weaknesses = swotInput.weaknesses;
+          opportunities = swotInput.opportunities;
+          threats = swotInput.threats;
+        };
+        swots.add(id, swot);
+        traits.add(id, newTraits);
+        problems.add(id, newProblems);
+        true;
+      };
+      case (null) { false };
+    };
+  };
+
   public shared ({ caller }) func deleteEmployee(id : EmployeeId) : async Bool {
     let existed = employees.containsKey(id);
     employees.remove(id);
@@ -571,7 +623,6 @@ actor {
         feedback.remove(fbId);
       };
     };
-
     existed;
   };
 
@@ -630,7 +681,6 @@ actor {
         swots.add(newId, swot);
         traits.add(newId, []);
         problems.add(newId, []);
-
         newId;
       },
     );
@@ -640,9 +690,7 @@ actor {
 
   public shared ({ caller }) func addFeedback(input : FeedbackInput) : async Nat {
     switch (employees.get(input.employeeId)) {
-      case (null) {
-        0;
-      };
+      case (null) { 0 };
       case (?_) {
         let newId = nextFeedbackId;
         nextFeedbackId += 1;
@@ -671,10 +719,13 @@ actor {
       id = newId;
       employeeId = input.employeeId;
       fiplCode = input.fiplCode;
-      accessories = input.accessories;
-      extendedWarranty = input.extendedWarranty;
-      totalSalesAmount = input.totalSalesAmount;
+      brand = input.brand;
+      product = input.product;
+      saleType = input.saleType;
+      quantity = input.quantity;
+      amount = input.amount;
       recordDate = Time.now();
+      saleDate = input.saleDate;
     };
 
     salesRecords.add(newId, record);
@@ -755,5 +806,62 @@ actor {
       topPerformers.add(input.rank, performer);
     };
     true;
+  };
+
+  public shared ({ caller }) func updateEmployeePerformance(employeeId : EmployeeId, input : PerformanceInput) : async Bool {
+    switch (performances.get(employeeId)) {
+      case (null) { false };
+      case (?_) {
+        let updatedPerformance : Performance = {
+          employeeId;
+          salesInfluenceIndex = input.salesInfluenceIndex;
+          reviewCount = input.reviewCount;
+          operationalDiscipline = input.operationalDiscipline;
+          productKnowledgeScore = input.productKnowledgeScore;
+          softSkillsScore = input.softSkillsScore;
+        };
+        performances.add(employeeId, updatedPerformance);
+        true;
+      };
+    };
+  };
+
+  public shared ({ caller }) func updateEmployeeSWOT(employeeId : EmployeeId, swotInput : SWOTInput) : async Bool {
+    switch (swots.get(employeeId)) {
+      case (null) { false };
+      case (?_) {
+        let updatedSWOT : SWOT = {
+          employeeId;
+          strengths = swotInput.strengths;
+          weaknesses = swotInput.weaknesses;
+          opportunities = swotInput.opportunities;
+          threats = swotInput.threats;
+        };
+        swots.add(employeeId, updatedSWOT);
+        true;
+      };
+    };
+  };
+
+  public shared ({ caller }) func addTrait(employeeId : EmployeeId, trait : Text) : async Bool {
+    switch (traits.get(employeeId)) {
+      case (null) { false };
+      case (?existingTraits) {
+        let newTraits = existingTraits.concat([trait]);
+        traits.add(employeeId, newTraits);
+        true;
+      };
+    };
+  };
+
+  public shared ({ caller }) func addProblem(employeeId : EmployeeId, problem : Text) : async Bool {
+    switch (problems.get(employeeId)) {
+      case (null) { false };
+      case (?existingProblems) {
+        let newProblems = existingProblems.concat([problem]);
+        problems.add(employeeId, newProblems);
+        true;
+      };
+    };
   };
 };

@@ -27,19 +27,14 @@ export interface IssueSuggestionInput {
     description: string;
     category: string;
 }
-export interface Feedback {
-    id: bigint;
-    date: bigint;
-    description: string;
-    employeeId: EmployeeId;
-    category: string;
-    severity: Severity;
-}
 export interface SalesRecordInput {
-    totalSalesAmount: bigint;
-    accessories: bigint;
+    saleType: SaleType;
     employeeId: EmployeeId;
-    extendedWarranty: bigint;
+    quantity: bigint;
+    brand: SalesBrand;
+    amount: bigint;
+    product: string;
+    saleDate: bigint;
     fiplCode: string;
 }
 export interface Performance {
@@ -58,6 +53,14 @@ export interface IssueSuggestion {
     updatedAt: bigint;
     category: string;
 }
+export interface Feedback {
+    id: bigint;
+    date: bigint;
+    description: string;
+    employeeId: EmployeeId;
+    category: string;
+    severity: Severity;
+}
 export interface TopPerformerInput {
     accessories: bigint;
     name: string;
@@ -68,11 +71,14 @@ export interface TopPerformerInput {
 }
 export interface SalesRecord {
     id: bigint;
-    totalSalesAmount: bigint;
-    accessories: bigint;
+    saleType: SaleType;
     recordDate: bigint;
     employeeId: EmployeeId;
-    extendedWarranty: bigint;
+    quantity: bigint;
+    brand: SalesBrand;
+    amount: bigint;
+    product: string;
+    saleDate: bigint;
     fiplCode: string;
 }
 export interface PerformanceInput {
@@ -151,6 +157,17 @@ export interface EmployeeInput {
     avatar: string;
     fiplCode: string;
 }
+export enum SaleType {
+    accessories = "accessories",
+    extendedWarranty = "extendedWarranty"
+}
+export enum SalesBrand {
+    tineco = "tineco",
+    ecovacs = "ecovacs",
+    coway = "coway",
+    kuvings = "kuvings",
+    instant = "instant"
+}
 export enum Severity {
     low = "low",
     high = "high",
@@ -166,7 +183,9 @@ export interface backendInterface {
     addEmployee(input: EmployeeFullInput): Promise<EmployeeId>;
     addFeedback(input: FeedbackInput): Promise<bigint>;
     addIssueSuggestion(input: IssueSuggestionInput): Promise<bigint>;
+    addProblem(employeeId: EmployeeId, problem: string): Promise<boolean>;
     addSalesRecord(input: SalesRecordInput): Promise<bigint>;
+    addTrait(employeeId: EmployeeId, trait: string): Promise<boolean>;
     bulkAddEmployees(inputs: Array<EmployeeInput>): Promise<Array<EmployeeId>>;
     deleteEmployee(id: EmployeeId): Promise<boolean>;
     deleteIssueSuggestion(id: bigint): Promise<boolean>;
@@ -183,6 +202,10 @@ export interface backendInterface {
     initialize(): Promise<void>;
     setTopPerformers(inputs: Array<TopPerformerInput>): Promise<boolean>;
     updateEmployee(id: EmployeeId, input: EmployeeFullInput): Promise<boolean>;
+    updateEmployeePerformance(employeeId: EmployeeId, input: PerformanceInput): Promise<boolean>;
+    updateEmployeeSWOT(employeeId: EmployeeId, swotInput: SWOTInput): Promise<boolean>;
     updateEmployeeStatus(id: EmployeeId, newStatus: Status): Promise<boolean>;
     updateIssueSuggestion(id: bigint, input: IssueSuggestionInput): Promise<boolean>;
+    updatePerformanceByFiplCode(fiplCode: string, input: PerformanceInput): Promise<boolean>;
+    updateSwotByFiplCode(fiplCode: string, swotInput: SWOTInput, newTraits: Array<string>, newProblems: Array<string>): Promise<boolean>;
 }

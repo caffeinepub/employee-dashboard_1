@@ -83,10 +83,6 @@ const FSE_COLORS = [
   "#eab308",
 ];
 
-function nsToDate(ns: bigint): Date {
-  return new Date(Number(ns / 1_000_000n));
-}
-
 function formatAmount(val: number): string {
   if (val >= 100000) return `₹${(val / 100000).toFixed(1)}L`;
   if (val >= 1000) return `₹${(val / 1000).toFixed(1)}K`;
@@ -98,7 +94,7 @@ interface RegionalSalesTrendProps {
 }
 
 type ViewMode = "region" | "fse";
-type GranularityMode = "yearly" | "monthly" | "daily";
+type GranularityMode = "yearly" | "halfYearly" | "monthly" | "daily";
 
 export function RegionalSalesTrend({ className }: RegionalSalesTrendProps) {
   const now = new Date();
@@ -111,6 +107,8 @@ export function RegionalSalesTrend({ className }: RegionalSalesTrendProps) {
   const [selectedMonth, setSelectedMonth] = useState<number>(currentMonth);
   const [filterRegion, setFilterRegion] = useState<string>("all");
   const [filterFse, setFilterFse] = useState<string>("all");
+  const [filterBrand, setFilterBrand] = useState<string>("all");
+  const [filterSaleType, setFilterSaleType] = useState<string>("all");
 
   const { data: employees = [] } = useAllEmployees();
   const { data: salesRecords = [], isLoading } = useSalesRecords();
@@ -125,7 +123,8 @@ export function RegionalSalesTrend({ className }: RegionalSalesTrendProps) {
   const enrichedRecords = useMemo(() => {
     return salesRecords.map((sr) => {
       const emp = fiplToEmployee.get(sr.fiplCode.toUpperCase());
-      const date = nsToDate(sr.recordDate);
+      // Use saleDate (actual sale date) for trend analysis, not recordDate (insertion time)
+      const date = new Date(Number(sr.saleDate / 1_000_000n));
       return {
         ...sr,
         employeeName: emp?.name ?? sr.fiplCode,
@@ -135,7 +134,10 @@ export function RegionalSalesTrend({ className }: RegionalSalesTrendProps) {
         year: date.getFullYear(),
         month: date.getMonth(),
         day: date.getDate(),
-        amount: Number(sr.totalSalesAmount),
+        amount: Number(sr.amount),
+        brand: sr.brand as string,
+        saleType: sr.saleType as string,
+        quantity: Number(sr.quantity),
       };
     });
   }, [salesRecords, fiplToEmployee]);
@@ -179,9 +181,12 @@ export function RegionalSalesTrend({ className }: RegionalSalesTrendProps) {
     return enrichedRecords.filter((r) => {
       if (filterRegion !== "all" && r.region !== filterRegion) return false;
       if (filterFse !== "all" && r.fiplCode !== filterFse) return false;
+      if (filterBrand !== "all" && r.brand !== filterBrand) return false;
+      if (filterSaleType !== "all" && r.saleType !== filterSaleType)
+        return false;
       return true;
     });
-  }, [enrichedRecords, filterRegion, filterFse]);
+  }, [enrichedRecords, filterRegion, filterFse, filterBrand, filterSaleType]);
 
   // Build chart data
   const { chartData, seriesKeys } = useMemo(() => {
@@ -234,6 +239,54 @@ export function RegionalSalesTrend({ className }: RegionalSalesTrendProps) {
           const key = fseNames.get(fiplCode) ?? fiplCode;
           point[key] = recordsForMonth
             .filter((r) => r.day === d && r.fiplCode === fiplCode)
+            .reduce((sum, r) => sum + r.amount, 0);
+        }
+        return point;
+      });
+      const keys = fses.map((fc) => fseNames.get(fc) ?? fc);
+      return { chartData: data, seriesKeys: keys };
+    }
+
+    if (granularity === "halfYearly") {
+      // Show 6 months for each half: H1 = months 0-5, H2 = months 6-11
+      const recordsForYear = filteredRecords.filter(
+        (r) => r.year === selectedYear,
+      );
+      const half = selectedMonth < 6 ? 0 : 1; // 0 = H1, 1 = H2
+      const startMonth = half * 6;
+      const monthSlice = MONTH_ABBR.slice(startMonth, startMonth + 6);
+
+      if (viewMode === "region") {
+        const regions =
+          filterRegion === "all"
+            ? Array.from(new Set(recordsForYear.map((r) => r.region)))
+            : [filterRegion];
+        const data = monthSlice.map((abbr, idx) => {
+          const m = startMonth + idx;
+          const point: Record<string, number | string> = { period: abbr };
+          for (const region of regions) {
+            point[region] = recordsForYear
+              .filter((r) => r.month === m && r.region === region)
+              .reduce((sum, r) => sum + r.amount, 0);
+          }
+          return point;
+        });
+        return { chartData: data, seriesKeys: regions };
+      }
+      const fses =
+        filterFse === "all"
+          ? Array.from(new Set(recordsForYear.map((r) => r.fiplCode)))
+          : [filterFse];
+      const fseNames = new Map(
+        recordsForYear.map((r) => [r.fiplCode, r.employeeName]),
+      );
+      const data = monthSlice.map((abbr, idx) => {
+        const m = startMonth + idx;
+        const point: Record<string, number | string> = { period: abbr };
+        for (const fiplCode of fses) {
+          const key = fseNames.get(fiplCode) ?? fiplCode;
+          point[key] = recordsForYear
+            .filter((r) => r.month === m && r.fiplCode === fiplCode)
             .reduce((sum, r) => sum + r.amount, 0);
         }
         return point;
@@ -327,6 +380,7 @@ export function RegionalSalesTrend({ className }: RegionalSalesTrendProps) {
     });
     const keys = fses.map((fc) => fseNames.get(fc) ?? fc);
     return { chartData: data, seriesKeys: keys };
+    // biome-ignore lint/correctness/useExhaustiveDependencies: filterBrand/filterSaleType are already captured via filteredRecords
   }, [
     filteredRecords,
     granularity,
@@ -344,7 +398,7 @@ export function RegionalSalesTrend({ className }: RegionalSalesTrendProps) {
         ? filteredRecords.filter(
             (r) => r.year === selectedYear && r.month === selectedMonth,
           )
-        : granularity === "monthly"
+        : granularity === "monthly" || granularity === "halfYearly"
           ? filteredRecords.filter((r) => r.year === selectedYear)
           : filteredRecords;
 
@@ -372,6 +426,10 @@ export function RegionalSalesTrend({ className }: RegionalSalesTrendProps) {
   const chartTitle = (() => {
     if (granularity === "daily")
       return `${MONTH_NAMES[selectedMonth]} ${selectedYear} — Daily Sales`;
+    if (granularity === "halfYearly") {
+      const half = selectedMonth < 6 ? "H1 (Jan–Jun)" : "H2 (Jul–Dec)";
+      return `${selectedYear} — ${half} Sales`;
+    }
     if (granularity === "monthly") return `${selectedYear} — Monthly Sales`;
     return "Year-over-Year Sales";
   })();
@@ -420,36 +478,45 @@ export function RegionalSalesTrend({ className }: RegionalSalesTrendProps) {
 
             {/* Granularity pills */}
             <div className="flex items-center gap-1 bg-muted/30 rounded-lg p-1 border border-border/50">
-              {(["yearly", "monthly", "daily"] as GranularityMode[]).map(
-                (g) => (
-                  <button
-                    key={g}
-                    type="button"
-                    onClick={() => setGranularity(g)}
-                    className={cn(
-                      "text-xs font-semibold px-3 py-1 rounded-md transition-all capitalize",
-                      granularity === g
-                        ? "bg-primary text-primary-foreground shadow-sm"
-                        : "text-muted-foreground hover:text-foreground",
-                    )}
-                    data-ocid={`sales_trends.${g}_toggle`}
-                  >
-                    {g === "yearly"
-                      ? "Yearly"
+              {(
+                [
+                  "yearly",
+                  "halfYearly",
+                  "monthly",
+                  "daily",
+                ] as GranularityMode[]
+              ).map((g) => (
+                <button
+                  key={g}
+                  type="button"
+                  onClick={() => setGranularity(g)}
+                  className={cn(
+                    "text-xs font-semibold px-3 py-1 rounded-md transition-all capitalize",
+                    granularity === g
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
+                  data-ocid={`sales_trends.${g}_toggle`}
+                >
+                  {g === "yearly"
+                    ? "Yearly"
+                    : g === "halfYearly"
+                      ? "6M"
                       : g === "monthly"
                         ? "Monthly"
                         : "Daily"}
-                  </button>
-                ),
-              )}
+                </button>
+              ))}
             </div>
           </div>
         </div>
 
         {/* Row 2: Year / Month dropdowns + filters */}
         <div className="flex items-center gap-2 flex-wrap">
-          {/* Year dropdown — shown for monthly and daily */}
-          {(granularity === "monthly" || granularity === "daily") && (
+          {/* Year dropdown — shown for monthly, halfYearly, and daily */}
+          {(granularity === "monthly" ||
+            granularity === "halfYearly" ||
+            granularity === "daily") && (
             <Select
               value={String(selectedYear)}
               onValueChange={(v) => setSelectedYear(Number(v))}
@@ -545,7 +612,61 @@ export function RegionalSalesTrend({ className }: RegionalSalesTrendProps) {
             </Select>
           )}
 
-          {(filterRegion !== "all" || filterFse !== "all") && (
+          {/* Brand filter */}
+          <Select value={filterBrand} onValueChange={setFilterBrand}>
+            <SelectTrigger
+              className="h-7 text-xs w-32 border-border/50"
+              data-ocid="sales_trends.brand_select"
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all" className="text-xs">
+                All Brands
+              </SelectItem>
+              <SelectItem value="ecovacs" className="text-xs">
+                Ecovacs
+              </SelectItem>
+              <SelectItem value="kuvings" className="text-xs">
+                Kuvings
+              </SelectItem>
+              <SelectItem value="coway" className="text-xs">
+                Coway
+              </SelectItem>
+              <SelectItem value="tineco" className="text-xs">
+                Tineco
+              </SelectItem>
+              <SelectItem value="instant" className="text-xs">
+                Instant
+              </SelectItem>
+            </SelectContent>
+          </Select>
+
+          {/* Sale type filter */}
+          <Select value={filterSaleType} onValueChange={setFilterSaleType}>
+            <SelectTrigger
+              className="h-7 text-xs w-40 border-border/50"
+              data-ocid="sales_trends.saletype_select"
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all" className="text-xs">
+                All Types
+              </SelectItem>
+              <SelectItem value="accessories" className="text-xs">
+                Accessories
+              </SelectItem>
+              <SelectItem value="extendedWarranty" className="text-xs">
+                Extended Warranty
+              </SelectItem>
+            </SelectContent>
+          </Select>
+
+          {(filterRegion !== "all" ||
+            filterFse !== "all" ||
+            filterBrand !== "all" ||
+            filterSaleType !== "all") && (
             <Button
               variant="ghost"
               size="sm"
@@ -553,6 +674,8 @@ export function RegionalSalesTrend({ className }: RegionalSalesTrendProps) {
               onClick={() => {
                 setFilterRegion("all");
                 setFilterFse("all");
+                setFilterBrand("all");
+                setFilterSaleType("all");
               }}
             >
               Reset filters

@@ -11,6 +11,8 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
+import { loadXlsx } from "@/lib/xlsxLoader";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   AlertCircle,
   CheckCircle2,
@@ -24,17 +26,10 @@ import {
 } from "lucide-react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
-import * as XLSX from "xlsx";
-import { Status } from "../backend";
+import { SaleType, SalesBrand, Status } from "../backend";
 import type { Employee } from "../backend.d.ts";
 import { useActor } from "../hooks/useActor";
-import {
-  useAddAttendanceRecord,
-  useAddSalesRecord,
-  useAllEmployees,
-  useBulkAddEmployees,
-  useUpdateEmployee,
-} from "../hooks/useQueries";
+import { useAllEmployees } from "../hooks/useQueries";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -95,10 +90,20 @@ interface ParsedSalesRow {
   fiplCode: string;
   name: string;
   region: string;
+  brand: string;
+  product: string;
+  saleType: string;
   date: string;
-  amountOfSale: number;
+  quantity: number;
+  amount: number;
   error?: string;
 }
+
+// ── XLSX type alias (loaded from CDN at runtime) ─────────────────────────────
+// Type aliases for xlsx loaded at runtime from CDN (no local package).
+// Cast at call sites; ReturnType<typeof Object> is used in the loader.
+type XlsxLib = ReturnType<typeof Object>;
+type XlsxWorkBook = ReturnType<typeof Object>;
 
 // ── Utility parse helpers ────────────────────────────────────────────────────
 
@@ -129,11 +134,11 @@ function parseFeedbacks(
     });
 }
 
-function parseXlsxDate(raw: string): string {
+function parseXlsxDate(raw: string, xlsx?: XlsxLib): string {
   if (!raw) return raw;
   const serial = Number(raw);
-  if (!Number.isNaN(serial) && serial > 1000) {
-    const jsDate = XLSX.SSF.parse_date_code(serial);
+  if (!Number.isNaN(serial) && serial > 1000 && xlsx?.SSF?.parse_date_code) {
+    const jsDate = xlsx.SSF.parse_date_code(serial);
     if (jsDate) {
       return `${jsDate.y}-${String(jsDate.m).padStart(2, "0")}-${String(jsDate.d).padStart(2, "0")}`;
     }
@@ -163,11 +168,8 @@ function pick(norm: Record<string, string>, ...candidates: string[]): string {
 }
 
 /** Fuzzy sheet-name match -- strips spaces and lowercases both sides. */
-function findSheet(
-  wb: XLSX.WorkBook,
-  ...targets: string[]
-): string | undefined {
-  return wb.SheetNames.find((n) => {
+function findSheet(wb: XlsxWorkBook, ...targets: string[]): string | undefined {
+  return wb.SheetNames.find((n: string) => {
     const key = n.toLowerCase().replace(/[^a-z0-9]/g, "");
     return targets.some(
       (t) => key === t.toLowerCase().replace(/[^a-z0-9]/g, ""),
@@ -178,7 +180,8 @@ function findSheet(
 // ── Sheet parsers ────────────────────────────────────────────────────────────
 
 function parseEmployeeSheetStandalone(
-  wb: XLSX.WorkBook,
+  wb: XlsxWorkBook,
+  xlsx: XlsxLib,
 ): ParsedEmployeeRow[] | null {
   const sheetName = findSheet(
     wb,
@@ -192,9 +195,9 @@ function parseEmployeeSheetStandalone(
   if (!sheetName) return null;
   const ws = wb.Sheets[sheetName];
   if (!ws) return null;
-  const raw = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, {
+  const raw = xlsx.utils.sheet_to_json(ws, {
     defval: "",
-  });
+  }) as Record<string, unknown>[];
   return raw.map((r) => {
     const norm = normaliseKeys(r);
     const pastExpRaw = pick(
@@ -265,7 +268,8 @@ function parseEmployeeSheetStandalone(
 }
 
 function parseParamsSheetStandalone(
-  wb: XLSX.WorkBook,
+  wb: XlsxWorkBook,
+  xlsx: XlsxLib,
 ): ParsedParamsRow[] | null {
   const sheetName = findSheet(
     wb,
@@ -279,9 +283,9 @@ function parseParamsSheetStandalone(
   if (!sheetName) return null;
   const ws = wb.Sheets[sheetName];
   if (!ws) return null;
-  const raw = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, {
+  const raw = xlsx.utils.sheet_to_json(ws, {
     defval: "",
-  });
+  }) as Record<string, unknown>[];
   return raw.map((r) => {
     const norm = normaliseKeys(r);
     const row: ParsedParamsRow = {
@@ -394,7 +398,8 @@ function parseParamsSheetStandalone(
 }
 
 function parseAttendanceSheetStandalone(
-  wb: XLSX.WorkBook,
+  wb: XlsxWorkBook,
+  xlsx: XlsxLib,
 ): ParsedAttendanceRow[] | null {
   const sheetName = findSheet(
     wb,
@@ -406,9 +411,9 @@ function parseAttendanceSheetStandalone(
   if (!sheetName) return null;
   const ws = wb.Sheets[sheetName];
   if (!ws) return null;
-  const raw = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, {
+  const raw = xlsx.utils.sheet_to_json(ws, {
     defval: "",
-  });
+  }) as Record<string, unknown>[];
   return raw.map((r) => {
     const norm = normaliseKeys(r);
     const row: ParsedAttendanceRow = {
@@ -421,6 +426,7 @@ function parseAttendanceSheetStandalone(
       ),
       date: parseXlsxDate(
         pick(norm, "Date (YYYY-MM-DD)*", "Date (YYYY-MM-DD)", "Date", "date"),
+        xlsx,
       ),
       lapseType: pick(
         norm,
@@ -461,7 +467,10 @@ function parseAttendanceSheetStandalone(
   });
 }
 
-function parseSwotSheetStandalone(wb: XLSX.WorkBook): ParsedSwotRow[] | null {
+function parseSwotSheetStandalone(
+  wb: XlsxWorkBook,
+  xlsx: XlsxLib,
+): ParsedSwotRow[] | null {
   const sheetName = findSheet(
     wb,
     "SWOT Analysis",
@@ -472,9 +481,9 @@ function parseSwotSheetStandalone(wb: XLSX.WorkBook): ParsedSwotRow[] | null {
   if (!sheetName) return null;
   const ws = wb.Sheets[sheetName];
   if (!ws) return null;
-  const raw = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, {
+  const raw = xlsx.utils.sheet_to_json(ws, {
     defval: "",
-  });
+  }) as Record<string, unknown>[];
   return raw.map((r) => {
     const norm = normaliseKeys(r);
     const row: ParsedSwotRow = {
@@ -527,16 +536,22 @@ function parseSwotSheetStandalone(wb: XLSX.WorkBook): ParsedSwotRow[] | null {
   });
 }
 
-function parseSalesSheetStandalone(wb: XLSX.WorkBook): ParsedSalesRow[] | null {
+function parseSalesSheetStandalone(
+  wb: XlsxWorkBook,
+  xlsx: XlsxLib,
+): ParsedSalesRow[] | null {
   const sheetName = findSheet(wb, "Sales Data", "SalesData", "Sales", "Sheet5");
   if (!sheetName) return null;
   const ws = wb.Sheets[sheetName];
   if (!ws) return null;
-  const raw = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, {
+  const raw = xlsx.utils.sheet_to_json(ws, {
     defval: "",
-  });
+  }) as Record<string, unknown>[];
   return raw.map((r) => {
     const norm = normaliseKeys(r);
+    // Strip currency symbols and commas from numeric strings
+    const cleanNumber = (raw: string) =>
+      Number(raw.replace(/[₹,\s]/g, "")) || 0;
     const row: ParsedSalesRow = {
       fiplCode: pick(
         norm,
@@ -547,6 +562,7 @@ function parseSalesSheetStandalone(wb: XLSX.WorkBook): ParsedSalesRow[] | null {
       ),
       name: pick(
         norm,
+        "Name (auto-filled)",
         "Name (auto-filled from FIPL Code)",
         "Name",
         "Employee Name",
@@ -554,36 +570,46 @@ function parseSalesSheetStandalone(wb: XLSX.WorkBook): ParsedSalesRow[] | null {
       ),
       region: pick(
         norm,
+        "Region (auto-filled)",
         "Region (auto-filled from FIPL Code)",
         "Region",
         "region",
       ),
+      brand: pick(
+        norm,
+        "Brand (Ecovacs / Kuvings / Coway / Tineco / Instant)*",
+        "Brand",
+        "brand",
+      ),
+      product: pick(norm, "Product*", "Product", "product"),
+      saleType: pick(
+        norm,
+        "Type (Accessories / Extended Warranty)*",
+        "Type",
+        "saleType",
+        "SaleType",
+        "saletype",
+      ),
       date: parseXlsxDate(
         pick(norm, "Date (YYYY-MM-DD)*", "Date (YYYY-MM-DD)", "Date", "date"),
+        xlsx,
       ),
-      amountOfSale:
-        Number(
-          pick(
-            norm,
-            "Amount of Sale (₹)*",
-            "Amount of Sale",
-            "Amount",
-            "amountOfSale",
-            "AmountofSale",
-            "amountofsale",
-          ),
-        ) || 0,
+      quantity: Number(pick(norm, "Quantity*", "Quantity", "quantity")) || 0,
+      amount: cleanNumber(
+        pick(norm, "Amount (₹)*", "Amount", "amount", "AmountRs", "amountrs"),
+      ),
     };
     if (!row.fiplCode) row.error = "FIPL Code is required";
     else if (!row.date) row.error = "Date is required";
-    else if (row.amountOfSale <= 0) row.error = "Amount must be > 0";
+    else if (row.amount <= 0) row.error = "Amount must be > 0";
     return row;
   });
 }
 
 // ── Template downloaders ─────────────────────────────────────────────────────
 
-function downloadEmployeeTemplate() {
+async function downloadEmployeeTemplate() {
+  const XLSX = await loadXlsx();
   const wb = XLSX.utils.book_new();
   const headers = [
     "FIPL Code (Primary Key)*",
@@ -644,7 +670,8 @@ function downloadEmployeeTemplate() {
   XLSX.writeFile(wb, "FSE-employee-data-template.xlsx");
 }
 
-function downloadParamsTemplate() {
+async function downloadParamsTemplate() {
+  const XLSX = await loadXlsx();
   const wb = XLSX.utils.book_new();
   const headers = [
     "FIPL Code (Primary Key)*",
@@ -683,7 +710,8 @@ function downloadParamsTemplate() {
   XLSX.writeFile(wb, "FSE-parameters-template.xlsx");
 }
 
-function downloadAttendanceTemplate() {
+async function downloadAttendanceTemplate() {
+  const XLSX = await loadXlsx();
   const wb = XLSX.utils.book_new();
   const headers = [
     "FIPL Code (Primary Key)*",
@@ -726,7 +754,8 @@ function downloadAttendanceTemplate() {
   XLSX.writeFile(wb, "FSE-attendance-template.xlsx");
 }
 
-function downloadSwotTemplate() {
+async function downloadSwotTemplate() {
+  const XLSX = await loadXlsx();
   const wb = XLSX.utils.book_new();
   const headers = [
     "FIPL Code (Primary Key)*",
@@ -775,30 +804,55 @@ function downloadSwotTemplate() {
   XLSX.writeFile(wb, "FSE-swot-template.xlsx");
 }
 
-function downloadSalesTemplate() {
+async function downloadSalesTemplate() {
+  const XLSX = await loadXlsx();
   const wb = XLSX.utils.book_new();
   const headers = [
     "FIPL Code (Primary Key)*",
-    "Name (auto-filled from FIPL Code)",
-    "Region (auto-filled from FIPL Code)",
+    "Name (auto-filled)",
+    "Region (auto-filled)",
+    "Brand (Ecovacs / Kuvings / Coway / Tineco / Instant)*",
+    "Product*",
+    "Type (Accessories / Extended Warranty)*",
     "Date (YYYY-MM-DD)*",
-    "Amount of Sale (₹)*",
+    "Quantity*",
+    "Amount (₹)*",
   ];
   const ws = XLSX.utils.aoa_to_sheet([
     headers,
-    ["FIPL-001", "Priya Sharma", "North India", "2026-03-01", 45000],
-    ["FIPL-001", "Priya Sharma", "North India", "2026-03-05", 52000],
-    ["FIPL-001", "Priya Sharma", "North India", "2026-03-12", 38000],
-    ["FIPL-002", "Raj Mehta", "West Coast", "2026-03-01", 72000],
-    ["FIPL-002", "Raj Mehta", "West Coast", "2026-03-08", 68000],
-    ["FIPL-002", "Raj Mehta", "West Coast", "2026-03-15", 91000],
+    [
+      "FIPL-001",
+      "Priya Sharma",
+      "North India",
+      "Ecovacs",
+      "Ecovacs X2 PRO",
+      "Accessories",
+      "2026-03-01",
+      2,
+      15000,
+    ],
+    [
+      "FIPL-001",
+      "Priya Sharma",
+      "North India",
+      "Kuvings",
+      "Kuvings REVO830",
+      "Extended Warranty",
+      "2026-03-05",
+      1,
+      8000,
+    ],
   ]);
   ws["!cols"] = [
-    { wch: 28 },
-    { wch: 28 },
-    { wch: 22 },
-    { wch: 20 },
     { wch: 24 },
+    { wch: 22 },
+    { wch: 18 },
+    { wch: 38 },
+    { wch: 26 },
+    { wch: 34 },
+    { wch: 18 },
+    { wch: 14 },
+    { wch: 18 },
   ];
   XLSX.utils.book_append_sheet(wb, ws, "Sales Data");
   XLSX.writeFile(wb, "FSE-sales-data-template.xlsx");
@@ -1105,12 +1159,9 @@ export function UploadsPage() {
   const [salesImporting, setSalesImporting] = useState(false);
 
   // ── Hooks ────────────────────────────────────────────────────────────────
-  const bulkAdd = useBulkAddEmployees();
-  const updateEmployee = useUpdateEmployee();
-  const addAttendanceRecord = useAddAttendanceRecord();
-  const addSalesRecord = useAddSalesRecord();
-  const { data: existingEmployees = [] } = useAllEmployees();
   const { actor } = useActor();
+  const queryClient = useQueryClient();
+  const { data: existingEmployees = [] } = useAllEmployees();
 
   // FIPL Code -> Employee lookup
   const fiplMap = new Map<string, Employee>(
@@ -1119,7 +1170,10 @@ export function UploadsPage() {
 
   // ── File handlers ────────────────────────────────────────────────────────
 
-  function readWorkbook(file: File, onParsed: (wb: XLSX.WorkBook) => void) {
+  function readWorkbook(
+    file: File,
+    onParsed: (wb: XlsxWorkBook, xlsx: XlsxLib) => void,
+  ) {
     const isXlsx =
       file.name.endsWith(".xlsx") ||
       file.name.endsWith(".xls") ||
@@ -1132,26 +1186,32 @@ export function UploadsPage() {
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const result = e.target?.result;
-      if (!result) return;
-      const data = isXlsx
-        ? new Uint8Array(result as ArrayBuffer)
-        : new TextEncoder().encode(result as string);
-      const wb = XLSX.read(data, { type: "array" });
-      onParsed(wb);
-    };
-    if (isXlsx) {
-      reader.readAsArrayBuffer(file);
-    } else {
-      reader.readAsText(file);
-    }
+    loadXlsx()
+      .then((XLSX) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const result = e.target?.result;
+          if (!result) return;
+          const data = isXlsx
+            ? new Uint8Array(result as ArrayBuffer)
+            : new TextEncoder().encode(result as string);
+          const wb = XLSX.read(data, { type: "array" });
+          onParsed(wb, XLSX);
+        };
+        if (isXlsx) {
+          reader.readAsArrayBuffer(file);
+        } else {
+          reader.readAsText(file);
+        }
+      })
+      .catch((err) => {
+        toast.error(`Failed to load Excel library: ${err.message}`);
+      });
   }
 
   const handleEmpFile = (file: File) => {
-    readWorkbook(file, (wb) => {
-      const rows = parseEmployeeSheetStandalone(wb);
+    readWorkbook(file, (wb, xlsx) => {
+      const rows = parseEmployeeSheetStandalone(wb, xlsx);
       if (!rows) {
         toast.error(
           `Sheet not found. Expected "Employee Details" or "Employee Data". Found: ${wb.SheetNames.join(", ")}`,
@@ -1170,8 +1230,8 @@ export function UploadsPage() {
   };
 
   const handleParamsFile = (file: File) => {
-    readWorkbook(file, (wb) => {
-      const rows = parseParamsSheetStandalone(wb);
+    readWorkbook(file, (wb, xlsx) => {
+      const rows = parseParamsSheetStandalone(wb, xlsx);
       if (!rows) {
         toast.error(
           `Sheet not found. Expected "FSE Parameters". Found: ${wb.SheetNames.join(", ")}`,
@@ -1190,8 +1250,8 @@ export function UploadsPage() {
   };
 
   const handleAttFile = (file: File) => {
-    readWorkbook(file, (wb) => {
-      const rows = parseAttendanceSheetStandalone(wb);
+    readWorkbook(file, (wb, xlsx) => {
+      const rows = parseAttendanceSheetStandalone(wb, xlsx);
       if (!rows) {
         toast.error(
           `Sheet not found. Expected "Attendance". Found: ${wb.SheetNames.join(", ")}`,
@@ -1210,8 +1270,8 @@ export function UploadsPage() {
   };
 
   const handleSwotFile = (file: File) => {
-    readWorkbook(file, (wb) => {
-      const rows = parseSwotSheetStandalone(wb);
+    readWorkbook(file, (wb, xlsx) => {
+      const rows = parseSwotSheetStandalone(wb, xlsx);
       if (!rows) {
         toast.error(
           `Sheet not found. Expected "SWOT Analysis". Found: ${wb.SheetNames.join(", ")}`,
@@ -1230,8 +1290,8 @@ export function UploadsPage() {
   };
 
   const handleSalesFile = (file: File) => {
-    readWorkbook(file, (wb) => {
-      const rows = parseSalesSheetStandalone(wb);
+    readWorkbook(file, (wb, xlsx) => {
+      const rows = parseSalesSheetStandalone(wb, xlsx);
       if (!rows) {
         toast.error(
           `Sheet not found. Expected "Sales Data". Found: ${wb.SheetNames.join(", ")}`,
@@ -1263,9 +1323,30 @@ export function UploadsPage() {
   const handleEmpImport = async () => {
     const valid = empRows.filter((r) => !r.error);
     if (valid.length === 0) return;
+    if (!actor) {
+      toast.error("Backend not ready. Please wait a moment and try again.");
+      return;
+    }
     setEmpImporting(true);
+    let added = 0;
+    let updated = 0;
     try {
-      const inputs = valid.map((row) => {
+      // Always fetch fresh list so we have the latest FIPL codes
+      const freshEmployees = await actor.getAllEmployees();
+      const freshFiplMap = new Map<string, Employee>(
+        freshEmployees.map((e) => [e.fiplCode.toUpperCase(), e]),
+      );
+
+      // Split into new (FIPL not in system) and existing (FIPL already exists)
+      const toInsert: typeof valid = [];
+      const toUpdate: typeof valid = [];
+      for (const row of valid) {
+        if (freshFiplMap.get(row.fiplCode.toUpperCase())) toUpdate.push(row);
+        else toInsert.push(row);
+      }
+
+      // Helper to build EmployeeInput from a parsed row
+      const buildInput = (row: ParsedEmployeeRow) => {
         const joinDateMs = row.joinDate
           ? new Date(row.joinDate).getTime()
           : Date.now();
@@ -1293,15 +1374,86 @@ export function UploadsPage() {
           familyDetails: row.familyDetails,
           pastExperience: row.pastExperience,
         };
-      });
-      const ids = await bulkAdd.mutateAsync(inputs);
-      toast.success(
-        `${ids.length} employee${ids.length === 1 ? "" : "s"} imported`,
-      );
+      };
+
+      // Insert new employees in bulk
+      if (toInsert.length > 0) {
+        const ids = await actor.bulkAddEmployees(toInsert.map(buildInput));
+        added = ids.length;
+      }
+
+      // Update existing employees one-by-one, preserving existing performance/swot data
+      for (const row of toUpdate) {
+        const existing = freshFiplMap.get(row.fiplCode.toUpperCase());
+        if (!existing) continue;
+        let details: {
+          performance: {
+            salesInfluenceIndex: bigint;
+            reviewCount: bigint;
+            operationalDiscipline: bigint;
+            productKnowledgeScore: bigint;
+            softSkillsScore: bigint;
+          };
+          swot: {
+            strengths: string[];
+            weaknesses: string[];
+            opportunities: string[];
+            threats: string[];
+          };
+          traits: string[];
+          problems: string[];
+        } | null = null;
+        try {
+          details = await actor.getEmployeeDetails(existing.id);
+        } catch (_) {
+          /* use defaults */
+        }
+        await actor.updateEmployee(existing.id, {
+          employeeInfo: buildInput(row),
+          performance: details
+            ? {
+                salesInfluenceIndex: details.performance.salesInfluenceIndex,
+                reviewCount: details.performance.reviewCount,
+                operationalDiscipline:
+                  details.performance.operationalDiscipline,
+                productKnowledgeScore:
+                  details.performance.productKnowledgeScore,
+                softSkillsScore: details.performance.softSkillsScore,
+              }
+            : {
+                salesInfluenceIndex: 0n,
+                reviewCount: 0n,
+                operationalDiscipline: 0n,
+                productKnowledgeScore: 0n,
+                softSkillsScore: 0n,
+              },
+          swotAnalysis: details
+            ? {
+                strengths: details.swot.strengths,
+                weaknesses: details.swot.weaknesses,
+                opportunities: details.swot.opportunities,
+                threats: details.swot.threats,
+              }
+            : { strengths: [], weaknesses: [], opportunities: [], threats: [] },
+          traits: details ? details.traits : [],
+          problems: details ? details.problems : [],
+        });
+        updated++;
+      }
+
+      queryClient.invalidateQueries();
+      const msg = [
+        added > 0 ? `${added} added` : "",
+        updated > 0 ? `${updated} updated` : "",
+      ]
+        .filter(Boolean)
+        .join(", ");
+      toast.success(`Employee import complete: ${msg || "0 processed"}`);
       setEmpStep("done");
     } catch (err) {
+      console.error("Employee import error:", err);
       toast.error(
-        `Import failed: ${err instanceof Error ? err.message : "Unknown error"}`,
+        `Import failed: ${err instanceof Error ? err.message : String(err)}`,
       );
     } finally {
       setEmpImporting(false);
@@ -1311,85 +1463,55 @@ export function UploadsPage() {
   const handleParamsImport = async () => {
     const valid = paramsRows.filter((r) => !r.error);
     if (valid.length === 0) return;
+    if (!actor) {
+      toast.error("Backend not ready. Please wait a moment and try again.");
+      return;
+    }
     setParamsImporting(true);
     let updated = 0;
     let skipped = 0;
     try {
-      // Process sequentially to avoid overwhelming the backend
+      const freshEmployees = await actor.getAllEmployees();
+      const freshFiplMap = new Map<string, Employee>(
+        freshEmployees.map((e) => [e.fiplCode.toUpperCase(), e]),
+      );
+
       for (const row of valid) {
-        const emp = fiplMap.get(row.fiplCode.toUpperCase());
+        const emp = freshFiplMap.get(row.fiplCode.toUpperCase());
         if (!emp) {
           skipped++;
           continue;
         }
-        // Fetch existing employee details to preserve SWOT / traits / problems
-        let existingSwot = {
-          strengths: [] as string[],
-          weaknesses: [] as string[],
-          opportunities: [] as string[],
-          threats: [] as string[],
-        };
-        let existingTraits: string[] = [];
-        let existingProblems: string[] = [];
         try {
-          if (actor) {
-            const details = await actor.getEmployeeDetails(emp.id);
-            existingSwot = {
-              strengths: details.swot.strengths,
-              weaknesses: details.swot.weaknesses,
-              opportunities: details.swot.opportunities,
-              threats: details.swot.threats,
-            };
-            existingTraits = details.traits;
-            existingProblems = details.problems;
-          }
-        } catch {
-          /* use empty fallback if fetch fails */
+          const result = await actor.updatePerformanceByFiplCode(row.fiplCode, {
+            salesInfluenceIndex: BigInt(Math.round(row.salesInfluenceIndex)),
+            reviewCount: BigInt(Math.round(row.reviewCount)),
+            operationalDiscipline: BigInt(
+              Math.round(row.operationalDiscipline),
+            ),
+            productKnowledgeScore: BigInt(
+              Math.round(row.productKnowledgeScore),
+            ),
+            softSkillsScore: BigInt(Math.round(row.softSkillsScore)),
+          });
+          if (result) updated++;
+          else skipped++;
+        } catch (rowErr) {
+          console.error(`Params row error for ${row.fiplCode}:`, rowErr);
+          skipped++;
         }
-
-        await updateEmployee.mutateAsync({
-          id: emp.id,
-          input: {
-            employeeInfo: {
-              fiplCode: emp.fiplCode,
-              fseCategory: emp.fseCategory,
-              name: emp.name,
-              role: emp.role,
-              department: emp.department,
-              status: emp.status,
-              joinDate: emp.joinDate,
-              avatar: emp.avatar,
-              region: emp.region,
-              familyDetails: emp.familyDetails,
-              pastExperience: emp.pastExperience,
-            },
-            performance: {
-              salesInfluenceIndex: BigInt(Math.round(row.salesInfluenceIndex)),
-              reviewCount: BigInt(Math.round(row.reviewCount)),
-              operationalDiscipline: BigInt(
-                Math.round(row.operationalDiscipline),
-              ),
-              productKnowledgeScore: BigInt(
-                Math.round(row.productKnowledgeScore),
-              ),
-              softSkillsScore: BigInt(Math.round(row.softSkillsScore)),
-            },
-            swotAnalysis: existingSwot,
-            traits: existingTraits,
-            problems: existingProblems,
-          },
-        });
-        updated++;
       }
-      const msg =
+      queryClient.invalidateQueries();
+      toast.success(
         skipped > 0
           ? `${updated} updated, ${skipped} skipped (FIPL Code not found in system)`
-          : `${updated} employee${updated === 1 ? "" : "s"} parameters updated`;
-      toast.success(msg);
+          : `${updated} employee${updated === 1 ? "" : "s"} parameters updated`,
+      );
       setParamsStep("done");
     } catch (err) {
+      console.error("Params import error:", err);
       toast.error(
-        `Import failed: ${err instanceof Error ? err.message : "Unknown error"}`,
+        `Import failed: ${err instanceof Error ? err.message : String(err)}`,
       );
     } finally {
       setParamsImporting(false);
@@ -1399,13 +1521,21 @@ export function UploadsPage() {
   const handleAttImport = async () => {
     const valid = attRows.filter((r) => !r.error);
     if (valid.length === 0) return;
+    if (!actor) {
+      toast.error("Backend not ready. Please wait a moment and try again.");
+      return;
+    }
     setAttImporting(true);
     let added = 0;
     let skipped = 0;
     try {
-      // Sequential processing to avoid overwhelming the IC canister
+      const freshEmployees = await actor.getAllEmployees();
+      const freshFiplMap = new Map<string, Employee>(
+        freshEmployees.map((e) => [e.fiplCode.toUpperCase(), e]),
+      );
+
       for (const row of valid) {
-        const emp = fiplMap.get(row.fiplCode.toUpperCase());
+        const emp = freshFiplMap.get(row.fiplCode.toUpperCase());
         if (!emp) {
           skipped++;
           continue;
@@ -1414,36 +1544,45 @@ export function UploadsPage() {
         const dateNs =
           BigInt(Number.isNaN(dateMs) ? Date.now() : dateMs) * 1_000_000n;
 
-        if (row.lapseType) {
-          await addAttendanceRecord.mutateAsync({
-            employeeId: emp.id,
-            lapseType: row.lapseType,
-            date: dateNs,
-            reason: row.lapseReason,
-            daysOff: 0n,
-          });
-          added++;
-        }
-        if (row.daysOff > 0) {
-          await addAttendanceRecord.mutateAsync({
-            employeeId: emp.id,
-            lapseType: "Day Off",
-            date: dateNs,
-            reason: row.daysOffReason,
-            daysOff: BigInt(row.daysOff),
-          });
-          added++;
+        try {
+          if (row.lapseType) {
+            await actor.addAttendanceRecord({
+              employeeId: emp.id,
+              lapseType: row.lapseType,
+              date: dateNs,
+              reason: row.lapseReason,
+              daysOff: 0n,
+            });
+            added++;
+          }
+          if (row.daysOff > 0) {
+            await actor.addAttendanceRecord({
+              employeeId: emp.id,
+              lapseType: "Day Off",
+              date: dateNs,
+              reason: row.daysOffReason,
+              daysOff: BigInt(row.daysOff),
+            });
+            added++;
+          }
+          // If neither lapseType nor daysOff, still count as processed
+          if (!row.lapseType && row.daysOff <= 0) added++;
+        } catch (rowErr) {
+          console.error(`Attendance row error for ${row.fiplCode}:`, rowErr);
+          skipped++;
         }
       }
-      const attMsg =
+      queryClient.invalidateQueries();
+      toast.success(
         skipped > 0
-          ? `${added} records imported, ${skipped} skipped (FIPL Code not found)`
-          : `${added} attendance record${added === 1 ? "" : "s"} imported`;
-      toast.success(attMsg);
+          ? `${added} records imported, ${skipped} skipped (FIPL Code not found -- upload Employee Data first)`
+          : `${added} attendance record${added === 1 ? "" : "s"} imported`,
+      );
       setAttStep("done");
     } catch (err) {
+      console.error("Attendance import error:", err);
       toast.error(
-        `Import failed: ${err instanceof Error ? err.message : "Unknown error"}`,
+        `Import failed: ${err instanceof Error ? err.message : String(err)}`,
       );
     } finally {
       setAttImporting(false);
@@ -1453,77 +1592,55 @@ export function UploadsPage() {
   const handleSwotImport = async () => {
     const valid = swotRows.filter((r) => !r.error);
     if (valid.length === 0) return;
+    if (!actor) {
+      toast.error("Backend not ready. Please wait a moment and try again.");
+      return;
+    }
     setSwotImporting(true);
     let updated = 0;
     let skipped = 0;
     try {
+      const freshEmployees = await actor.getAllEmployees();
+      const freshFiplMap = new Map<string, Employee>(
+        freshEmployees.map((e) => [e.fiplCode.toUpperCase(), e]),
+      );
+
       for (const row of valid) {
-        const emp = fiplMap.get(row.fiplCode.toUpperCase());
+        const emp = freshFiplMap.get(row.fiplCode.toUpperCase());
         if (!emp) {
           skipped++;
           continue;
         }
-        // Fetch existing performance so we don't overwrite it
-        let existingPerf = {
-          salesInfluenceIndex: 0n,
-          reviewCount: 0n,
-          operationalDiscipline: 0n,
-          productKnowledgeScore: 0n,
-          softSkillsScore: 0n,
-        };
         try {
-          if (actor) {
-            const details = await actor.getEmployeeDetails(emp.id);
-            existingPerf = {
-              salesInfluenceIndex: details.performance.salesInfluenceIndex,
-              reviewCount: details.performance.reviewCount,
-              operationalDiscipline: details.performance.operationalDiscipline,
-              productKnowledgeScore: details.performance.productKnowledgeScore,
-              softSkillsScore: details.performance.softSkillsScore,
-            };
-          }
-        } catch {
-          /* use zero fallback if fetch fails */
-        }
-
-        await updateEmployee.mutateAsync({
-          id: emp.id,
-          input: {
-            employeeInfo: {
-              fiplCode: emp.fiplCode,
-              fseCategory: emp.fseCategory,
-              name: emp.name,
-              role: emp.role,
-              department: emp.department,
-              status: emp.status,
-              joinDate: emp.joinDate,
-              avatar: emp.avatar,
-              region: emp.region,
-              familyDetails: emp.familyDetails,
-              pastExperience: emp.pastExperience,
-            },
-            performance: existingPerf,
-            swotAnalysis: {
+          const result = await actor.updateSwotByFiplCode(
+            row.fiplCode,
+            {
               strengths: row.swotStrengths,
               weaknesses: row.swotWeaknesses,
               opportunities: row.swotOpportunities,
               threats: row.swotThreats,
             },
-            traits: row.traits,
-            problems: row.problems,
-          },
-        });
-        updated++;
+            row.traits,
+            row.problems,
+          );
+          if (result) updated++;
+          else skipped++;
+        } catch (rowErr) {
+          console.error(`SWOT row error for ${row.fiplCode}:`, rowErr);
+          skipped++;
+        }
       }
-      const msg =
+      queryClient.invalidateQueries();
+      toast.success(
         skipped > 0
           ? `${updated} updated, ${skipped} skipped (FIPL Code not found in system)`
-          : `${updated} employee${updated === 1 ? "" : "s"} SWOT data updated`;
-      toast.success(msg);
+          : `${updated} employee${updated === 1 ? "" : "s"} SWOT data updated`,
+      );
       setSwotStep("done");
     } catch (err) {
+      console.error("SWOT import error:", err);
       toast.error(
-        `Import failed: ${err instanceof Error ? err.message : "Unknown error"}`,
+        `Import failed: ${err instanceof Error ? err.message : String(err)}`,
       );
     } finally {
       setSwotImporting(false);
@@ -1533,35 +1650,77 @@ export function UploadsPage() {
   const handleSalesImport = async () => {
     const valid = salesRows.filter((r) => !r.error);
     if (valid.length === 0) return;
+    if (!actor) {
+      toast.error("Backend not ready. Please wait a moment and try again.");
+      return;
+    }
+
+    function mapBrand(raw: string): SalesBrand {
+      const s = raw.toLowerCase().trim();
+      if (s === "ecovacs") return SalesBrand.ecovacs;
+      if (s === "kuvings") return SalesBrand.kuvings;
+      if (s === "coway") return SalesBrand.coway;
+      if (s === "tineco") return SalesBrand.tineco;
+      if (s === "instant") return SalesBrand.instant;
+      return SalesBrand.ecovacs;
+    }
+
+    function mapSaleType(raw: string): SaleType {
+      const s = raw.toLowerCase().replace(/\s+/g, "");
+      if (s === "extendedwarranty" || s === "warranty")
+        return SaleType.extendedWarranty;
+      return SaleType.accessories;
+    }
+
     setSalesImporting(true);
     let added = 0;
     let skipped = 0;
     try {
-      // Sequential processing to avoid overwhelming the IC canister
+      const freshEmployees = await actor.getAllEmployees();
+      const freshFiplMap = new Map<string, Employee>(
+        freshEmployees.map((e) => [e.fiplCode.toUpperCase(), e]),
+      );
+
       for (const row of valid) {
-        const emp = fiplMap.get(row.fiplCode.toUpperCase());
+        const emp = freshFiplMap.get(row.fiplCode.toUpperCase());
         if (!emp) {
           skipped++;
           continue;
         }
-        await addSalesRecord.mutateAsync({
-          employeeId: emp.id,
-          fiplCode: row.fiplCode,
-          accessories: 0n,
-          extendedWarranty: 0n,
-          totalSalesAmount: BigInt(Math.round(row.amountOfSale)),
-        });
-        added++;
+        const dateMs = row.date ? new Date(row.date).getTime() : Date.now();
+        const saleDateNs =
+          BigInt(Number.isNaN(dateMs) ? Date.now() : dateMs) * 1_000_000n;
+        try {
+          await actor.addSalesRecord({
+            employeeId: emp.id,
+            fiplCode: row.fiplCode,
+            brand: mapBrand(row.brand),
+            product: row.product,
+            saleType: mapSaleType(row.saleType),
+            quantity: BigInt(Math.round(row.quantity)),
+            amount: BigInt(Math.round(row.amount)),
+            saleDate: saleDateNs,
+          });
+          added++;
+        } catch (rowErr) {
+          console.error(
+            `Sales row error for ${row.fiplCode} on ${row.date}:`,
+            rowErr,
+          );
+          skipped++;
+        }
       }
-      const salesMsg =
+      queryClient.invalidateQueries();
+      toast.success(
         skipped > 0
-          ? `${added} records imported, ${skipped} skipped (FIPL Code not found in system -- upload Employee Data first)`
-          : `${added} sales record${added === 1 ? "" : "s"} imported`;
-      toast.success(salesMsg);
+          ? `${added} records imported, ${skipped} skipped (FIPL Code not found -- upload Employee Data first)`
+          : `${added} sales record${added === 1 ? "" : "s"} imported`,
+      );
       setSalesStep("done");
     } catch (err) {
+      console.error("Sales import error:", err);
       toast.error(
-        `Import failed: ${err instanceof Error ? err.message : "Unknown error"}`,
+        `Import failed: ${err instanceof Error ? err.message : String(err)}`,
       );
     } finally {
       setSalesImporting(false);
@@ -1623,12 +1782,22 @@ export function UploadsPage() {
     <>
       <TableCell className="font-mono text-[10px]">{row.fiplCode}</TableCell>
       <TableCell>{row.name || "—"}</TableCell>
+      <TableCell className="text-muted-foreground capitalize">
+        {row.brand || "—"}
+      </TableCell>
+      <TableCell className="text-muted-foreground max-w-[120px] truncate">
+        {row.product || "—"}
+      </TableCell>
       <TableCell className="text-muted-foreground">
-        {row.region || "—"}
+        {row.saleType === "extendedwarranty" ||
+        row.saleType.toLowerCase().replace(/\s+/g, "") === "extendedwarranty"
+          ? "Ext. Warranty"
+          : "Accessories"}
       </TableCell>
       <TableCell className="text-muted-foreground">{row.date}</TableCell>
+      <TableCell className="font-mono text-xs">{row.quantity}</TableCell>
       <TableCell className="font-mono-data">
-        ₹{row.amountOfSale.toLocaleString()}
+        ₹{row.amount.toLocaleString()}
       </TableCell>
     </>
   );
@@ -1724,6 +1893,18 @@ export function UploadsPage() {
               onDownloadTemplate={downloadEmployeeTemplate}
               accentClass="bg-primary/10 text-primary border-primary/20"
             />
+            {empStep === "done" && (
+              <div className="mt-5 p-4 rounded-lg bg-blue-50 border border-blue-200">
+                <p className="text-xs font-semibold text-blue-700 mb-1">
+                  Next steps
+                </p>
+                <p className="text-[11px] text-blue-600">
+                  Give the system a few seconds to sync, then upload Parameters,
+                  Attendance, SWOT, and Sales data using the FIPL Codes you just
+                  imported.
+                </p>
+              </div>
+            )}
           </div>
         </TabsContent>
 
@@ -1853,8 +2034,17 @@ export function UploadsPage() {
             <UploadTabPanel
               tabId="sales"
               title="Sales Data"
-              description="Upload individual sales records linked by FIPL Code. Name and Region are auto-filled from the FIPL Code. Each row is one sale event."
-              columns={["FIPL Code", "Name", "Region", "Date", "Amount (₹)"]}
+              description="Upload individual sales records linked by FIPL Code. Each row is one sale transaction with Brand, Product, Type (Accessories / Extended Warranty), Date, Quantity, and Amount."
+              columns={[
+                "FIPL Code",
+                "Name",
+                "Brand",
+                "Product",
+                "Type",
+                "Date",
+                "Qty",
+                "Amount (₹)",
+              ]}
               rows={salesRows}
               renderRow={renderSalesRow}
               step={salesStep}
@@ -1871,13 +2061,13 @@ export function UploadsPage() {
             {salesStep === "idle" && (
               <div className="mt-5 p-4 rounded-lg bg-[oklch(0.97_0.03_85_/_0.3)] border border-[oklch(0.75_0.1_85_/_0.3)]">
                 <p className="text-xs font-semibold text-[oklch(0.35_0.14_85)] mb-1">
-                  Auto-fill from FIPL Code
+                  One row = one sale transaction
                 </p>
                 <p className="text-[11px] text-muted-foreground">
-                  The Name and Region columns in the template are for reference
-                  only — they will be automatically resolved from the FIPL Code
-                  when importing. Each row represents one sale event on a
-                  specific date.
+                  Name and Region are auto-resolved from the FIPL Code. Brand
+                  must be one of: Ecovacs, Kuvings, Coway, Tineco, Instant. Type
+                  must be "Accessories" or "Extended Warranty". The FIPL Code
+                  can appear multiple times (one row per sale).
                 </p>
               </div>
             )}

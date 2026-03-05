@@ -1,6 +1,7 @@
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { Users } from "lucide-react";
+import { Search, Users } from "lucide-react";
 import { type Variants, motion } from "motion/react";
 import { useState } from "react";
 import type { Employee } from "../backend.d.ts";
@@ -42,12 +43,16 @@ interface EmployeesPageProps {
 
 export function EmployeesPage({ onSelectEmployee }: EmployeesPageProps) {
   const [activeFilter, setActiveFilter] = useState<CategoryFilter>("All");
+  const [searchQuery, setSearchQuery] = useState("");
   const { data: employees = [], isLoading } = useAllEmployees();
 
-  const filtered =
-    activeFilter === "All"
-      ? employees
-      : employees.filter((e) => e.fseCategory === activeFilter);
+  const filtered = employees
+    .filter((e) => activeFilter === "All" || e.fseCategory === activeFilter)
+    .filter((e) =>
+      searchQuery.trim() === ""
+        ? true
+        : e.name.toLowerCase().includes(searchQuery.trim().toLowerCase()),
+    );
 
   const containerVariants: Variants = {
     hidden: { opacity: 0 },
@@ -84,6 +89,24 @@ export function EmployeesPage({ onSelectEmployee }: EmployeesPageProps) {
             {employees.length} total
           </span>
         </div>
+      </motion.div>
+
+      {/* Search Bar */}
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.08 }}
+        className="relative mb-4"
+      >
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+        <Input
+          type="text"
+          placeholder="Search employees by name..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="pl-9 bg-background/70 border-border/60 focus:border-primary/50 h-9 text-sm"
+          data-ocid="employees_page.search_input"
+        />
       </motion.div>
 
       {/* Category Filter Pills */}
@@ -146,12 +169,16 @@ export function EmployeesPage({ onSelectEmployee }: EmployeesPageProps) {
           <p className="text-sm font-semibold">
             {employees.length === 0
               ? "No employees yet"
-              : `No employees in "${activeFilter}" category`}
+              : searchQuery.trim() !== ""
+                ? `No employees match "${searchQuery}"`
+                : `No employees in "${activeFilter}" category`}
           </p>
           <p className="text-xs mt-1 opacity-70">
             {employees.length === 0
               ? "Add employees to get started"
-              : "Try a different category filter"}
+              : searchQuery.trim() !== ""
+                ? "Try a different name or clear the search"
+                : "Try a different category filter"}
           </p>
         </motion.div>
       ) : (

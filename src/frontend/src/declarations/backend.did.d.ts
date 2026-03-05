@@ -122,20 +122,33 @@ export interface SWOTInput {
   'threats' : Array<string>,
   'opportunities' : Array<string>,
 }
+export type SaleType = { 'accessories' : null } |
+  { 'extendedWarranty' : null };
+export type SalesBrand = { 'tineco' : null } |
+  { 'ecovacs' : null } |
+  { 'coway' : null } |
+  { 'kuvings' : null } |
+  { 'instant' : null };
 export interface SalesRecord {
   'id' : bigint,
-  'totalSalesAmount' : bigint,
-  'accessories' : bigint,
+  'saleType' : SaleType,
   'recordDate' : bigint,
   'employeeId' : EmployeeId,
-  'extendedWarranty' : bigint,
+  'quantity' : bigint,
+  'brand' : SalesBrand,
+  'amount' : bigint,
+  'product' : string,
+  'saleDate' : bigint,
   'fiplCode' : string,
 }
 export interface SalesRecordInput {
-  'totalSalesAmount' : bigint,
-  'accessories' : bigint,
+  'saleType' : SaleType,
   'employeeId' : EmployeeId,
-  'extendedWarranty' : bigint,
+  'quantity' : bigint,
+  'brand' : SalesBrand,
+  'amount' : bigint,
+  'product' : string,
+  'saleDate' : bigint,
   'fiplCode' : string,
 }
 export type Severity = { 'low' : null } |
@@ -165,7 +178,9 @@ export interface _SERVICE {
   'addEmployee' : ActorMethod<[EmployeeFullInput], EmployeeId>,
   'addFeedback' : ActorMethod<[FeedbackInput], bigint>,
   'addIssueSuggestion' : ActorMethod<[IssueSuggestionInput], bigint>,
+  'addProblem' : ActorMethod<[EmployeeId, string], boolean>,
   'addSalesRecord' : ActorMethod<[SalesRecordInput], bigint>,
+  'addTrait' : ActorMethod<[EmployeeId, string], boolean>,
   'bulkAddEmployees' : ActorMethod<[Array<EmployeeInput>], Array<EmployeeId>>,
   'deleteEmployee' : ActorMethod<[EmployeeId], boolean>,
   'deleteIssueSuggestion' : ActorMethod<[bigint], boolean>,
@@ -185,9 +200,22 @@ export interface _SERVICE {
   'initialize' : ActorMethod<[], undefined>,
   'setTopPerformers' : ActorMethod<[Array<TopPerformerInput>], boolean>,
   'updateEmployee' : ActorMethod<[EmployeeId, EmployeeFullInput], boolean>,
+  'updateEmployeePerformance' : ActorMethod<
+    [EmployeeId, PerformanceInput],
+    boolean
+  >,
+  'updateEmployeeSWOT' : ActorMethod<[EmployeeId, SWOTInput], boolean>,
   'updateEmployeeStatus' : ActorMethod<[EmployeeId, Status], boolean>,
   'updateIssueSuggestion' : ActorMethod<
     [bigint, IssueSuggestionInput],
+    boolean
+  >,
+  'updatePerformanceByFiplCode' : ActorMethod<
+    [string, PerformanceInput],
+    boolean
+  >,
+  'updateSwotByFiplCode' : ActorMethod<
+    [string, SWOTInput, Array<string>, Array<string>],
     boolean
   >,
 }

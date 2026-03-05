@@ -64,7 +64,7 @@ import {
 import { AnimatePresence, type Variants, motion } from "motion/react";
 import { useState } from "react";
 import { toast } from "sonner";
-import { Status } from "../backend";
+import { SaleType, SalesBrand, Status } from "../backend";
 import type { Employee } from "../backend.d.ts";
 import { useAppSettings } from "../context/AppSettingsContext";
 import {
@@ -120,9 +120,12 @@ export function EmployeeDetailPage({
 
   // Add Sales form state
   const [salesForm, setSalesForm] = useState({
-    accessories: "",
-    extendedWarranty: "",
-    totalSalesAmount: "",
+    brand: "ecovacs",
+    product: "",
+    saleType: "accessories",
+    quantity: "",
+    amount: "",
+    date: new Date().toISOString().split("T")[0],
   });
   // Add Attendance form state
   const [attendanceForm, setAttendanceForm] = useState({
@@ -226,21 +229,32 @@ export function EmployeeDetailPage({
     }).format(Number(amount));
 
   const handleAddSales = () => {
+    const dateMs = salesForm.date
+      ? new Date(salesForm.date).getTime()
+      : Date.now();
+    const saleDateNs =
+      BigInt(Number.isNaN(dateMs) ? Date.now() : dateMs) * 1_000_000n;
     addSalesRecord.mutate(
       {
         employeeId: employee.id,
         fiplCode: employee.fiplCode ?? "",
-        accessories: BigInt(Number(salesForm.accessories) || 0),
-        extendedWarranty: BigInt(Number(salesForm.extendedWarranty) || 0),
-        totalSalesAmount: BigInt(Number(salesForm.totalSalesAmount) || 0),
+        brand: salesForm.brand as SalesBrand,
+        product: salesForm.product,
+        saleType: salesForm.saleType as SaleType,
+        quantity: BigInt(Number(salesForm.quantity) || 0),
+        amount: BigInt(Number(salesForm.amount) || 0),
+        saleDate: saleDateNs,
       },
       {
         onSuccess: () => {
           toast.success("Sales record added");
           setSalesForm({
-            accessories: "",
-            extendedWarranty: "",
-            totalSalesAmount: "",
+            brand: "ecovacs",
+            product: "",
+            saleType: "accessories",
+            quantity: "",
+            amount: "",
+            date: new Date().toISOString().split("T")[0],
           });
           setAddSalesOpen(false);
         },
@@ -1042,14 +1056,20 @@ export function EmployeeDetailPage({
                       <TableHead className="text-[10px] font-bold uppercase py-2">
                         Date
                       </TableHead>
-                      <TableHead className="text-[10px] font-bold uppercase py-2 text-right">
-                        Accessories
+                      <TableHead className="text-[10px] font-bold uppercase py-2">
+                        Brand
+                      </TableHead>
+                      <TableHead className="text-[10px] font-bold uppercase py-2">
+                        Product
+                      </TableHead>
+                      <TableHead className="text-[10px] font-bold uppercase py-2">
+                        Type
                       </TableHead>
                       <TableHead className="text-[10px] font-bold uppercase py-2 text-right">
-                        Ext. Warranty
+                        Qty
                       </TableHead>
                       <TableHead className="text-[10px] font-bold uppercase py-2 text-right">
-                        Total Sales
+                        Amount (₹)
                       </TableHead>
                     </TableRow>
                   </TableHeader>
@@ -1060,21 +1080,127 @@ export function EmployeeDetailPage({
                         data-ocid={`sales.item.${i + 1}`}
                       >
                         <TableCell className="text-xs py-2 text-muted-foreground">
-                          {formatDate(record.recordDate)}
+                          {formatDate(record.saleDate)}
+                        </TableCell>
+                        <TableCell className="text-xs py-2 capitalize">
+                          {String(record.brand)}
+                        </TableCell>
+                        <TableCell className="text-xs py-2 max-w-[120px] truncate">
+                          {record.product}
+                        </TableCell>
+                        <TableCell className="text-xs py-2 text-muted-foreground">
+                          {record.saleType === SaleType.extendedWarranty
+                            ? "Ext. Warranty"
+                            : "Accessories"}
                         </TableCell>
                         <TableCell className="text-xs py-2 text-right font-mono-data">
-                          {Number(record.accessories)}
-                        </TableCell>
-                        <TableCell className="text-xs py-2 text-right font-mono-data">
-                          {Number(record.extendedWarranty)}
+                          {Number(record.quantity)}
                         </TableCell>
                         <TableCell className="text-xs py-2 text-right font-mono-data font-bold text-primary">
-                          {formatCurrency(record.totalSalesAmount)}
+                          {formatCurrency(record.amount)}
                         </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
                 </Table>
+              )}
+            </div>
+          </motion.div>
+
+          {/* Monthly Sales Summary */}
+          <motion.div variants={sectionVariants}>
+            <h2 className="text-xs uppercase tracking-widest text-muted-foreground font-semibold mb-3 flex items-center gap-2">
+              <BarChart2 className="w-3.5 h-3.5" />
+              Monthly Sales Summary
+            </h2>
+            <div className="glass-card rounded-xl overflow-hidden">
+              {salesLoading ? (
+                <div className="p-4 space-y-3">
+                  {SKELETON_KEYS_3.map((k) => (
+                    <Skeleton key={k} className="h-10 rounded-lg bg-muted/50" />
+                  ))}
+                </div>
+              ) : salesRecords.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-8 text-muted-foreground/50">
+                  <ShoppingBag className="w-7 h-7 mb-2 opacity-30" />
+                  <p className="text-sm">No sales data yet</p>
+                </div>
+              ) : (
+                (() => {
+                  // Aggregate by year-month
+                  const monthMap = new Map<
+                    string,
+                    {
+                      totalAmount: number;
+                      totalQty: number;
+                      sortKey: number;
+                    }
+                  >();
+                  for (const rec of salesRecords) {
+                    const d = new Date(Number(rec.saleDate) / 1_000_000);
+                    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+                    const sortKey = d.getFullYear() * 100 + (d.getMonth() + 1);
+                    const existing = monthMap.get(key) ?? {
+                      totalAmount: 0,
+                      totalQty: 0,
+                      sortKey,
+                    };
+                    monthMap.set(key, {
+                      totalAmount: existing.totalAmount + Number(rec.amount),
+                      totalQty: existing.totalQty + Number(rec.quantity),
+                      sortKey,
+                    });
+                  }
+                  const sorted = Array.from(monthMap.entries()).sort(
+                    (a, b) => b[1].sortKey - a[1].sortKey,
+                  );
+                  return (
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-muted/10">
+                          <TableHead className="text-[10px] font-bold uppercase py-2">
+                            Month
+                          </TableHead>
+                          <TableHead className="text-[10px] font-bold uppercase py-2 text-right">
+                            Total Qty
+                          </TableHead>
+                          <TableHead className="text-[10px] font-bold uppercase py-2 text-right">
+                            Total Amount (₹)
+                          </TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {sorted.map(([key, agg], i) => {
+                          const [yr, mo] = key.split("-");
+                          const label = new Date(
+                            Number(yr),
+                            Number(mo) - 1,
+                            1,
+                          ).toLocaleDateString("en-IN", {
+                            month: "long",
+                            year: "numeric",
+                          });
+                          return (
+                            <TableRow
+                              key={key}
+                              data-ocid={`monthly_sales.item.${i + 1}`}
+                            >
+                              <TableCell className="text-xs py-2 text-muted-foreground">
+                                {label}
+                              </TableCell>
+                              <TableCell className="text-xs py-2 text-right font-mono-data">
+                                {agg.totalQty}
+                              </TableCell>
+                              <TableCell className="text-xs py-2 text-right font-mono-data font-bold text-primary">
+                                {formatCurrency(BigInt(agg.totalAmount))}
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  );
+                })()
               )}
             </div>
           </motion.div>
@@ -1183,54 +1309,122 @@ export function EmployeeDetailPage({
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-3 py-2">
+            {/* Brand */}
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold text-foreground/80">
-                Accessories (count)
+                Brand
+              </Label>
+              <Select
+                value={salesForm.brand}
+                onValueChange={(v) => setSalesForm((f) => ({ ...f, brand: v }))}
+              >
+                <SelectTrigger className="text-sm" data-ocid="sales.select">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={SalesBrand.ecovacs} className="text-xs">
+                    Ecovacs
+                  </SelectItem>
+                  <SelectItem value={SalesBrand.kuvings} className="text-xs">
+                    Kuvings
+                  </SelectItem>
+                  <SelectItem value={SalesBrand.coway} className="text-xs">
+                    Coway
+                  </SelectItem>
+                  <SelectItem value={SalesBrand.tineco} className="text-xs">
+                    Tineco
+                  </SelectItem>
+                  <SelectItem value={SalesBrand.instant} className="text-xs">
+                    Instant
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {/* Product */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-foreground/80">
+                Product
               </Label>
               <Input
-                type="number"
-                min={0}
-                placeholder="e.g. 12"
-                value={salesForm.accessories}
+                type="text"
+                placeholder="e.g. Ecovacs X2 PRO"
+                value={salesForm.product}
                 onChange={(e) =>
-                  setSalesForm((f) => ({ ...f, accessories: e.target.value }))
+                  setSalesForm((f) => ({ ...f, product: e.target.value }))
                 }
                 className="text-sm"
                 data-ocid="sales.input"
               />
             </div>
+            {/* Type */}
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold text-foreground/80">
-                Extended Warranty (count)
+                Type
+              </Label>
+              <Select
+                value={salesForm.saleType}
+                onValueChange={(v) =>
+                  setSalesForm((f) => ({ ...f, saleType: v }))
+                }
+              >
+                <SelectTrigger className="text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={SaleType.accessories} className="text-xs">
+                    Accessories
+                  </SelectItem>
+                  <SelectItem
+                    value={SaleType.extendedWarranty}
+                    className="text-xs"
+                  >
+                    Extended Warranty
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {/* Date */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-foreground/80">
+                Date
               </Label>
               <Input
-                type="number"
-                min={0}
-                placeholder="e.g. 3"
-                value={salesForm.extendedWarranty}
+                type="date"
+                value={salesForm.date}
                 onChange={(e) =>
-                  setSalesForm((f) => ({
-                    ...f,
-                    extendedWarranty: e.target.value,
-                  }))
+                  setSalesForm((f) => ({ ...f, date: e.target.value }))
                 }
                 className="text-sm"
               />
             </div>
+            {/* Quantity */}
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold text-foreground/80">
-                Total Sales Amount (₹)
+                Quantity
+              </Label>
+              <Input
+                type="number"
+                min={1}
+                placeholder="e.g. 2"
+                value={salesForm.quantity}
+                onChange={(e) =>
+                  setSalesForm((f) => ({ ...f, quantity: e.target.value }))
+                }
+                className="text-sm"
+              />
+            </div>
+            {/* Amount */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-foreground/80">
+                Amount (₹)
               </Label>
               <Input
                 type="number"
                 min={0}
-                placeholder="e.g. 280000"
-                value={salesForm.totalSalesAmount}
+                placeholder="e.g. 15000"
+                value={salesForm.amount}
                 onChange={(e) =>
-                  setSalesForm((f) => ({
-                    ...f,
-                    totalSalesAmount: e.target.value,
-                  }))
+                  setSalesForm((f) => ({ ...f, amount: e.target.value }))
                 }
                 className="text-sm"
               />

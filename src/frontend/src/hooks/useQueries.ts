@@ -11,7 +11,10 @@ import type {
   FeedbackInput,
   IssueSuggestion,
   IssueSuggestionInput,
+  PerformanceInput,
+  SWOTInput,
   SalesRecord,
+  SalesRecordInput,
   TopPerformer,
   TopPerformerInput,
 } from "../backend.d.ts";
@@ -102,8 +105,7 @@ export function useAddEmployee() {
       return actor.addEmployee(input);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["allEmployees"] });
-      queryClient.invalidateQueries({ queryKey: ["activeEmployeeCount"] });
+      queryClient.invalidateQueries();
     },
   });
 }
@@ -117,11 +119,8 @@ export function useAddFeedback() {
       if (!actor) throw new Error("Actor not available");
       return actor.addFeedback(input);
     },
-    onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({
-        queryKey: ["feedbackByEmployee", variables.employeeId.toString()],
-      });
-      queryClient.invalidateQueries({ queryKey: ["allFeedback"] });
+    onSuccess: () => {
+      queryClient.invalidateQueries();
     },
   });
 }
@@ -136,8 +135,7 @@ export function useBulkAddEmployees() {
       return actor.bulkAddEmployees(inputs);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["allEmployees"] });
-      queryClient.invalidateQueries({ queryKey: ["activeEmployeeCount"] });
+      queryClient.invalidateQueries();
     },
   });
 }
@@ -152,8 +150,7 @@ export function useDeleteEmployee() {
       return actor.deleteEmployee(id);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["allEmployees"] });
-      queryClient.invalidateQueries({ queryKey: ["activeEmployeeCount"] });
+      queryClient.invalidateQueries();
     },
   });
 }
@@ -168,8 +165,7 @@ export function useUpdateEmployeeStatus() {
       return actor.updateEmployeeStatus(id, status);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["allEmployees"] });
-      queryClient.invalidateQueries({ queryKey: ["activeEmployeeCount"] });
+      queryClient.invalidateQueries();
     },
   });
 }
@@ -189,12 +185,8 @@ export function useUpdateEmployee() {
       if (!actor) throw new Error("Actor not available");
       return actor.updateEmployee(id, input);
     },
-    onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["allEmployees"] });
-      queryClient.invalidateQueries({ queryKey: ["activeEmployeeCount"] });
-      queryClient.invalidateQueries({
-        queryKey: ["employeeDetails", variables.id.toString()],
-      });
+    onSuccess: () => {
+      queryClient.invalidateQueries();
     },
   });
 }
@@ -221,7 +213,7 @@ export function useAddIssueSuggestion() {
       return actor.addIssueSuggestion(input);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["allIssues"] });
+      queryClient.invalidateQueries();
     },
   });
 }
@@ -238,7 +230,7 @@ export function useUpdateIssueSuggestion() {
       return actor.updateIssueSuggestion(id, input);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["allIssues"] });
+      queryClient.invalidateQueries();
     },
   });
 }
@@ -252,7 +244,7 @@ export function useDeleteIssueSuggestion() {
       return actor.deleteIssueSuggestion(id);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["allIssues"] });
+      queryClient.invalidateQueries();
     },
   });
 }
@@ -279,7 +271,7 @@ export function useSetTopPerformers() {
       return actor.setTopPerformers(inputs);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["topPerformers"] });
+      queryClient.invalidateQueries();
     },
   });
 }
@@ -313,19 +305,12 @@ export function useAddSalesRecord() {
   const { actor } = useActor();
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (input: {
-      employeeId: bigint;
-      fiplCode: string;
-      accessories: bigint;
-      extendedWarranty: bigint;
-      totalSalesAmount: bigint;
-    }) => {
+    mutationFn: async (input: SalesRecordInput) => {
       if (!actor) throw new Error("Actor not available");
       return actor.addSalesRecord(input);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["salesRecords"] });
-      queryClient.invalidateQueries({ queryKey: ["salesRecordsByEmployee"] });
+      queryClient.invalidateQueries();
     },
   });
 }
@@ -351,10 +336,49 @@ export function useAddAttendanceRecord() {
       if (!actor) throw new Error("Actor not available");
       return actor.addAttendanceRecord(input);
     },
-    onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({
-        queryKey: ["attendanceByEmployee", variables.employeeId.toString()],
-      });
+    onSuccess: () => {
+      queryClient.invalidateQueries();
+    },
+  });
+}
+
+export function useUpdatePerformanceByFiplCode() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      fiplCode,
+      input,
+    }: { fiplCode: string; input: PerformanceInput }) => {
+      if (!actor) throw new Error("Actor not available");
+      return actor.updatePerformanceByFiplCode(fiplCode, input);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries();
+    },
+  });
+}
+
+export function useUpdateSwotByFiplCode() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      fiplCode,
+      swotInput,
+      traits,
+      problems,
+    }: {
+      fiplCode: string;
+      swotInput: SWOTInput;
+      traits: string[];
+      problems: string[];
+    }) => {
+      if (!actor) throw new Error("Actor not available");
+      return actor.updateSwotByFiplCode(fiplCode, swotInput, traits, problems);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries();
     },
   });
 }

@@ -17,6 +17,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
+import { loadXlsx } from "@/lib/xlsxLoader";
 import {
   AlertCircle,
   CheckCircle2,
@@ -27,7 +28,6 @@ import {
 } from "lucide-react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
-import * as XLSX from "xlsx";
 import { Status } from "../backend";
 import type { Employee, EmployeeInput } from "../backend.d.ts";
 import {
@@ -100,7 +100,8 @@ interface ParsedSalesRow {
   error?: string;
 }
 
-function downloadTemplate() {
+async function downloadTemplate() {
+  const XLSX = await loadXlsx();
   const wb = XLSX.utils.book_new();
 
   // ── Sheet 1: Employee Details ───────────────────────────────────────────
@@ -532,17 +533,26 @@ function parseCSV(content: string): ParsedRow[] {
   return rows;
 }
 
+// Type aliases for xlsx loaded at runtime from CDN (no local package).
+// Cast at call sites; ReturnType<typeof Object> is used in the loader.
+type XlsxLib = ReturnType<typeof Object>;
+type XlsxWorkBook = ReturnType<typeof Object>;
+
 /** Parse the Sales Data sheet from an xlsx workbook */
-function parseSalesSheet(wb: XLSX.WorkBook): ParsedSalesRow[] | null {
+function parseSalesSheet(
+  wb: XlsxWorkBook,
+  xlsx: XlsxLib,
+): ParsedSalesRow[] | null {
   const sheetName = wb.SheetNames.find(
-    (n) => n.toLowerCase().replace(/\s+/g, "") === "salesdata",
+    (n: string) => n.toLowerCase().replace(/\s+/g, "") === "salesdata",
   );
   if (!sheetName) return null;
   const ws = wb.Sheets[sheetName];
   if (!ws) return null;
-  const raw = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, {
-    defval: "",
-  });
+  const raw = xlsx.utils.sheet_to_json(ws, { defval: "" }) as Record<
+    string,
+    unknown
+  >[];
 
   return raw.map((r) => {
     // Normalise header names
@@ -559,9 +569,9 @@ function parseSalesSheet(wb: XLSX.WorkBook): ParsedSalesRow[] | null {
     // Parse date — xlsx may give a serial number or a string
     let dateStr = dateRaw;
     const serial = Number(dateRaw);
-    if (!Number.isNaN(serial) && serial > 1000) {
+    if (!Number.isNaN(serial) && serial > 1000 && xlsx?.SSF?.parse_date_code) {
       // Excel serial date
-      const jsDate = XLSX.SSF.parse_date_code(serial);
+      const jsDate = xlsx.SSF.parse_date_code(serial);
       if (jsDate) {
         dateStr = `${jsDate.y}-${String(jsDate.m).padStart(2, "0")}-${String(jsDate.d).padStart(2, "0")}`;
       }
@@ -582,15 +592,18 @@ function parseSalesSheet(wb: XLSX.WorkBook): ParsedSalesRow[] | null {
 }
 
 /** Parse employee data sheet from xlsx workbook (supports old "Employee Data" and new "Employee Details") */
-function parseEmployeeSheet(wb: XLSX.WorkBook): ParsedRow[] | null {
-  const sheetName = wb.SheetNames.find((n) => {
+function parseEmployeeSheet(
+  wb: XlsxWorkBook,
+  xlsx: XlsxLib,
+): ParsedRow[] | null {
+  const sheetName = wb.SheetNames.find((n: string) => {
     const key = n.toLowerCase().replace(/\s+/g, "");
     return key === "employeedata" || key === "employeedetails";
   });
   if (!sheetName) return null;
   const ws = wb.Sheets[sheetName];
   if (!ws) return null;
-  const csv = XLSX.utils.sheet_to_csv(ws);
+  const csv = xlsx.utils.sheet_to_csv(ws);
   return parseCSV(csv);
 }
 
@@ -610,16 +623,20 @@ interface ParsedParamsRow {
 }
 
 /** Parse FSE Parameters sheet */
-function parseParamsSheet(wb: XLSX.WorkBook): ParsedParamsRow[] | null {
+function parseParamsSheet(
+  wb: XlsxWorkBook,
+  xlsx: XlsxLib,
+): ParsedParamsRow[] | null {
   const sheetName = wb.SheetNames.find(
-    (n) => n.toLowerCase().replace(/\s+/g, "") === "fseparameters",
+    (n: string) => n.toLowerCase().replace(/\s+/g, "") === "fseparameters",
   );
   if (!sheetName) return null;
   const ws = wb.Sheets[sheetName];
   if (!ws) return null;
-  const raw = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, {
-    defval: "",
-  });
+  const raw = xlsx.utils.sheet_to_json(ws, { defval: "" }) as Record<
+    string,
+    unknown
+  >[];
   return raw.map((r) => {
     const norm: Record<string, string> = {};
     for (const [k, v] of Object.entries(r)) {
@@ -653,16 +670,20 @@ interface ParsedAttendanceRow {
 }
 
 /** Parse Attendance sheet */
-function parseAttendanceSheet(wb: XLSX.WorkBook): ParsedAttendanceRow[] | null {
+function parseAttendanceSheet(
+  wb: XlsxWorkBook,
+  xlsx: XlsxLib,
+): ParsedAttendanceRow[] | null {
   const sheetName = wb.SheetNames.find(
-    (n) => n.toLowerCase().replace(/\s+/g, "") === "attendance",
+    (n: string) => n.toLowerCase().replace(/\s+/g, "") === "attendance",
   );
   if (!sheetName) return null;
   const ws = wb.Sheets[sheetName];
   if (!ws) return null;
-  const raw = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, {
-    defval: "",
-  });
+  const raw = xlsx.utils.sheet_to_json(ws, { defval: "" }) as Record<
+    string,
+    unknown
+  >[];
   return raw.map((r) => {
     const norm: Record<string, string> = {};
     for (const [k, v] of Object.entries(r)) {
@@ -670,8 +691,8 @@ function parseAttendanceSheet(wb: XLSX.WorkBook): ParsedAttendanceRow[] | null {
     }
     let dateStr = norm.date ?? "";
     const serial = Number(dateStr);
-    if (!Number.isNaN(serial) && serial > 1000) {
-      const jsDate = XLSX.SSF.parse_date_code(serial);
+    if (!Number.isNaN(serial) && serial > 1000 && xlsx?.SSF?.parse_date_code) {
+      const jsDate = xlsx.SSF.parse_date_code(serial);
       if (jsDate) {
         dateStr = `${jsDate.y}-${String(jsDate.m).padStart(2, "0")}-${String(jsDate.d).padStart(2, "0")}`;
       }
@@ -699,16 +720,20 @@ interface ParsedSwotRow {
 }
 
 /** Parse SWOT Analysis sheet */
-function parseSwotSheet(wb: XLSX.WorkBook): ParsedSwotRow[] | null {
+function parseSwotSheet(
+  wb: XlsxWorkBook,
+  xlsx: XlsxLib,
+): ParsedSwotRow[] | null {
   const sheetName = wb.SheetNames.find(
-    (n) => n.toLowerCase().replace(/\s+/g, "") === "swotanalysis",
+    (n: string) => n.toLowerCase().replace(/\s+/g, "") === "swotanalysis",
   );
   if (!sheetName) return null;
   const ws = wb.Sheets[sheetName];
   if (!ws) return null;
-  const raw = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, {
-    defval: "",
-  });
+  const raw = xlsx.utils.sheet_to_json(ws, { defval: "" }) as Record<
+    string,
+    unknown
+  >[];
   return raw.map((r) => {
     const norm: Record<string, string> = {};
     for (const [k, v] of Object.entries(r)) {
@@ -814,132 +839,29 @@ export function BulkUploadModal({ open, onOpenChange }: BulkUploadModalProps) {
       if (!result) return;
 
       if (isXlsx) {
-        const data = new Uint8Array(result as ArrayBuffer);
-        const wb = XLSX.read(data, { type: "array" });
-
-        const empRows = parseEmployeeSheet(wb);
-        const salesRows = parseSalesSheet(wb);
-        const paramsRows = parseParamsSheet(wb);
-        const attendanceRows = parseAttendanceSheet(wb);
-        const swotRows = parseSwotSheet(wb);
-
-        // Merge params, attendance, and SWOT data into employee rows
-        let mergedEmpRows = empRows ?? [];
-        if (mergedEmpRows.length > 0) {
-          // Build lookup maps by FIPL code
-          const paramsMap = new Map(
-            (paramsRows ?? []).map((p) => [p.fiplCode.toUpperCase(), p]),
-          );
-          const swotMap = new Map(
-            (swotRows ?? []).map((s) => [s.fiplCode.toUpperCase(), s]),
-          );
-          // Group attendance rows by FIPL code
-          const attendanceMap = new Map<string, ParsedAttendanceRow[]>();
-          for (const att of attendanceRows ?? []) {
-            const key = att.fiplCode.toUpperCase();
-            if (!attendanceMap.has(key)) attendanceMap.set(key, []);
-            attendanceMap.get(key)!.push(att);
-          }
-
-          mergedEmpRows = mergedEmpRows.map((row) => {
-            const key = row.fiplCode.toUpperCase();
-            const params = paramsMap.get(key);
-            const swot = swotMap.get(key);
-            const attRows = attendanceMap.get(key) ?? [];
-
-            const lapses: AttendanceLapse[] = attRows
-              .filter((a) => a.lapseType)
-              .map((a) => ({
-                date: a.date,
-                lapseType: a.lapseType,
-                reason: a.lapseReason,
-              }));
-            const daysOff: DayOff[] = attRows
-              .filter((a) => a.daysOff > 0)
-              .map((a) => ({ date: a.date, reason: a.daysOffReason }));
-
-            return {
-              ...row,
-              salesInfluenceIndex:
-                params?.salesInfluenceIndex ?? row.salesInfluenceIndex,
-              reviewCount: params?.reviewCount ?? row.reviewCount,
-              operationalDiscipline:
-                params?.operationalDiscipline ?? row.operationalDiscipline,
-              productKnowledgeScore:
-                params?.productKnowledgeScore ?? row.productKnowledgeScore,
-              softSkillsScore: params?.softSkillsScore ?? row.softSkillsScore,
-              accessories: params?.accessories ?? row.accessories,
-              extendedWarranty:
-                params?.extendedWarranty ?? row.extendedWarranty,
-              totalSalesAmount:
-                params?.totalSalesAmount ?? row.totalSalesAmount,
-              attendanceLapses:
-                lapses.length > 0 ? lapses : row.attendanceLapses,
-              daysOff: daysOff.length > 0 ? daysOff : row.daysOff,
-              swotStrengths: swot?.swotStrengths ?? row.swotStrengths,
-              swotWeaknesses: swot?.swotWeaknesses ?? row.swotWeaknesses,
-              swotOpportunities:
-                swot?.swotOpportunities ?? row.swotOpportunities,
-              swotThreats: swot?.swotThreats ?? row.swotThreats,
-              traits: swot?.traits ?? row.traits,
-              problems: swot?.problems ?? row.problems,
-              feedbacks: swot?.feedbacks ?? row.feedbacks,
-            };
+        loadXlsx()
+          .then((XLSX) => {
+            const data = new Uint8Array(result as ArrayBuffer);
+            const wb = XLSX.read(data, { type: "array" });
+            processXlsxWorkbook(wb, XLSX);
+          })
+          .catch((err) => {
+            toast.error(`Failed to load Excel library: ${err.message}`);
           });
-        }
-
-        if (mergedEmpRows.length > 0 && salesRows && salesRows.length > 0) {
-          setUploadMode("both");
-          setParsedRows(mergedEmpRows);
-          // Enrich sales rows with auto-detected name/region from employee sheet
-          const empFiplMap = new Map(
-            mergedEmpRows.map((r) => [r.fiplCode.toUpperCase(), r]),
-          );
-          const enriched = salesRows.map((sr) => {
-            const key = sr.fiplCode.toUpperCase();
-            const emp = empFiplMap.get(key) ?? fiplToEmployee.get(key);
-            return {
-              ...sr,
-              name: emp ? emp.name : sr.name,
-              region: emp ? emp.region : sr.region,
-            };
-          });
-          setParsedSalesRows(enriched);
-        } else if (mergedEmpRows.length > 0) {
-          setUploadMode("employees");
-          setParsedRows(mergedEmpRows);
-          setParsedSalesRows([]);
-        } else if (salesRows && salesRows.length > 0) {
-          setUploadMode("sales");
-          setParsedRows([]);
-          // Enrich from existing employees
-          const enriched = salesRows.map((sr) => {
-            const emp = fiplToEmployee.get(sr.fiplCode.toUpperCase());
-            return {
-              ...sr,
-              name: emp ? emp.name : sr.name,
-              region: emp ? emp.region : sr.region,
-            };
-          });
-          setParsedSalesRows(enriched);
-        } else {
-          toast.error("No recognisable data sheets found in this file");
-          return;
-        }
-        setStep("preview");
-      } else {
-        // Legacy CSV — employee data only
-        const content = result as string;
-        const rows = parseCSV(content);
-        if (rows.length === 0) {
-          toast.error("No data rows found in CSV");
-          return;
-        }
-        setUploadMode("employees");
-        setParsedRows(rows);
-        setParsedSalesRows([]);
-        setStep("preview");
+        return;
       }
+
+      // Legacy CSV — employee data only
+      const content = result as string;
+      const rows = parseCSV(content);
+      if (rows.length === 0) {
+        toast.error("No data rows found in CSV");
+        return;
+      }
+      setUploadMode("employees");
+      setParsedRows(rows);
+      setParsedSalesRows([]);
+      setStep("preview");
     };
 
     if (isXlsx) {
@@ -947,6 +869,116 @@ export function BulkUploadModal({ open, onOpenChange }: BulkUploadModalProps) {
     } else {
       reader.readAsText(file);
     }
+  };
+
+  // Separated so it can be called from the async xlsx loader
+  const processXlsxWorkbook = (wb: XlsxWorkBook, XLSX: XlsxLib) => {
+    const empRows = parseEmployeeSheet(wb, XLSX);
+    const salesRows = parseSalesSheet(wb, XLSX);
+    const paramsRows = parseParamsSheet(wb, XLSX);
+    const attendanceRows = parseAttendanceSheet(wb, XLSX);
+    const swotRows = parseSwotSheet(wb, XLSX);
+
+    // Merge params, attendance, and SWOT data into employee rows
+    let mergedEmpRows = empRows ?? [];
+    if (mergedEmpRows.length > 0) {
+      // Build lookup maps by FIPL code
+      const paramsMap = new Map(
+        (paramsRows ?? []).map((p) => [p.fiplCode.toUpperCase(), p]),
+      );
+      const swotMap = new Map(
+        (swotRows ?? []).map((s) => [s.fiplCode.toUpperCase(), s]),
+      );
+      // Group attendance rows by FIPL code
+      const attendanceMap = new Map<string, ParsedAttendanceRow[]>();
+      for (const att of attendanceRows ?? []) {
+        const key = att.fiplCode.toUpperCase();
+        if (!attendanceMap.has(key)) attendanceMap.set(key, []);
+        attendanceMap.get(key)!.push(att);
+      }
+
+      mergedEmpRows = mergedEmpRows.map((row) => {
+        const key = row.fiplCode.toUpperCase();
+        const params = paramsMap.get(key);
+        const swot = swotMap.get(key);
+        const attRows = attendanceMap.get(key) ?? [];
+
+        const lapses: AttendanceLapse[] = attRows
+          .filter((a) => a.lapseType)
+          .map((a) => ({
+            date: a.date,
+            lapseType: a.lapseType,
+            reason: a.lapseReason,
+          }));
+        const daysOff: DayOff[] = attRows
+          .filter((a) => a.daysOff > 0)
+          .map((a) => ({ date: a.date, reason: a.daysOffReason }));
+
+        return {
+          ...row,
+          salesInfluenceIndex:
+            params?.salesInfluenceIndex ?? row.salesInfluenceIndex,
+          reviewCount: params?.reviewCount ?? row.reviewCount,
+          operationalDiscipline:
+            params?.operationalDiscipline ?? row.operationalDiscipline,
+          productKnowledgeScore:
+            params?.productKnowledgeScore ?? row.productKnowledgeScore,
+          softSkillsScore: params?.softSkillsScore ?? row.softSkillsScore,
+          accessories: params?.accessories ?? row.accessories,
+          extendedWarranty: params?.extendedWarranty ?? row.extendedWarranty,
+          totalSalesAmount: params?.totalSalesAmount ?? row.totalSalesAmount,
+          attendanceLapses: lapses.length > 0 ? lapses : row.attendanceLapses,
+          daysOff: daysOff.length > 0 ? daysOff : row.daysOff,
+          swotStrengths: swot?.swotStrengths ?? row.swotStrengths,
+          swotWeaknesses: swot?.swotWeaknesses ?? row.swotWeaknesses,
+          swotOpportunities: swot?.swotOpportunities ?? row.swotOpportunities,
+          swotThreats: swot?.swotThreats ?? row.swotThreats,
+          traits: swot?.traits ?? row.traits,
+          problems: swot?.problems ?? row.problems,
+          feedbacks: swot?.feedbacks ?? row.feedbacks,
+        };
+      });
+    }
+
+    if (mergedEmpRows.length > 0 && salesRows && salesRows.length > 0) {
+      setUploadMode("both");
+      setParsedRows(mergedEmpRows);
+      // Enrich sales rows with auto-detected name/region from employee sheet
+      const empFiplMap = new Map(
+        mergedEmpRows.map((r) => [r.fiplCode.toUpperCase(), r]),
+      );
+      const enriched = salesRows.map((sr) => {
+        const key = sr.fiplCode.toUpperCase();
+        const emp = empFiplMap.get(key) ?? fiplToEmployee.get(key);
+        return {
+          ...sr,
+          name: emp ? emp.name : sr.name,
+          region: emp ? emp.region : sr.region,
+        };
+      });
+      setParsedSalesRows(enriched);
+    } else if (mergedEmpRows.length > 0) {
+      setUploadMode("employees");
+      setParsedRows(mergedEmpRows);
+      setParsedSalesRows([]);
+    } else if (salesRows && salesRows.length > 0) {
+      setUploadMode("sales");
+      setParsedRows([]);
+      // Enrich from existing employees
+      const enriched = salesRows.map((sr) => {
+        const emp = fiplToEmployee.get(sr.fiplCode.toUpperCase());
+        return {
+          ...sr,
+          name: emp ? emp.name : sr.name,
+          region: emp ? emp.region : sr.region,
+        };
+      });
+      setParsedSalesRows(enriched);
+    } else {
+      toast.error("No recognisable data sheets found in this file");
+      return;
+    }
+    setStep("preview");
   };
 
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -997,23 +1029,10 @@ export function BulkUploadModal({ open, onOpenChange }: BulkUploadModalProps) {
         const row = validRows[idx];
         if (!employeeId || !row) continue;
 
-        if (
-          row.totalSalesAmount > 0 ||
-          row.accessories > 0 ||
-          row.extendedWarranty > 0
-        ) {
-          salesPromises.push(
-            addSalesRecord
-              .mutateAsync({
-                employeeId,
-                fiplCode: row.fiplCode,
-                accessories: BigInt(row.accessories),
-                extendedWarranty: BigInt(row.extendedWarranty),
-                totalSalesAmount: BigInt(row.totalSalesAmount),
-              })
-              .catch(() => null),
-          );
-        }
+        // Sales records are now managed via the dedicated Sales upload tab (UploadsPage)
+        // and use the new per-transaction schema (brand, product, saleType, quantity, amount).
+        // Legacy bulk upload does not create sales records.
+        void salesPromises; // keep reference to avoid unused-variable lint error
 
         for (const lapse of row.attendanceLapses) {
           const dateMs = lapse.date
@@ -1083,12 +1102,20 @@ export function BulkUploadModal({ open, onOpenChange }: BulkUploadModalProps) {
           BigInt(Number.isNaN(dateMs) ? Date.now() : dateMs) * 1_000_000n;
         // Use date as a proxy for recordDate — pass totalSalesAmount = amountOfSale
         try {
+          const saleDateMs = sr.date ? new Date(sr.date).getTime() : Date.now();
+          const saleDateNs =
+            BigInt(Number.isNaN(saleDateMs) ? Date.now() : saleDateMs) *
+            1_000_000n;
+          // Legacy sales sheet — map to new schema with defaults
           await addSalesRecord.mutateAsync({
             employeeId,
             fiplCode: sr.fiplCode,
-            accessories: 0n,
-            extendedWarranty: 0n,
-            totalSalesAmount: BigInt(sr.amountOfSale),
+            brand: "ecovacs" as import("../backend").SalesBrand,
+            product: "Unknown",
+            saleType: "accessories" as import("../backend").SaleType,
+            quantity: 1n,
+            amount: BigInt(sr.amountOfSale),
+            saleDate: saleDateNs,
           });
           salesAdded++;
         } catch {
