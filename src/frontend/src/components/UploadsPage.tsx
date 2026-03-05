@@ -55,9 +55,6 @@ interface ParsedParamsRow {
   operationalDiscipline: number;
   productKnowledgeScore: number;
   softSkillsScore: number;
-  accessories: number;
-  extendedWarranty: number;
-  totalSalesAmount: number;
   totalDemoVisits: number;
   totalComplaintVisits: number;
   totalVideoCallDemos: number;
@@ -337,36 +334,6 @@ function parseParamsSheetStandalone(
             "Soft Skill Score",
             "softSkillsScore",
             "SoftSkillScore",
-          ),
-        ) || 0,
-      accessories:
-        Number(
-          pick(
-            norm,
-            "Accessory Count",
-            "accessoryCount",
-            "Accessories",
-            "accessories",
-          ),
-        ) || 0,
-      extendedWarranty:
-        Number(
-          pick(
-            norm,
-            "Extended Warranty Count",
-            "extendedWarrantyCount",
-            "Extended Warranty",
-            "extendedWarranty",
-          ),
-        ) || 0,
-      totalSalesAmount:
-        Number(
-          pick(
-            norm,
-            "Total Sales Amount (₹)",
-            "Total Sales Amount",
-            "totalSalesAmount",
-            "TotalSalesAmount",
           ),
         ) || 0,
       totalDemoVisits:
@@ -680,17 +647,14 @@ async function downloadParamsTemplate() {
     "Operational Discipline (0-100)",
     "Product Knowledge Score (0-100)",
     "Soft Skill Score (0-100)",
-    "Accessory Count",
-    "Extended Warranty Count",
-    "Total Sales Amount (₹)",
     "Total Demo Visits",
     "Total Complaint Visits",
     "Total Video Call Demos",
   ];
   const ws = XLSX.utils.aoa_to_sheet([
     headers,
-    ["FIPL-001", 88, 24, 91, 85, 78, 12, 3, 280000, 15, 4, 8],
-    ["FIPL-002", 95, 31, 78, 72, 88, 28, 8, 420000, 22, 6, 11],
+    ["FIPL-001", 88, 24, 91, 85, 78, 15, 4, 8],
+    ["FIPL-002", 95, 31, 78, 72, 88, 22, 6, 11],
   ]);
   ws["!cols"] = [
     { wch: 22 },
@@ -699,9 +663,6 @@ async function downloadParamsTemplate() {
     { wch: 30 },
     { wch: 30 },
     { wch: 24 },
-    { wch: 20 },
-    { wch: 26 },
-    { wch: 26 },
     { wch: 22 },
     { wch: 26 },
     { wch: 26 },
