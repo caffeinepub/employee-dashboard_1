@@ -100,80 +100,31 @@ interface ParsedSalesRow {
   error?: string;
 }
 
-const CSV_HEADERS = [
-  "fiplCode",
-  "name",
-  "role",
-  "department",
-  "fseCategory",
-  "status",
-  "joinDate",
-  "avatar",
-  "region",
-  "familyDetails",
-  "pastExperience",
-  "salesInfluenceIndex",
-  "reviewCount",
-  "operationalDiscipline",
-  "productKnowledgeScore",
-  "softSkillsScore",
-  "accessories",
-  "extendedWarranty",
-  "totalSalesAmount",
-  "attendanceLapses",
-  "daysOff",
-  "swotStrengths",
-  "swotWeaknesses",
-  "swotOpportunities",
-  "swotThreats",
-  "traits",
-  "problems",
-  "feedbacks",
-];
-
 function downloadTemplate() {
   const wb = XLSX.utils.book_new();
 
-  // ── Sheet 1: Employee Data ──────────────────────────────────────────────
-  // Human-readable header row (maps 1-to-1 with CSV_HEADERS for parsing)
-  const empDisplayHeaders = [
-    "fiplCode (Primary Key)*",
-    "name*",
-    "role*",
-    "department*",
-    "fseCategory (Cash Cow / Star / Question Mark / Dog)",
-    "status (active / inactive / onhold)",
-    "joinDate (YYYY-MM-DD)",
-    "avatar (initials, e.g. PS)",
-    "region",
-    "familyDetails",
-    "pastExperience (semicolon-separated)",
-    "salesInfluenceIndex (0-100)",
-    "reviewCount",
-    "operationalDiscipline (0-100)",
-    "productKnowledgeScore (0-100)",
-    "softSkillsScore (0-100)",
-    "accessories (count)",
-    "extendedWarranty (count)",
-    "totalSalesAmount (₹)",
-    "attendanceLapses (date|type|reason; separated)",
-    "daysOff (date|reason; separated)",
-    "swotStrengths (semicolon-separated)",
-    "swotWeaknesses (semicolon-separated)",
-    "swotOpportunities (semicolon-separated)",
-    "swotThreats (semicolon-separated)",
-    "traits (semicolon-separated)",
-    "problems (semicolon-separated)",
-    "feedbacks (category|severity|description; separated)",
+  // ── Sheet 1: Employee Details ───────────────────────────────────────────
+  const empHeaders = [
+    "FIPL Code (Primary Key)*",
+    "Name*",
+    "Role*",
+    "Department*",
+    "FSE Category (Cash Cow / Star / Question Mark / Dog)",
+    "Status (active / inactive / onhold)",
+    "Joining Date (YYYY-MM-DD)",
+    "Avatar (initials, e.g. PS)",
+    "Region",
+    "Family Details",
+    "Past Experience (semicolon-separated: Company - Role - Duration)",
   ];
 
-  const employeeRows = [
-    empDisplayHeaders,
+  const empRows = [
+    empHeaders,
     [
       "FIPL-001",
       "Priya Sharma",
-      "Senior Engineer",
-      "Engineering",
+      "Senior FSE",
+      "Sales",
       "Star",
       "active",
       "2023-03-15",
@@ -181,23 +132,6 @@ function downloadTemplate() {
       "North India",
       "Married, 2 children",
       "Infosys - Software Engineer - 3 years;TCS - Senior Engineer - 2 years",
-      88,
-      24,
-      91,
-      85,
-      78,
-      12,
-      3,
-      280000,
-      "2026-01-10|Late Attendance|Forgot to mark on app;2026-02-05|Missing|No reason provided",
-      "2026-03-01|Sick Leave",
-      "Strong technical skills;Fast learner",
-      "Occasionally over-commits;Public speaking",
-      "Cross-team leadership;Architecture ownership",
-      "Rapid tech change;Burnout risk",
-      "Analytical;Collaborative;Detail-oriented",
-      "Work-life balance;Documentation backlog",
-      "Performance|low|Consistently exceeds sprint goals;Culture|low|Great team collaborator",
     ],
     [
       "FIPL-002",
@@ -211,16 +145,133 @@ function downloadTemplate() {
       "West Coast",
       "Single",
       "StartupXYZ - Sales Exec - 2 years",
-      95,
-      31,
-      78,
-      72,
-      88,
-      28,
-      8,
-      420000,
-      "2026-01-15|Late Attendance|Client meeting ran late",
+    ],
+  ];
+
+  const ws1 = XLSX.utils.aoa_to_sheet(empRows);
+  ws1["!cols"] = [
+    { wch: 22 }, // FIPL Code
+    { wch: 22 }, // Name
+    { wch: 22 }, // Role
+    { wch: 20 }, // Department
+    { wch: 42 }, // FSE Category
+    { wch: 30 }, // Status
+    { wch: 26 }, // Joining Date
+    { wch: 22 }, // Avatar
+    { wch: 20 }, // Region
+    { wch: 28 }, // Family Details
+    { wch: 50 }, // Past Experience
+  ];
+  XLSX.utils.book_append_sheet(wb, ws1, "Employee Details");
+
+  // ── Sheet 2: FSE Parameters ─────────────────────────────────────────────
+  const paramsHeaders = [
+    "FIPL Code (Primary Key)*",
+    "Sales Influence Index (0-100)",
+    "Review Count",
+    "Operational Discipline (0-100)",
+    "Product Knowledge Score (0-100)",
+    "Soft Skill Score (0-100)",
+    "Accessory Count",
+    "Extended Warranty Count",
+    "Total Sales Amount (₹)",
+    "Total Demo Visits",
+    "Total Complaint Visits",
+    "Total Video Call Demos",
+  ];
+
+  const paramsRows = [
+    paramsHeaders,
+    ["FIPL-001", 88, 24, 91, 85, 78, 12, 3, 280000, 15, 4, 8],
+    ["FIPL-002", 95, 31, 78, 72, 88, 28, 8, 420000, 22, 6, 11],
+  ];
+
+  const ws2 = XLSX.utils.aoa_to_sheet(paramsRows);
+  ws2["!cols"] = [
+    { wch: 22 }, // FIPL Code
+    { wch: 30 }, // Sales Influence Index
+    { wch: 18 }, // Review Count
+    { wch: 30 }, // Operational Discipline
+    { wch: 30 }, // Product Knowledge Score
+    { wch: 24 }, // Soft Skill Score
+    { wch: 20 }, // Accessory Count
+    { wch: 26 }, // Extended Warranty Count
+    { wch: 26 }, // Total Sales Amount
+    { wch: 22 }, // Total Demo Visits
+    { wch: 26 }, // Total Complaint Visits
+    { wch: 26 }, // Total Video Call Demos
+  ];
+  XLSX.utils.book_append_sheet(wb, ws2, "FSE Parameters");
+
+  // ── Sheet 3: Attendance ─────────────────────────────────────────────────
+  const attendanceHeaders = [
+    "FIPL Code (Primary Key)*",
+    "Date (YYYY-MM-DD)*",
+    "Attendance Lapse Type (Late Attendance / Missing / Other)",
+    "Lapse Reason",
+    "Days Taken Off (0 or 1)",
+    "Days Off Reason",
+  ];
+
+  const attendanceRows = [
+    attendanceHeaders,
+    [
+      "FIPL-001",
+      "2026-01-10",
+      "Late Attendance",
+      "Forgot to mark on app",
+      0,
       "",
+    ],
+    ["FIPL-001", "2026-02-05", "Missing", "No reason provided", 0, ""],
+    ["FIPL-001", "2026-03-01", "", "", 1, "Sick Leave"],
+    [
+      "FIPL-002",
+      "2026-01-15",
+      "Late Attendance",
+      "Client meeting ran late",
+      0,
+      "",
+    ],
+  ];
+
+  const ws3 = XLSX.utils.aoa_to_sheet(attendanceRows);
+  ws3["!cols"] = [
+    { wch: 22 }, // FIPL Code
+    { wch: 22 }, // Date
+    { wch: 42 }, // Lapse Type
+    { wch: 36 }, // Lapse Reason
+    { wch: 22 }, // Days Taken Off
+    { wch: 30 }, // Days Off Reason
+  ];
+  XLSX.utils.book_append_sheet(wb, ws3, "Attendance");
+
+  // ── Sheet 4: SWOT Analysis ──────────────────────────────────────────────
+  const swotHeaders = [
+    "FIPL Code (Primary Key)*",
+    "Strengths (semicolon-separated)",
+    "Weaknesses (semicolon-separated)",
+    "Opportunities (semicolon-separated)",
+    "Threats (semicolon-separated)",
+    "Traits (semicolon-separated)",
+    "Problems (semicolon-separated)",
+    "Feedbacks (category|severity|description; separated)",
+  ];
+
+  const swotRows = [
+    swotHeaders,
+    [
+      "FIPL-001",
+      "Strong technical skills;Fast learner",
+      "Occasionally over-commits;Public speaking",
+      "Cross-team leadership;Architecture ownership",
+      "Rapid tech change;Burnout risk",
+      "Analytical;Collaborative;Detail-oriented",
+      "Work-life balance;Documentation backlog",
+      "Performance|low|Consistently exceeds sprint goals;Culture|low|Great team collaborator",
+    ],
+    [
+      "FIPL-002",
       "Top closer;Persuasive communicator",
       "Poor CRM hygiene;Misses follow-ups",
       "Enterprise accounts;Team lead track",
@@ -231,43 +282,20 @@ function downloadTemplate() {
     ],
   ];
 
-  const ws1 = XLSX.utils.aoa_to_sheet(employeeRows);
-
-  // Set column widths for readability
-  ws1["!cols"] = [
-    { wch: 20 }, // fiplCode
-    { wch: 20 }, // name
-    { wch: 22 }, // role
-    { wch: 18 }, // department
-    { wch: 38 }, // fseCategory
-    { wch: 30 }, // status
-    { wch: 24 }, // joinDate
-    { wch: 22 }, // avatar
-    { wch: 18 }, // region
-    { wch: 25 }, // familyDetails
-    { wch: 40 }, // pastExperience
-    { wch: 26 }, // salesInfluenceIndex
-    { wch: 16 }, // reviewCount
-    { wch: 28 }, // operationalDiscipline
-    { wch: 28 }, // productKnowledgeScore
-    { wch: 24 }, // softSkillsScore
-    { wch: 20 }, // accessories
-    { wch: 22 }, // extendedWarranty
-    { wch: 22 }, // totalSalesAmount
-    { wch: 50 }, // attendanceLapses
-    { wch: 30 }, // daysOff
-    { wch: 35 }, // swotStrengths
-    { wch: 35 }, // swotWeaknesses
-    { wch: 35 }, // swotOpportunities
-    { wch: 35 }, // swotThreats
-    { wch: 35 }, // traits
-    { wch: 35 }, // problems
-    { wch: 50 }, // feedbacks
+  const ws4 = XLSX.utils.aoa_to_sheet(swotRows);
+  ws4["!cols"] = [
+    { wch: 22 }, // FIPL Code
+    { wch: 38 }, // Strengths
+    { wch: 38 }, // Weaknesses
+    { wch: 38 }, // Opportunities
+    { wch: 38 }, // Threats
+    { wch: 38 }, // Traits
+    { wch: 38 }, // Problems
+    { wch: 55 }, // Feedbacks
   ];
+  XLSX.utils.book_append_sheet(wb, ws4, "SWOT Analysis");
 
-  XLSX.utils.book_append_sheet(wb, ws1, "Employee Data");
-
-  // ── Sheet 2: Sales Data ─────────────────────────────────────────────────
+  // ── Sheet 5: Sales Data ─────────────────────────────────────────────────
   const salesDisplayHeaders = [
     "FIPL Code (Primary Key)*",
     "Name (auto-filled from FIPL Code)",
@@ -286,17 +314,15 @@ function downloadTemplate() {
     ["FIPL-002", "Raj Mehta", "West Coast", "2026-03-15", 91000],
   ];
 
-  const ws2 = XLSX.utils.aoa_to_sheet(salesRows);
-
-  ws2["!cols"] = [
+  const ws5 = XLSX.utils.aoa_to_sheet(salesRows);
+  ws5["!cols"] = [
     { wch: 28 }, // FIPL Code
     { wch: 28 }, // Name
     { wch: 22 }, // Region
     { wch: 20 }, // Date
     { wch: 24 }, // Amount of Sale
   ];
-
-  XLSX.utils.book_append_sheet(wb, ws2, "Sales Data");
+  XLSX.utils.book_append_sheet(wb, ws5, "Sales Data");
 
   XLSX.writeFile(wb, "FSE-bulk-upload-template.xlsx");
 }
@@ -555,16 +581,150 @@ function parseSalesSheet(wb: XLSX.WorkBook): ParsedSalesRow[] | null {
   });
 }
 
-/** Parse employee data sheet from xlsx workbook */
+/** Parse employee data sheet from xlsx workbook (supports old "Employee Data" and new "Employee Details") */
 function parseEmployeeSheet(wb: XLSX.WorkBook): ParsedRow[] | null {
-  const sheetName = wb.SheetNames.find(
-    (n) => n.toLowerCase().replace(/\s+/g, "") === "employeedata",
-  );
+  const sheetName = wb.SheetNames.find((n) => {
+    const key = n.toLowerCase().replace(/\s+/g, "");
+    return key === "employeedata" || key === "employeedetails";
+  });
   if (!sheetName) return null;
   const ws = wb.Sheets[sheetName];
   if (!ws) return null;
   const csv = XLSX.utils.sheet_to_csv(ws);
   return parseCSV(csv);
+}
+
+interface ParsedParamsRow {
+  fiplCode: string;
+  salesInfluenceIndex: number;
+  reviewCount: number;
+  operationalDiscipline: number;
+  productKnowledgeScore: number;
+  softSkillsScore: number;
+  accessories: number;
+  extendedWarranty: number;
+  totalSalesAmount: number;
+  totalDemoVisits: number;
+  totalComplaintVisits: number;
+  totalVideoCallDemos: number;
+}
+
+/** Parse FSE Parameters sheet */
+function parseParamsSheet(wb: XLSX.WorkBook): ParsedParamsRow[] | null {
+  const sheetName = wb.SheetNames.find(
+    (n) => n.toLowerCase().replace(/\s+/g, "") === "fseparameters",
+  );
+  if (!sheetName) return null;
+  const ws = wb.Sheets[sheetName];
+  if (!ws) return null;
+  const raw = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, {
+    defval: "",
+  });
+  return raw.map((r) => {
+    const norm: Record<string, string> = {};
+    for (const [k, v] of Object.entries(r)) {
+      norm[k.toLowerCase().replace(/[\s().*]/g, "")] = String(v ?? "").trim();
+    }
+    return {
+      fiplCode: norm.fiplcode ?? "",
+      salesInfluenceIndex: Number(norm.salesinfluenceindex) || 0,
+      reviewCount: Number(norm.reviewcount) || 0,
+      operationalDiscipline: Number(norm.operationaldiscipline) || 0,
+      productKnowledgeScore: Number(norm.productknowledgescore) || 0,
+      softSkillsScore: Number(norm.softskillscore ?? norm.softskillsscore) || 0,
+      accessories: Number(norm.accessorycount ?? norm.accessories) || 0,
+      extendedWarranty:
+        Number(norm.extendedwarrantycount ?? norm.extendedwarranty) || 0,
+      totalSalesAmount: Number(norm.totalsalesamount) || 0,
+      totalDemoVisits: Number(norm.totaldemovists ?? norm.totaldemovisits) || 0,
+      totalComplaintVisits: Number(norm.totalcomplaintvisits) || 0,
+      totalVideoCallDemos: Number(norm.totalvideocalldemos) || 0,
+    };
+  });
+}
+
+interface ParsedAttendanceRow {
+  fiplCode: string;
+  date: string;
+  lapseType: string;
+  lapseReason: string;
+  daysOff: number;
+  daysOffReason: string;
+}
+
+/** Parse Attendance sheet */
+function parseAttendanceSheet(wb: XLSX.WorkBook): ParsedAttendanceRow[] | null {
+  const sheetName = wb.SheetNames.find(
+    (n) => n.toLowerCase().replace(/\s+/g, "") === "attendance",
+  );
+  if (!sheetName) return null;
+  const ws = wb.Sheets[sheetName];
+  if (!ws) return null;
+  const raw = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, {
+    defval: "",
+  });
+  return raw.map((r) => {
+    const norm: Record<string, string> = {};
+    for (const [k, v] of Object.entries(r)) {
+      norm[k.toLowerCase().replace(/[\s().*]/g, "")] = String(v ?? "").trim();
+    }
+    let dateStr = norm.date ?? "";
+    const serial = Number(dateStr);
+    if (!Number.isNaN(serial) && serial > 1000) {
+      const jsDate = XLSX.SSF.parse_date_code(serial);
+      if (jsDate) {
+        dateStr = `${jsDate.y}-${String(jsDate.m).padStart(2, "0")}-${String(jsDate.d).padStart(2, "0")}`;
+      }
+    }
+    return {
+      fiplCode: norm.fiplcode ?? "",
+      date: dateStr,
+      lapseType: norm.attendancelapsetype ?? norm.lapsetype ?? "",
+      lapseReason: norm.lapsereason ?? norm.reason ?? "",
+      daysOff: Number(norm.daystakenoff ?? norm.daysoff) || 0,
+      daysOffReason: norm.daysoffreason ?? "",
+    };
+  });
+}
+
+interface ParsedSwotRow {
+  fiplCode: string;
+  swotStrengths: string[];
+  swotWeaknesses: string[];
+  swotOpportunities: string[];
+  swotThreats: string[];
+  traits: string[];
+  problems: string[];
+  feedbacks: Array<{ category: string; severity: string; description: string }>;
+}
+
+/** Parse SWOT Analysis sheet */
+function parseSwotSheet(wb: XLSX.WorkBook): ParsedSwotRow[] | null {
+  const sheetName = wb.SheetNames.find(
+    (n) => n.toLowerCase().replace(/\s+/g, "") === "swotanalysis",
+  );
+  if (!sheetName) return null;
+  const ws = wb.Sheets[sheetName];
+  if (!ws) return null;
+  const raw = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, {
+    defval: "",
+  });
+  return raw.map((r) => {
+    const norm: Record<string, string> = {};
+    for (const [k, v] of Object.entries(r)) {
+      norm[k.toLowerCase().replace(/[\s().*]/g, "")] = String(v ?? "").trim();
+    }
+    return {
+      fiplCode: norm.fiplcode ?? "",
+      swotStrengths: parseSemicolon(norm.strengths ?? ""),
+      swotWeaknesses: parseSemicolon(norm.weaknesses ?? ""),
+      swotOpportunities: parseSemicolon(norm.opportunities ?? ""),
+      swotThreats: parseSemicolon(norm.threats ?? ""),
+      traits: parseSemicolon(norm.traits ?? ""),
+      problems: parseSemicolon(norm.problems ?? ""),
+      feedbacks: parseFeedbacks(norm.feedbacks ?? ""),
+    };
+  });
 }
 
 function rowToEmployeeInput(row: ParsedRow): EmployeeInput {
@@ -659,18 +819,81 @@ export function BulkUploadModal({ open, onOpenChange }: BulkUploadModalProps) {
 
         const empRows = parseEmployeeSheet(wb);
         const salesRows = parseSalesSheet(wb);
+        const paramsRows = parseParamsSheet(wb);
+        const attendanceRows = parseAttendanceSheet(wb);
+        const swotRows = parseSwotSheet(wb);
 
-        if (
-          empRows &&
-          empRows.length > 0 &&
-          salesRows &&
-          salesRows.length > 0
-        ) {
+        // Merge params, attendance, and SWOT data into employee rows
+        let mergedEmpRows = empRows ?? [];
+        if (mergedEmpRows.length > 0) {
+          // Build lookup maps by FIPL code
+          const paramsMap = new Map(
+            (paramsRows ?? []).map((p) => [p.fiplCode.toUpperCase(), p]),
+          );
+          const swotMap = new Map(
+            (swotRows ?? []).map((s) => [s.fiplCode.toUpperCase(), s]),
+          );
+          // Group attendance rows by FIPL code
+          const attendanceMap = new Map<string, ParsedAttendanceRow[]>();
+          for (const att of attendanceRows ?? []) {
+            const key = att.fiplCode.toUpperCase();
+            if (!attendanceMap.has(key)) attendanceMap.set(key, []);
+            attendanceMap.get(key)!.push(att);
+          }
+
+          mergedEmpRows = mergedEmpRows.map((row) => {
+            const key = row.fiplCode.toUpperCase();
+            const params = paramsMap.get(key);
+            const swot = swotMap.get(key);
+            const attRows = attendanceMap.get(key) ?? [];
+
+            const lapses: AttendanceLapse[] = attRows
+              .filter((a) => a.lapseType)
+              .map((a) => ({
+                date: a.date,
+                lapseType: a.lapseType,
+                reason: a.lapseReason,
+              }));
+            const daysOff: DayOff[] = attRows
+              .filter((a) => a.daysOff > 0)
+              .map((a) => ({ date: a.date, reason: a.daysOffReason }));
+
+            return {
+              ...row,
+              salesInfluenceIndex:
+                params?.salesInfluenceIndex ?? row.salesInfluenceIndex,
+              reviewCount: params?.reviewCount ?? row.reviewCount,
+              operationalDiscipline:
+                params?.operationalDiscipline ?? row.operationalDiscipline,
+              productKnowledgeScore:
+                params?.productKnowledgeScore ?? row.productKnowledgeScore,
+              softSkillsScore: params?.softSkillsScore ?? row.softSkillsScore,
+              accessories: params?.accessories ?? row.accessories,
+              extendedWarranty:
+                params?.extendedWarranty ?? row.extendedWarranty,
+              totalSalesAmount:
+                params?.totalSalesAmount ?? row.totalSalesAmount,
+              attendanceLapses:
+                lapses.length > 0 ? lapses : row.attendanceLapses,
+              daysOff: daysOff.length > 0 ? daysOff : row.daysOff,
+              swotStrengths: swot?.swotStrengths ?? row.swotStrengths,
+              swotWeaknesses: swot?.swotWeaknesses ?? row.swotWeaknesses,
+              swotOpportunities:
+                swot?.swotOpportunities ?? row.swotOpportunities,
+              swotThreats: swot?.swotThreats ?? row.swotThreats,
+              traits: swot?.traits ?? row.traits,
+              problems: swot?.problems ?? row.problems,
+              feedbacks: swot?.feedbacks ?? row.feedbacks,
+            };
+          });
+        }
+
+        if (mergedEmpRows.length > 0 && salesRows && salesRows.length > 0) {
           setUploadMode("both");
-          setParsedRows(empRows);
+          setParsedRows(mergedEmpRows);
           // Enrich sales rows with auto-detected name/region from employee sheet
           const empFiplMap = new Map(
-            empRows.map((r) => [r.fiplCode.toUpperCase(), r]),
+            mergedEmpRows.map((r) => [r.fiplCode.toUpperCase(), r]),
           );
           const enriched = salesRows.map((sr) => {
             const key = sr.fiplCode.toUpperCase();
@@ -682,9 +905,9 @@ export function BulkUploadModal({ open, onOpenChange }: BulkUploadModalProps) {
             };
           });
           setParsedSalesRows(enriched);
-        } else if (empRows && empRows.length > 0) {
+        } else if (mergedEmpRows.length > 0) {
           setUploadMode("employees");
-          setParsedRows(empRows);
+          setParsedRows(mergedEmpRows);
           setParsedSalesRows([]);
         } else if (salesRows && salesRows.length > 0) {
           setUploadMode("sales");
@@ -909,8 +1132,9 @@ export function BulkUploadModal({ open, onOpenChange }: BulkUploadModalProps) {
             Bulk Upload
           </DialogTitle>
           <DialogDescription className="text-xs text-muted-foreground">
-            Upload the Excel template (.xlsx) — it contains two sheets: Employee
-            Data and Sales Data. FIPL Code is the primary key linking both.
+            Upload the Excel template (.xlsx) — it contains 5 sheets: Employee
+            Details, FSE Parameters, Attendance, SWOT Analysis, and Sales Data.
+            FIPL Code is the primary key linking all sheets.
           </DialogDescription>
         </DialogHeader>
 
@@ -1001,79 +1225,27 @@ export function BulkUploadModal({ open, onOpenChange }: BulkUploadModalProps) {
 
               {/* Sheets legend */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {/* Employee Data sheet */}
+                {/* Sheet 1: Employee Details */}
                 <div className="rounded-lg bg-muted/20 border border-border px-4 py-3 space-y-2">
                   <p className="text-xs font-semibold text-foreground/70">
-                    Sheet 1 — Employee Data
-                  </p>
-                  <div>
-                    <p className="text-[10px] text-muted-foreground/60 mb-1.5 uppercase tracking-wider font-semibold">
-                      Core fields (required)
-                    </p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {CSV_HEADERS.slice(0, 11).map((h) => (
-                        <code
-                          key={h}
-                          className={cn(
-                            "text-[10px] font-mono px-1.5 py-0.5 rounded border",
-                            h === "fiplCode"
-                              ? "bg-amber-50 text-amber-700 border-amber-200 font-bold"
-                              : "bg-primary/10 text-primary border-primary/20",
-                          )}
-                        >
-                          {h}
-                        </code>
-                      ))}
-                    </div>
-                  </div>
-                  <div>
-                    <p className="text-[10px] text-muted-foreground/60 mb-1.5 uppercase tracking-wider font-semibold">
-                      Performance
-                    </p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {CSV_HEADERS.slice(11, 16).map((h) => (
-                        <code
-                          key={h}
-                          className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[oklch(0.93_0.04_165_/_0.5)] text-[oklch(0.35_0.14_165)] border border-[oklch(0.65_0.12_165_/_0.3)]"
-                        >
-                          {h}
-                        </code>
-                      ))}
-                    </div>
-                  </div>
-                  <div>
-                    <p className="text-[10px] text-muted-foreground/60 mb-1.5 uppercase tracking-wider font-semibold">
-                      Sales &amp; Attendance
-                    </p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {CSV_HEADERS.slice(16, 21).map((h) => (
-                        <code
-                          key={h}
-                          className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[oklch(0.93_0.05_85_/_0.5)] text-[oklch(0.38_0.14_85)] border border-[oklch(0.65_0.12_85_/_0.3)]"
-                        >
-                          {h}
-                        </code>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Sales Data sheet */}
-                <div className="rounded-lg bg-[oklch(0.97_0.03_85_/_0.4)] border border-[oklch(0.75_0.1_85_/_0.4)] px-4 py-3 space-y-2">
-                  <p className="text-xs font-semibold text-[oklch(0.35_0.14_85)]">
-                    Sheet 2 — Sales Data
+                    Sheet 1 — Employee Details
                   </p>
                   <p className="text-[10px] text-muted-foreground leading-relaxed">
-                    Each row is one sale event. FIPL Code auto-resolves the
-                    employee name and region — no need to re-enter them.
+                    Core identity fields for each FSE.
                   </p>
-                  <div className="flex flex-wrap gap-1.5 mt-1">
+                  <div className="flex flex-wrap gap-1.5">
                     {[
-                      { label: "FIPL Code", pk: true },
-                      { label: "Name", pk: false },
-                      { label: "Region", pk: false },
-                      { label: "Date", pk: false },
-                      { label: "Amount of Sale", pk: false },
+                      { label: "FIPL Code*", pk: true },
+                      { label: "Name*" },
+                      { label: "Role*" },
+                      { label: "Department*" },
+                      { label: "FSE Category" },
+                      { label: "Status" },
+                      { label: "Joining Date" },
+                      { label: "Avatar" },
+                      { label: "Region" },
+                      { label: "Family Details" },
+                      { label: "Past Experience" },
                     ].map(({ label, pk }) => (
                       <code
                         key={label}
@@ -1081,18 +1253,134 @@ export function BulkUploadModal({ open, onOpenChange }: BulkUploadModalProps) {
                           "text-[10px] font-mono px-1.5 py-0.5 rounded border",
                           pk
                             ? "bg-amber-50 text-amber-700 border-amber-200 font-bold"
-                            : "bg-[oklch(0.93_0.05_85_/_0.5)] text-[oklch(0.38_0.14_85)] border-[oklch(0.65_0.12_85_/_0.3)]",
+                            : "bg-primary/10 text-primary border-primary/20",
                         )}
                       >
                         {label}
                       </code>
                     ))}
                   </div>
-                  <p className="text-[10px] text-muted-foreground/60 pt-1">
-                    Name &amp; Region are auto-filled from FIPL Code — you may
-                    leave them blank.
-                  </p>
                 </div>
+
+                {/* Sheet 2: FSE Parameters */}
+                <div className="rounded-lg bg-[oklch(0.97_0.03_145_/_0.3)] border border-[oklch(0.75_0.1_145_/_0.4)] px-4 py-3 space-y-2">
+                  <p className="text-xs font-semibold text-[oklch(0.35_0.14_145)]">
+                    Sheet 2 — FSE Parameters
+                  </p>
+                  <p className="text-[10px] text-muted-foreground leading-relaxed">
+                    5 performance scores + sales totals + visit metrics, linked
+                    by FIPL Code.
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {[
+                      { label: "FIPL Code*", pk: true },
+                      { label: "Sales Influence Index" },
+                      { label: "Review Count" },
+                      { label: "Operational Discipline" },
+                      { label: "Product Knowledge Score" },
+                      { label: "Soft Skill Score" },
+                      { label: "Accessory Count" },
+                      { label: "Extended Warranty Count" },
+                      { label: "Total Sales Amount" },
+                      { label: "Total Demo Visits" },
+                      { label: "Total Complaint Visits" },
+                      { label: "Total Video Call Demos" },
+                    ].map(({ label, pk }) => (
+                      <code
+                        key={label}
+                        className={cn(
+                          "text-[10px] font-mono px-1.5 py-0.5 rounded border",
+                          pk
+                            ? "bg-amber-50 text-amber-700 border-amber-200 font-bold"
+                            : "bg-[oklch(0.93_0.04_145_/_0.5)] text-[oklch(0.35_0.14_145)] border-[oklch(0.65_0.12_145_/_0.3)]",
+                        )}
+                      >
+                        {label}
+                      </code>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Sheet 3: Attendance */}
+                <div className="rounded-lg bg-[oklch(0.97_0.03_240_/_0.3)] border border-[oklch(0.75_0.1_240_/_0.4)] px-4 py-3 space-y-2">
+                  <p className="text-xs font-semibold text-[oklch(0.35_0.14_240)]">
+                    Sheet 3 — Attendance
+                  </p>
+                  <p className="text-[10px] text-muted-foreground leading-relaxed">
+                    One row per attendance event — lapses or days off.
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {[
+                      { label: "FIPL Code*", pk: true },
+                      { label: "Date*" },
+                      { label: "Lapse Type" },
+                      { label: "Lapse Reason" },
+                      { label: "Days Taken Off" },
+                      { label: "Days Off Reason" },
+                    ].map(({ label, pk }) => (
+                      <code
+                        key={label}
+                        className={cn(
+                          "text-[10px] font-mono px-1.5 py-0.5 rounded border",
+                          pk
+                            ? "bg-amber-50 text-amber-700 border-amber-200 font-bold"
+                            : "bg-[oklch(0.93_0.04_240_/_0.5)] text-[oklch(0.35_0.14_240)] border-[oklch(0.65_0.12_240_/_0.3)]",
+                        )}
+                      >
+                        {label}
+                      </code>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Sheet 4: SWOT Analysis */}
+                <div className="rounded-lg bg-[oklch(0.97_0.03_25_/_0.2)] border border-[oklch(0.75_0.1_25_/_0.3)] px-4 py-3 space-y-2">
+                  <p className="text-xs font-semibold text-[oklch(0.40_0.18_25)]">
+                    Sheet 4 — SWOT Analysis
+                  </p>
+                  <p className="text-[10px] text-muted-foreground leading-relaxed">
+                    SWOT data, traits, problems, and feedbacks per FSE.
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {[
+                      { label: "FIPL Code*", pk: true },
+                      { label: "Strengths" },
+                      { label: "Weaknesses" },
+                      { label: "Opportunities" },
+                      { label: "Threats" },
+                      { label: "Traits" },
+                      { label: "Problems" },
+                      { label: "Feedbacks" },
+                    ].map(({ label, pk }) => (
+                      <code
+                        key={label}
+                        className={cn(
+                          "text-[10px] font-mono px-1.5 py-0.5 rounded border",
+                          pk
+                            ? "bg-amber-50 text-amber-700 border-amber-200 font-bold"
+                            : "bg-[oklch(0.95_0.04_25_/_0.5)] text-[oklch(0.42_0.18_25)] border-[oklch(0.65_0.14_25_/_0.3)]",
+                        )}
+                      >
+                        {label}
+                      </code>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Sheet 5: Sales Data note */}
+              <div className="rounded-lg bg-[oklch(0.97_0.03_85_/_0.4)] border border-[oklch(0.75_0.1_85_/_0.4)] px-4 py-3 space-y-1">
+                <p className="text-xs font-semibold text-[oklch(0.35_0.14_85)]">
+                  Sheet 5 — Sales Data
+                </p>
+                <p className="text-[10px] text-muted-foreground leading-relaxed">
+                  Each row is one sale event. FIPL Code auto-resolves the
+                  employee name and region. Columns:{" "}
+                  <code className="bg-amber-50 text-amber-700 border border-amber-200 px-1 rounded font-bold">
+                    FIPL Code
+                  </code>{" "}
+                  Name · Region · Date · Amount of Sale
+                </p>
               </div>
 
               {/* FSE Category legend */}
