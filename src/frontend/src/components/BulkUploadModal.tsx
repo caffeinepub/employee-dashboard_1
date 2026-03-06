@@ -100,6 +100,34 @@ interface ParsedSalesRow {
   error?: string;
 }
 
+/** Parse a date value from Excel: handles serial numbers, DD-MM-YYYY, and ISO formats. */
+function parseXlsxDate(raw: string): string {
+  if (!raw) return raw;
+  // Excel serial number (e.g. 45413)
+  const serial = Number(raw);
+  if (!Number.isNaN(serial) && serial > 1000 && serial < 200000) {
+    const excelEpoch = new Date(1899, 11, 30);
+    excelEpoch.setDate(excelEpoch.getDate() + serial);
+    const y = excelEpoch.getFullYear();
+    const m = String(excelEpoch.getMonth() + 1).padStart(2, "0");
+    const d = String(excelEpoch.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  }
+  // DD-MM-YYYY or DD/MM/YYYY → YYYY-MM-DD
+  const ddmmyyyy = raw.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/);
+  if (ddmmyyyy) {
+    const [, dd, mm, yyyy] = ddmmyyyy;
+    return `${yyyy}-${mm.padStart(2, "0")}-${dd.padStart(2, "0")}`;
+  }
+  return raw;
+}
+
+function joinDateToMs(dateStr: string): number {
+  if (!dateStr) return Date.now();
+  const ms = new Date(parseXlsxDate(dateStr)).getTime();
+  return Number.isNaN(ms) ? Date.now() : ms;
+}
+
 async function downloadTemplate() {
   const XLSX = await loadXlsx();
   const wb = XLSX.utils.book_new();
@@ -112,7 +140,7 @@ async function downloadTemplate() {
     "Department*",
     "FSE Category (Cash Cow / Star / Question Mark / Dog)",
     "Status (active / inactive / onhold)",
-    "Joining Date (YYYY-MM-DD)",
+    "Joining Date (DD-MM-YYYY)",
     "Avatar (initials, e.g. PS)",
     "Region",
     "Family Details",
@@ -128,7 +156,7 @@ async function downloadTemplate() {
       "Sales",
       "Star",
       "active",
-      "2023-03-15",
+      "15-03-2023",
       "PS",
       "North India",
       "Married, 2 children",
@@ -141,7 +169,7 @@ async function downloadTemplate() {
       "Sales",
       "Cash Cow",
       "active",
-      "2022-07-01",
+      "01-07-2022",
       "RM",
       "West Coast",
       "Single",
@@ -462,7 +490,7 @@ function parseCSV(content: string): ParsedRow[] {
           : statusIdx >= 0 && cells[statusIdx]?.toLowerCase() === "onhold"
             ? Status.onHold
             : Status.active,
-      joinDate: joinIdx >= 0 ? (cells[joinIdx] ?? "") : "",
+      joinDate: parseXlsxDate(joinIdx >= 0 ? (cells[joinIdx] ?? "") : ""),
       avatar: avatarIdx >= 0 ? (cells[avatarIdx] ?? "") : "",
       region: regionIdx >= 0 ? (cells[regionIdx] ?? "") : "",
       familyDetails:
@@ -753,11 +781,8 @@ function parseSwotSheet(
 }
 
 function rowToEmployeeInput(row: ParsedRow): EmployeeInput {
-  const joinDateMs = row.joinDate
-    ? new Date(row.joinDate).getTime()
-    : Date.now();
-  const joinDateNs =
-    BigInt(Number.isNaN(joinDateMs) ? Date.now() : joinDateMs) * 1_000_000n;
+  const joinDateMs = joinDateToMs(row.joinDate);
+  const joinDateNs = BigInt(joinDateMs) * 1_000_000n;
 
   const avatar =
     row.avatar ||

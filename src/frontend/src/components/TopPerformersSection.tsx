@@ -237,34 +237,48 @@ export function TopPerformersSection() {
 
   const handleConfirm = async () => {
     const validRows = parsedRows.filter((r) => !r.error);
-    if (validRows.length === 0) return;
+    if (validRows.length === 0) {
+      toast.error("No valid rows to save.");
+      return;
+    }
     if (!actor) {
       toast.error("Backend not ready. Please wait a moment and try again.");
       return;
     }
-    const inputs: TopPerformerInput[] = validRows.map((r) => ({
-      rank: BigInt(r.rank),
-      name: r.name,
-      fiplCode: r.fiplCode,
-      accessories: BigInt(r.accessories),
-      extendedWarranty: BigInt(r.extendedWarranty),
-      totalSales: BigInt(r.totalSales),
-    }));
-    setIsSaving(true);
-    const toastId = toast.loading("Saving top performers...");
+
+    let inputs: TopPerformerInput[];
     try {
-      await actor.setTopPerformers(inputs);
+      inputs = validRows.map((r) => ({
+        rank: BigInt(Math.max(1, Math.round(r.rank))),
+        name: String(r.name || ""),
+        fiplCode: String(r.fiplCode || ""),
+        accessories: BigInt(Math.max(0, Math.round(r.accessories))),
+        extendedWarranty: BigInt(Math.max(0, Math.round(r.extendedWarranty))),
+        totalSales: BigInt(Math.max(0, Math.round(r.totalSales))),
+      }));
+    } catch (convErr) {
+      toast.error(
+        `Data conversion error: ${convErr instanceof Error ? convErr.message : String(convErr)}`,
+      );
+      return;
+    }
+
+    setIsSaving(true);
+    const toastId = toast.loading(`Saving ${inputs.length} top performers...`);
+    try {
+      const result = await actor.setTopPerformers(inputs);
+      console.log("setTopPerformers result:", result);
       await queryClient.invalidateQueries();
-      toast.success(`Top ${inputs.length} performers updated`, { id: toastId });
+      toast.success(`Top ${inputs.length} performers saved successfully!`, {
+        id: toastId,
+      });
       setUploadOpen(false);
       setStep("upload");
       setParsedRows([]);
     } catch (err) {
       console.error("Top performers save error:", err);
-      toast.error(
-        `Failed to save: ${err instanceof Error ? err.message : String(err)}`,
-        { id: toastId },
-      );
+      const msg = err instanceof Error ? err.message : String(err);
+      toast.error(`Save failed: ${msg.slice(0, 120)}`, { id: toastId });
     } finally {
       setIsSaving(false);
     }
@@ -430,7 +444,7 @@ export function TopPerformersSection() {
       {/* Upload Modal */}
       <Dialog open={uploadOpen} onOpenChange={handleClose}>
         <DialogContent
-          className="max-w-2xl max-h-[80vh] overflow-hidden flex flex-col gap-0 p-0"
+          className="max-w-2xl max-h-[85vh] overflow-hidden flex flex-col gap-0 p-0"
           data-ocid="top_performers.dialog"
         >
           <DialogHeader className="px-6 pt-6 pb-4 shrink-0">

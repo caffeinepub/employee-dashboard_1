@@ -101,34 +101,39 @@
 /* Thin scrollbar styles for dropdowns and scrollable containers */
 [data-slot="select-content"],
 [data-slot="dropdown-menu-content"],
-[data-slot="dropdown-menu-sub-content"] {
+[data-slot="dropdown-menu-sub-content"],
+[data-slot="scroll-area-viewport"] {
   scrollbar-width: thin;
   scrollbar-color: oklch(0.78 0.008 240) transparent;
 }
 
 [data-slot="select-content"]::-webkit-scrollbar,
 [data-slot="dropdown-menu-content"]::-webkit-scrollbar,
-[data-slot="dropdown-menu-sub-content"]::-webkit-scrollbar {
+[data-slot="dropdown-menu-sub-content"]::-webkit-scrollbar,
+[data-slot="scroll-area-viewport"]::-webkit-scrollbar {
   width: 5px;
 }
 
 [data-slot="select-content"]::-webkit-scrollbar-track,
 [data-slot="dropdown-menu-content"]::-webkit-scrollbar-track,
-[data-slot="dropdown-menu-sub-content"]::-webkit-scrollbar-track {
+[data-slot="dropdown-menu-sub-content"]::-webkit-scrollbar-track,
+[data-slot="scroll-area-viewport"]::-webkit-scrollbar-track {
   background: transparent;
   border-radius: 999px;
 }
 
 [data-slot="select-content"]::-webkit-scrollbar-thumb,
 [data-slot="dropdown-menu-content"]::-webkit-scrollbar-thumb,
-[data-slot="dropdown-menu-sub-content"]::-webkit-scrollbar-thumb {
+[data-slot="dropdown-menu-sub-content"]::-webkit-scrollbar-thumb,
+[data-slot="scroll-area-viewport"]::-webkit-scrollbar-thumb {
   background: oklch(0.78 0.008 240);
   border-radius: 999px;
 }
 
 [data-slot="select-content"]::-webkit-scrollbar-thumb:hover,
 [data-slot="dropdown-menu-content"]::-webkit-scrollbar-thumb:hover,
-[data-slot="dropdown-menu-sub-content"]::-webkit-scrollbar-thumb:hover {
+[data-slot="dropdown-menu-sub-content"]::-webkit-scrollbar-thumb:hover,
+[data-slot="scroll-area-viewport"]::-webkit-scrollbar-thumb:hover {
   background: oklch(0.65 0.01 240);
 }
 

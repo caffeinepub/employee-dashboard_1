@@ -7,8 +7,6 @@ import Int "mo:core/Int";
 import Order "mo:core/Order";
 import Time "mo:core/Time";
 
-
-
 actor {
   public type EmployeeId = Nat;
   public type Status = { #active; #inactive; #onHold };
@@ -980,8 +978,20 @@ actor {
   public shared ({ caller }) func updatePerformanceBatch(inputs : [(Text, PerformanceInput)]) : async Nat {
     var count = 0;
     for ((fiplCode, perfInput) in inputs.values()) {
-      if (await updatePerformanceByFiplCode(fiplCode, perfInput)) {
-        count += 1;
+      switch (findEmployeeIdByFiplCode(fiplCode)) {
+        case (?employeeId) {
+          let performance : Performance = {
+            employeeId;
+            salesInfluenceIndex = perfInput.salesInfluenceIndex;
+            reviewCount = perfInput.reviewCount;
+            operationalDiscipline = perfInput.operationalDiscipline;
+            productKnowledgeScore = perfInput.productKnowledgeScore;
+            softSkillsScore = perfInput.softSkillsScore;
+          };
+          performances.add(employeeId, performance);
+          count += 1;
+        };
+        case (null) {};
       };
     };
     count;
@@ -1014,8 +1024,21 @@ actor {
   public shared ({ caller }) func updateSwotBatch(inputs : [SwotBatchInput]) : async Nat {
     var count = 0;
     for (input in inputs.values()) {
-      if (await updateSwotByFiplCode(input.fiplCode, input.swot, input.traits, input.problems)) {
-        count += 1;
+      switch (findEmployeeIdByFiplCode(input.fiplCode)) {
+        case (?employeeId) {
+          let swot : SWOT = {
+            employeeId;
+            strengths = input.swot.strengths;
+            weaknesses = input.swot.weaknesses;
+            opportunities = input.swot.opportunities;
+            threats = input.swot.threats;
+          };
+          swots.add(employeeId, swot);
+          traits.add(employeeId, input.traits);
+          problems.add(employeeId, input.problems);
+          count += 1;
+        };
+        case (null) {};
       };
     };
     count;

@@ -49,7 +49,7 @@ export function Sidebar({
       .slice(0, 2);
 
   return (
-    <aside className="w-64 min-h-screen flex flex-col border-r border-border/50 bg-sidebar shrink-0">
+    <aside className="w-64 h-screen sticky top-0 flex flex-col border-r border-border/50 bg-sidebar shrink-0 overflow-hidden">
       {/* Logo */}
       <div className="px-4 py-4 border-b border-border/40">
         <div className="flex items-center">
@@ -151,7 +151,7 @@ export function Sidebar({
       </nav>
 
       {/* Employee List (quick nav to individual profiles) */}
-      <ScrollArea className="flex-1 px-3 pb-4">
+      <ScrollArea className="flex-1 min-h-0 px-3 pb-4">
         <div className="space-y-0.5">
           {employees.map((employee) => (
             <button

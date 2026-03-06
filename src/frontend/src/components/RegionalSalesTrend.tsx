@@ -1,5 +1,18 @@
 import { Button } from "@/components/ui/button";
 import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -15,7 +28,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
-import { TrendingUp } from "lucide-react";
+import { Check, ChevronDown, TrendingUp } from "lucide-react";
 import { useMemo, useState } from "react";
 import {
   Bar,
@@ -109,6 +122,7 @@ export function RegionalSalesTrend({ className }: RegionalSalesTrendProps) {
   const [filterFse, setFilterFse] = useState<string>("all");
   const [filterBrand, setFilterBrand] = useState<string>("all");
   const [filterSaleType, setFilterSaleType] = useState<string>("all");
+  const [fsePopoverOpen, setFsePopoverOpen] = useState(false);
 
   const { data: employees = [] } = useAllEmployees();
   const { data: salesRecords = [], isLoading } = useSalesRecords();
@@ -585,31 +599,94 @@ export function RegionalSalesTrend({ className }: RegionalSalesTrendProps) {
             </Select>
           )}
 
-          {/* FSE filter */}
+          {/* FSE filter — searchable combobox */}
           {viewMode === "fse" && (
-            <Select value={filterFse} onValueChange={setFilterFse}>
-              <SelectTrigger
-                className="h-7 text-xs w-44 border-border/50"
-                data-ocid="sales_trends.fse_select"
+            <Popover open={fsePopoverOpen} onOpenChange={setFsePopoverOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-xs w-52 border-border/50 justify-between font-normal px-2.5"
+                  data-ocid="sales_trends.fse_select"
+                >
+                  <span className="truncate">
+                    {filterFse === "all"
+                      ? "All FSEs"
+                      : (allFses.find((f) => f.fiplCode === filterFse)?.name ??
+                        filterFse)}
+                  </span>
+                  <ChevronDown className="w-3 h-3 ml-1 shrink-0 text-muted-foreground" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent
+                className="w-64 p-0"
+                align="start"
+                data-ocid="sales_trends.fse_select.popover"
               >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all" className="text-xs">
-                  All FSEs
-                </SelectItem>
-                {allFses.map((f) => (
-                  <SelectItem
-                    key={f.fiplCode}
-                    value={f.fiplCode}
-                    className="text-xs"
-                  >
-                    {f.name}
-                    {f.region ? ` · ${f.region}` : ""}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+                <Command>
+                  <CommandInput
+                    placeholder="Search FSE by name..."
+                    className="h-8 text-xs"
+                    data-ocid="sales_trends.fse_select.search_input"
+                  />
+                  <CommandList className="max-h-56 overflow-y-auto">
+                    <CommandEmpty className="py-3 text-center text-xs text-muted-foreground">
+                      No FSE found.
+                    </CommandEmpty>
+                    <CommandGroup>
+                      <CommandItem
+                        value="all"
+                        onSelect={() => {
+                          setFilterFse("all");
+                          setFsePopoverOpen(false);
+                        }}
+                        className="text-xs"
+                        data-ocid="sales_trends.fse_select.item.all"
+                      >
+                        <Check
+                          className={cn(
+                            "mr-2 w-3.5 h-3.5",
+                            filterFse === "all" ? "opacity-100" : "opacity-0",
+                          )}
+                        />
+                        All FSEs
+                      </CommandItem>
+                      {allFses.map((f, idx) => (
+                        <CommandItem
+                          key={f.fiplCode}
+                          value={`${f.name} ${f.fiplCode} ${f.region}`}
+                          onSelect={() => {
+                            setFilterFse(f.fiplCode);
+                            setFsePopoverOpen(false);
+                          }}
+                          className="text-xs"
+                          data-ocid={`sales_trends.fse_select.item.${idx + 1}`}
+                        >
+                          <Check
+                            className={cn(
+                              "mr-2 w-3.5 h-3.5 shrink-0",
+                              filterFse === f.fiplCode
+                                ? "opacity-100"
+                                : "opacity-0",
+                            )}
+                          />
+                          <div className="flex flex-col min-w-0">
+                            <span className="font-medium truncate">
+                              {f.name}
+                            </span>
+                            {f.region && (
+                              <span className="text-[10px] text-muted-foreground truncate">
+                                {f.fiplCode} · {f.region}
+                              </span>
+                            )}
+                          </div>
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
           )}
 
           {/* Brand filter */}

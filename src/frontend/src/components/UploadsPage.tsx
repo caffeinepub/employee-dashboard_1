@@ -137,14 +137,41 @@ function parseFeedbacks(
 
 function parseXlsxDate(raw: string, xlsx?: XlsxLib): string {
   if (!raw) return raw;
+
+  // 1. Excel serial number (e.g. 45413 → a real date)
   const serial = Number(raw);
-  if (!Number.isNaN(serial) && serial > 1000 && xlsx?.SSF?.parse_date_code) {
-    const jsDate = xlsx.SSF.parse_date_code(serial);
-    if (jsDate) {
-      return `${jsDate.y}-${String(jsDate.m).padStart(2, "0")}-${String(jsDate.d).padStart(2, "0")}`;
+  if (!Number.isNaN(serial) && serial > 1000 && serial < 200000) {
+    if (xlsx?.SSF?.parse_date_code) {
+      const jsDate = xlsx.SSF.parse_date_code(serial);
+      if (jsDate) {
+        return `${jsDate.y}-${String(jsDate.m).padStart(2, "0")}-${String(jsDate.d).padStart(2, "0")}`;
+      }
     }
+    // Fallback: Excel serial date epoch is 1899-12-30
+    const excelEpoch = new Date(1899, 11, 30);
+    excelEpoch.setDate(excelEpoch.getDate() + serial);
+    const y = excelEpoch.getFullYear();
+    const m = String(excelEpoch.getMonth() + 1).padStart(2, "0");
+    const d = String(excelEpoch.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
   }
+
+  // 2. DD-MM-YYYY or DD/MM/YYYY → convert to YYYY-MM-DD
+  const ddmmyyyy = raw.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/);
+  if (ddmmyyyy) {
+    const [, dd, mm, yyyy] = ddmmyyyy;
+    return `${yyyy}-${mm.padStart(2, "0")}-${dd.padStart(2, "0")}`;
+  }
+
+  // 3. Already YYYY-MM-DD or other ISO format — return as-is
   return raw;
+}
+
+/** Convert a joinDate string (output of parseXlsxDate) to milliseconds safely. */
+function joinDateToMs(dateStr: string): number {
+  if (!dateStr) return Date.now();
+  const ms = new Date(dateStr).getTime();
+  return Number.isNaN(ms) ? Date.now() : ms;
 }
 
 function normaliseKeys(r: Record<string, unknown>): Record<string, string> {
@@ -235,13 +262,17 @@ function parseEmployeeSheetStandalone(
               statusRaw.toLowerCase() === "on hold"
             ? Status.onHold
             : Status.active,
-      joinDate: pick(
-        norm,
-        "Joining Date",
-        "Join Date",
-        "joinDate",
-        "joiningdate",
-        "Joining Date (YYYY-MM-DD)",
+      joinDate: parseXlsxDate(
+        pick(
+          norm,
+          "Joining Date",
+          "Join Date",
+          "joinDate",
+          "joiningdate",
+          "Joining Date (DD-MM-YYYY)",
+          "Joining Date (YYYY-MM-DD)",
+        ),
+        xlsx,
       ),
       avatar: pick(
         norm,
@@ -589,7 +620,7 @@ async function downloadEmployeeTemplate() {
     "Department*",
     "FSE Category (Cash Cow / Star / Question Mark / Dog)",
     "Status (active / inactive / onhold)",
-    "Joining Date (YYYY-MM-DD)",
+    "Joining Date (DD-MM-YYYY)",
     "Avatar (initials, e.g. PS)",
     "Region",
     "Family Details",
@@ -604,7 +635,7 @@ async function downloadEmployeeTemplate() {
       "Sales",
       "Star",
       "active",
-      "2023-03-15",
+      "15-03-2023",
       "PS",
       "North India",
       "Married, 2 children",
@@ -617,7 +648,7 @@ async function downloadEmployeeTemplate() {
       "Sales",
       "Cash Cow",
       "active",
-      "2022-07-01",
+      "01-07-2022",
       "RM",
       "West Coast",
       "Single",
@@ -974,7 +1005,7 @@ function UploadTabPanel<T extends { error?: string }>({
           </div>
 
           {/* Preview table */}
-          <ScrollArea className="max-h-64 rounded-lg border border-border overflow-hidden">
+          <ScrollArea className="h-64 rounded-lg border border-border overflow-hidden">
             <Table>
               <TableHeader className="bg-muted/30">
                 <TableRow>
@@ -1137,7 +1168,7 @@ export function UploadsPage() {
 
   function readWorkbook(
     file: File,
-    onParsed: (wb: XlsxWorkBook, xlsx: XlsxLib) => void,
+    onParsed: (wb: XlsxWorkBook, xlsx: XlsxLib) => void | Promise<void>,
   ) {
     const isXlsx =
       file.name.endsWith(".xlsx") ||
@@ -1160,8 +1191,21 @@ export function UploadsPage() {
           const data = isXlsx
             ? new Uint8Array(result as ArrayBuffer)
             : new TextEncoder().encode(result as string);
-          const wb = XLSX.read(data, { type: "array" });
-          onParsed(wb, XLSX);
+          try {
+            const wb = XLSX.read(data, { type: "array" });
+            const maybePromise = onParsed(wb, XLSX);
+            if (maybePromise instanceof Promise) {
+              maybePromise.catch((err) => {
+                toast.error(
+                  `Parse error: ${err instanceof Error ? err.message : String(err)}`,
+                );
+              });
+            }
+          } catch (err) {
+            toast.error(
+              `Failed to parse file: ${err instanceof Error ? err.message : String(err)}`,
+            );
+          }
         };
         if (isXlsx) {
           reader.readAsArrayBuffer(file);
@@ -1195,7 +1239,7 @@ export function UploadsPage() {
   };
 
   const handleParamsFile = (file: File) => {
-    readWorkbook(file, (wb, xlsx) => {
+    readWorkbook(file, async (wb, xlsx) => {
       const rows = parseParamsSheetStandalone(wb, xlsx);
       if (!rows) {
         toast.error(
@@ -1209,10 +1253,21 @@ export function UploadsPage() {
         );
         return;
       }
-      // Validate FIPL Codes against existing employees
+      // Always fetch fresh employee list from backend so validation is accurate
+      let freshMap = fiplMap;
+      if (actor) {
+        try {
+          const fresh = await actor.getAllEmployees();
+          freshMap = new Map<string, Employee>(
+            fresh.map((e) => [e.fiplCode.toUpperCase(), e]),
+          );
+        } catch (_) {
+          /* fall back to cached map */
+        }
+      }
       const enriched = rows.map((r) => {
         if (r.error) return r;
-        if (!fiplMap.has(r.fiplCode.toUpperCase())) {
+        if (!freshMap.has(r.fiplCode.toUpperCase())) {
           return {
             ...r,
             error: `FIPL Code "${r.fiplCode}" not found in system -- upload Employee Data first`,
@@ -1226,7 +1281,7 @@ export function UploadsPage() {
   };
 
   const handleAttFile = (file: File) => {
-    readWorkbook(file, (wb, xlsx) => {
+    readWorkbook(file, async (wb, xlsx) => {
       const rows = parseAttendanceSheetStandalone(wb, xlsx);
       if (!rows) {
         toast.error(
@@ -1240,13 +1295,32 @@ export function UploadsPage() {
         );
         return;
       }
-      // Validate FIPL Codes against existing employees
+      // Always fetch fresh employee list from backend so FIPL validation is accurate
+      let freshMap = fiplMap;
+      if (actor) {
+        try {
+          const fresh = await actor.getAllEmployees();
+          freshMap = new Map<string, Employee>(
+            fresh.map((e) => [e.fiplCode.toUpperCase(), e]),
+          );
+        } catch (_) {
+          /* fall back to cached map */
+        }
+      }
       const enriched = rows.map((r) => {
         if (r.error) return r;
-        if (!fiplMap.has(r.fiplCode.toUpperCase())) {
+        if (!freshMap.has(r.fiplCode.toUpperCase())) {
           return {
             ...r,
             error: `FIPL Code "${r.fiplCode}" not found in system -- upload Employee Data first`,
+          };
+        }
+        // Warn if both lapse and daysOff are empty (row will produce 0 records)
+        if (!r.lapseType && r.daysOff === 0) {
+          return {
+            ...r,
+            error:
+              "No lapse type and no days off -- row will be skipped. Fill in at least one.",
           };
         }
         return r;
@@ -1257,7 +1331,7 @@ export function UploadsPage() {
   };
 
   const handleSwotFile = (file: File) => {
-    readWorkbook(file, (wb, xlsx) => {
+    readWorkbook(file, async (wb, xlsx) => {
       const rows = parseSwotSheetStandalone(wb, xlsx);
       if (!rows) {
         toast.error(
@@ -1271,10 +1345,21 @@ export function UploadsPage() {
         );
         return;
       }
-      // Validate FIPL Codes against existing employees
+      // Always fetch fresh employee list from backend so validation is accurate
+      let freshMap = fiplMap;
+      if (actor) {
+        try {
+          const fresh = await actor.getAllEmployees();
+          freshMap = new Map<string, Employee>(
+            fresh.map((e) => [e.fiplCode.toUpperCase(), e]),
+          );
+        } catch (_) {
+          /* fall back to cached map */
+        }
+      }
       const enriched = rows.map((r) => {
         if (r.error) return r;
-        if (!fiplMap.has(r.fiplCode.toUpperCase())) {
+        if (!freshMap.has(r.fiplCode.toUpperCase())) {
           return {
             ...r,
             error: `FIPL Code "${r.fiplCode}" not found in system -- upload Employee Data first`,
@@ -1288,7 +1373,7 @@ export function UploadsPage() {
   };
 
   const handleSalesFile = (file: File) => {
-    readWorkbook(file, (wb, xlsx) => {
+    readWorkbook(file, async (wb, xlsx) => {
       const rows = parseSalesSheetStandalone(wb, xlsx);
       if (!rows) {
         toast.error(
@@ -1302,10 +1387,22 @@ export function UploadsPage() {
         );
         return;
       }
+      // Always fetch fresh employee list from backend so FIPL lookup is accurate
+      let freshMap = fiplMap;
+      if (actor) {
+        try {
+          const fresh = await actor.getAllEmployees();
+          freshMap = new Map<string, Employee>(
+            fresh.map((e) => [e.fiplCode.toUpperCase(), e]),
+          );
+        } catch (_) {
+          /* fall back to cached map */
+        }
+      }
       // Auto-fill name/region from FIPL lookup; flag rows with unknown FIPL Codes
       const enriched = rows.map((r) => {
         if (r.error) return r; // already has a parse error, keep it
-        const emp = fiplMap.get(r.fiplCode.toUpperCase());
+        const emp = freshMap.get(r.fiplCode.toUpperCase());
         if (!emp) {
           return {
             ...r,
@@ -1357,12 +1454,8 @@ export function UploadsPage() {
 
       // Build full batch payload
       const batchInputs: EmployeeFullInput[] = valid.map((row) => {
-        const joinDateMs = row.joinDate
-          ? new Date(row.joinDate).getTime()
-          : Date.now();
-        const joinDateNs =
-          BigInt(Number.isNaN(joinDateMs) ? Date.now() : joinDateMs) *
-          1_000_000n;
+        const joinDateMs = joinDateToMs(row.joinDate);
+        const joinDateNs = BigInt(joinDateMs) * 1_000_000n;
         const avatar =
           row.avatar ||
           row.name
