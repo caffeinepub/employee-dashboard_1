@@ -96,11 +96,10 @@ interface ParsedSalesRow {
   error?: string;
 }
 
-// ── XLSX type alias (loaded from CDN at runtime) ─────────────────────────────
-// Type aliases for xlsx loaded at runtime from CDN (no local package).
-// Cast at call sites; ReturnType<typeof Object> is used in the loader.
-type XlsxLib = ReturnType<typeof Object>;
-type XlsxWorkBook = ReturnType<typeof Object>;
+// ── XLSX types (now bundled, not CDN-loaded) ──────────────────────────────────
+import type * as XlsxNs from "xlsx";
+type XlsxLib = typeof XlsxNs;
+type XlsxWorkBook = XlsxNs.WorkBook;
 
 // ── Utility parse helpers ────────────────────────────────────────────────────
 
@@ -1291,6 +1290,7 @@ export function UploadsPage() {
     setEmpImporting(true);
     let added = 0;
     let updated = 0;
+    const toastId = toast.loading(`Importing employees: 0/${valid.length}...`);
     try {
       // Always fetch fresh list so we have the latest FIPL codes
       const freshEmployees = await actor.getAllEmployees();
@@ -1344,7 +1344,11 @@ export function UploadsPage() {
       }
 
       // Update existing employees one-by-one, preserving existing performance/swot data
-      for (const row of toUpdate) {
+      for (let i = 0; i < toUpdate.length; i++) {
+        const row = toUpdate[i];
+        toast.loading(`Updating employee ${added + i + 1}/${valid.length}...`, {
+          id: toastId,
+        });
         const existing = freshFiplMap.get(row.fiplCode.toUpperCase());
         if (!existing) continue;
         let details: {
@@ -1400,21 +1404,26 @@ export function UploadsPage() {
           problems: details ? details.problems : [],
         });
         updated++;
+        if (i < toUpdate.length - 1)
+          await new Promise((r) => setTimeout(r, 200));
       }
 
-      queryClient.invalidateQueries();
+      await queryClient.invalidateQueries();
       const msg = [
         added > 0 ? `${added} added` : "",
         updated > 0 ? `${updated} updated` : "",
       ]
         .filter(Boolean)
         .join(", ");
-      toast.success(`Employee import complete: ${msg || "0 processed"}`);
+      toast.success(`Employee import complete: ${msg || "0 processed"}`, {
+        id: toastId,
+      });
       setEmpStep("done");
     } catch (err) {
       console.error("Employee import error:", err);
       toast.error(
         `Import failed: ${err instanceof Error ? err.message : String(err)}`,
+        { id: toastId },
       );
     } finally {
       setEmpImporting(false);
@@ -1431,13 +1440,18 @@ export function UploadsPage() {
     setParamsImporting(true);
     let updated = 0;
     let skipped = 0;
+    const toastId = toast.loading(`Importing parameters: 0/${valid.length}...`);
     try {
       const freshEmployees = await actor.getAllEmployees();
       const freshFiplMap = new Map<string, Employee>(
         freshEmployees.map((e) => [e.fiplCode.toUpperCase(), e]),
       );
 
-      for (const row of valid) {
+      for (let i = 0; i < valid.length; i++) {
+        const row = valid[i];
+        toast.loading(`Importing parameters: ${i + 1}/${valid.length}...`, {
+          id: toastId,
+        });
         const emp = freshFiplMap.get(row.fiplCode.toUpperCase());
         if (!emp) {
           skipped++;
@@ -1457,22 +1471,26 @@ export function UploadsPage() {
           });
           if (result) updated++;
           else skipped++;
+          if (i < valid.length - 1)
+            await new Promise((r) => setTimeout(r, 200));
         } catch (rowErr) {
           console.error(`Params row error for ${row.fiplCode}:`, rowErr);
           skipped++;
         }
       }
-      queryClient.invalidateQueries();
+      await queryClient.invalidateQueries();
       toast.success(
         skipped > 0
           ? `${updated} updated, ${skipped} skipped (FIPL Code not found in system)`
           : `${updated} employee${updated === 1 ? "" : "s"} parameters updated`,
+        { id: toastId },
       );
       setParamsStep("done");
     } catch (err) {
       console.error("Params import error:", err);
       toast.error(
         `Import failed: ${err instanceof Error ? err.message : String(err)}`,
+        { id: toastId },
       );
     } finally {
       setParamsImporting(false);
@@ -1489,13 +1507,18 @@ export function UploadsPage() {
     setAttImporting(true);
     let added = 0;
     let skipped = 0;
+    const toastId = toast.loading(`Importing attendance: 0/${valid.length}...`);
     try {
       const freshEmployees = await actor.getAllEmployees();
       const freshFiplMap = new Map<string, Employee>(
         freshEmployees.map((e) => [e.fiplCode.toUpperCase(), e]),
       );
 
-      for (const row of valid) {
+      for (let i = 0; i < valid.length; i++) {
+        const row = valid[i];
+        toast.loading(`Importing attendance: ${i + 1}/${valid.length}...`, {
+          id: toastId,
+        });
         const emp = freshFiplMap.get(row.fiplCode.toUpperCase());
         if (!emp) {
           skipped++;
@@ -1528,22 +1551,27 @@ export function UploadsPage() {
           }
           // If neither lapseType nor daysOff, still count as processed
           if (!row.lapseType && row.daysOff <= 0) added++;
+          // Small delay between calls to avoid overwhelming the IC canister
+          if (i < valid.length - 1)
+            await new Promise((r) => setTimeout(r, 200));
         } catch (rowErr) {
           console.error(`Attendance row error for ${row.fiplCode}:`, rowErr);
           skipped++;
         }
       }
-      queryClient.invalidateQueries();
+      await queryClient.invalidateQueries();
       toast.success(
         skipped > 0
           ? `${added} records imported, ${skipped} skipped (FIPL Code not found -- upload Employee Data first)`
           : `${added} attendance record${added === 1 ? "" : "s"} imported`,
+        { id: toastId },
       );
       setAttStep("done");
     } catch (err) {
       console.error("Attendance import error:", err);
       toast.error(
         `Import failed: ${err instanceof Error ? err.message : String(err)}`,
+        { id: toastId },
       );
     } finally {
       setAttImporting(false);
@@ -1636,13 +1664,18 @@ export function UploadsPage() {
     setSalesImporting(true);
     let added = 0;
     let skipped = 0;
+    const toastId = toast.loading(`Importing sales: 0/${valid.length}...`);
     try {
       const freshEmployees = await actor.getAllEmployees();
       const freshFiplMap = new Map<string, Employee>(
         freshEmployees.map((e) => [e.fiplCode.toUpperCase(), e]),
       );
 
-      for (const row of valid) {
+      for (let i = 0; i < valid.length; i++) {
+        const row = valid[i];
+        toast.loading(`Importing sales: ${i + 1}/${valid.length}...`, {
+          id: toastId,
+        });
         const emp = freshFiplMap.get(row.fiplCode.toUpperCase());
         if (!emp) {
           skipped++;
@@ -1663,6 +1696,9 @@ export function UploadsPage() {
             saleDate: saleDateNs,
           });
           added++;
+          // Small delay between calls to avoid overwhelming the IC canister
+          if (i < valid.length - 1)
+            await new Promise((r) => setTimeout(r, 200));
         } catch (rowErr) {
           console.error(
             `Sales row error for ${row.fiplCode} on ${row.date}:`,
@@ -1671,17 +1707,19 @@ export function UploadsPage() {
           skipped++;
         }
       }
-      queryClient.invalidateQueries();
+      await queryClient.invalidateQueries();
       toast.success(
         skipped > 0
           ? `${added} records imported, ${skipped} skipped (FIPL Code not found -- upload Employee Data first)`
           : `${added} sales record${added === 1 ? "" : "s"} imported`,
+        { id: toastId },
       );
       setSalesStep("done");
     } catch (err) {
       console.error("Sales import error:", err);
       toast.error(
         `Import failed: ${err instanceof Error ? err.message : String(err)}`,
+        { id: toastId },
       );
     } finally {
       setSalesImporting(false);
