@@ -1,21 +1,25 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   BarChart2,
-  Briefcase,
   Building2,
   Check,
+  DatabaseBackup,
   LayoutDashboard,
+  Loader2,
   MessageSquare,
   Pencil,
   Plus,
   RefreshCw,
   Settings,
   Tag,
+  Trash2,
   Users,
   X,
 } from "lucide-react";
@@ -27,6 +31,7 @@ import {
   DEFAULT_SETTINGS,
   useAppSettings,
 } from "../context/AppSettingsContext";
+import { useActor } from "../hooks/useActor";
 
 // ─── Label group config ────────────────────────────────────────────────────
 
@@ -506,6 +511,261 @@ function SectionHeader({ icon: Icon, title, subtitle }: SectionHeaderProps) {
   );
 }
 
+// ─── Data Management Section ──────────────────────────────────────────────────
+
+interface DataCollection {
+  key: string;
+  label: string;
+  description: string;
+}
+
+const DATA_COLLECTIONS: DataCollection[] = [
+  {
+    key: "employees",
+    label: "Employees",
+    description:
+      "All employee records, including performance, SWOT, traits, problems, and linked feedback",
+  },
+  {
+    key: "sales",
+    label: "Sales Records",
+    description: "All sales transactions linked to FSE FIPL codes",
+  },
+  {
+    key: "attendance",
+    label: "Attendance Records",
+    description: "All attendance lapses and days-off entries",
+  },
+  {
+    key: "feedback",
+    label: "Feedback",
+    description: "All employee feedback entries",
+  },
+  {
+    key: "issues",
+    label: "Issues & Suggestions",
+    description: "All issues and suggestions submitted via the overview panel",
+  },
+  {
+    key: "topPerformers",
+    label: "Top Performers",
+    description: "The monthly top-10 performers leaderboard",
+  },
+];
+
+function DataManagementSection() {
+  const queryClient = useQueryClient();
+  const { actor } = useActor();
+  const [selected, setSelected] = useState<Record<string, boolean>>({});
+  const [deleteArmed, setDeleteArmed] = useState(false);
+  const [resetArmed, setResetArmed] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
+  const deleteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const resetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const selectedCount = Object.values(selected).filter(Boolean).length;
+  const allSelected =
+    DATA_COLLECTIONS.length > 0 &&
+    DATA_COLLECTIONS.every((c) => selected[c.key]);
+
+  const toggleSelectAll = () => {
+    if (allSelected) {
+      setSelected({});
+    } else {
+      setSelected(
+        Object.fromEntries(DATA_COLLECTIONS.map((c) => [c.key, true])),
+      );
+    }
+  };
+
+  const toggleOne = (key: string) => {
+    setSelected((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  // Arm/disarm Delete Selected
+  const handleDeleteSelected = async () => {
+    if (selectedCount === 0) return;
+    if (!deleteArmed) {
+      setDeleteArmed(true);
+      if (deleteTimerRef.current) clearTimeout(deleteTimerRef.current);
+      deleteTimerRef.current = setTimeout(() => setDeleteArmed(false), 3000);
+      return;
+    }
+    // Confirmed
+    if (deleteTimerRef.current) clearTimeout(deleteTimerRef.current);
+    setDeleteArmed(false);
+    if (!actor) {
+      toast.error("Not connected to backend — please wait and try again");
+      return;
+    }
+    setIsDeleting(true);
+    try {
+      const ops: Promise<boolean>[] = [];
+      if (selected.employees) ops.push(actor.clearAllEmployees());
+      if (selected.sales) ops.push(actor.clearAllSalesRecords());
+      if (selected.attendance) ops.push(actor.clearAllAttendance());
+      if (selected.feedback) ops.push(actor.clearAllFeedback());
+      if (selected.issues) ops.push(actor.clearAllIssues());
+      if (selected.topPerformers) ops.push(actor.clearAllTopPerformers());
+      await Promise.all(ops);
+      await queryClient.invalidateQueries();
+      const deletedLabels = DATA_COLLECTIONS.filter((c) => selected[c.key])
+        .map((c) => c.label)
+        .join(", ");
+      toast.success(`Deleted: ${deletedLabels}`);
+      setSelected({});
+    } catch {
+      toast.error("Delete failed — please try again");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  // Arm/disarm Reset All
+  const handleResetAll = async () => {
+    if (!resetArmed) {
+      setResetArmed(true);
+      if (resetTimerRef.current) clearTimeout(resetTimerRef.current);
+      resetTimerRef.current = setTimeout(() => setResetArmed(false), 3000);
+      return;
+    }
+    if (resetTimerRef.current) clearTimeout(resetTimerRef.current);
+    setResetArmed(false);
+    if (!actor) {
+      toast.error("Not connected to backend — please wait and try again");
+      return;
+    }
+    setIsResetting(true);
+    try {
+      await actor.clearAllData();
+      await queryClient.invalidateQueries();
+      toast.success("All data has been reset");
+      setSelected({});
+    } catch {
+      toast.error("Reset failed — please try again");
+    } finally {
+      setIsResetting(false);
+    }
+  };
+
+  // Cleanup timers on unmount
+  useEffect(() => {
+    return () => {
+      if (deleteTimerRef.current) clearTimeout(deleteTimerRef.current);
+      if (resetTimerRef.current) clearTimeout(resetTimerRef.current);
+    };
+  }, []);
+
+  return (
+    <div className="space-y-5">
+      {/* Header + Select All */}
+      <div className="flex items-center justify-between">
+        <p className="text-xs text-muted-foreground">
+          Select collections to delete, then confirm below.
+        </p>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="text-xs h-7 px-3 text-muted-foreground hover:text-foreground"
+          onClick={toggleSelectAll}
+          data-ocid="settings.data_management.select_all_button"
+        >
+          {allSelected ? "Deselect All" : "Select All"}
+        </Button>
+      </div>
+
+      {/* Checkboxes */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        {DATA_COLLECTIONS.map((col) => (
+          <label
+            key={col.key}
+            htmlFor={`dm-${col.key}`}
+            className={cn(
+              "flex items-start gap-3 rounded-lg px-4 py-3 border cursor-pointer transition-all select-none",
+              selected[col.key]
+                ? "bg-destructive/8 border-destructive/30"
+                : "bg-muted/20 border-border/40 hover:bg-muted/40",
+            )}
+          >
+            <Checkbox
+              id={`dm-${col.key}`}
+              checked={!!selected[col.key]}
+              onCheckedChange={() => toggleOne(col.key)}
+              className="mt-0.5 shrink-0 data-[state=checked]:bg-destructive data-[state=checked]:border-destructive"
+              data-ocid={`settings.data_management.${col.key === "topPerformers" ? "top_performers" : col.key}.checkbox`}
+            />
+            <div className="min-w-0">
+              <p
+                className={cn(
+                  "text-sm font-semibold leading-tight",
+                  selected[col.key] ? "text-destructive" : "text-foreground",
+                )}
+              >
+                {col.label}
+              </p>
+              <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">
+                {col.description}
+              </p>
+            </div>
+          </label>
+        ))}
+      </div>
+
+      <Separator className="opacity-40" />
+
+      {/* Action buttons */}
+      <div className="flex flex-wrap items-center gap-3">
+        <Button
+          variant="destructive"
+          size="sm"
+          disabled={selectedCount === 0 || isDeleting}
+          onClick={handleDeleteSelected}
+          className={cn(
+            "gap-2 transition-all",
+            deleteArmed && "ring-2 ring-destructive ring-offset-2",
+          )}
+          data-ocid="settings.data_management.delete_selected_button"
+        >
+          {isDeleting ? (
+            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+          ) : (
+            <Trash2 className="w-3.5 h-3.5" />
+          )}
+          {deleteArmed
+            ? "Click again to confirm"
+            : `Delete ${selectedCount > 0 ? selectedCount : ""} Selected`.trim()}
+        </Button>
+
+        <Button
+          variant="destructive"
+          size="sm"
+          disabled={isResetting}
+          onClick={handleResetAll}
+          className={cn(
+            "gap-2 transition-all bg-destructive/80 hover:bg-destructive",
+            resetArmed && "ring-2 ring-destructive ring-offset-2",
+          )}
+          data-ocid="settings.data_management.reset_all_button"
+        >
+          {isResetting ? (
+            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+          ) : (
+            <DatabaseBackup className="w-3.5 h-3.5" />
+          )}
+          {resetArmed ? "Click again to confirm reset" : "Reset All Data"}
+        </Button>
+
+        {(deleteArmed || resetArmed) && (
+          <p className="text-[11px] text-destructive/80 flex items-center gap-1">
+            ⚠ This action is irreversible
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── Main SettingsPage ────────────────────────────────────────────────────────
 
 export function SettingsPage() {
@@ -782,6 +1042,37 @@ export function SettingsPage() {
               );
             })}
           </div>
+        </motion.section>
+
+        {/* ── Section 5: Data Management ───────────────────── */}
+        <motion.section
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.25 }}
+          className="rounded-xl p-6 border border-destructive/30 bg-destructive/5"
+        >
+          {/* Section header */}
+          <div className="flex items-start gap-3 mb-5">
+            <div className="w-9 h-9 rounded-lg bg-destructive/10 border border-destructive/30 flex items-center justify-center shrink-0 mt-0.5">
+              <Trash2 className="w-4.5 h-4.5 text-destructive" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-base font-display font-bold text-foreground">
+                  Data Management
+                </h2>
+                <span className="text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full bg-destructive/10 text-destructive border border-destructive/25">
+                  Danger Zone
+                </span>
+              </div>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Permanently delete individual data collections or reset
+                everything. These actions cannot be undone.
+              </p>
+            </div>
+          </div>
+
+          <DataManagementSection />
         </motion.section>
       </div>
     </motion.div>

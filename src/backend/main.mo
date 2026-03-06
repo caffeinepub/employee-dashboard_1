@@ -7,6 +7,8 @@ import Int "mo:core/Int";
 import Order "mo:core/Order";
 import Time "mo:core/Time";
 
+
+
 actor {
   public type EmployeeId = Nat;
   public type Status = { #active; #inactive; #onHold };
@@ -177,6 +179,13 @@ actor {
     employeeInfo : EmployeeInput;
     performance : PerformanceInput;
     swotAnalysis : SWOTInput;
+    traits : [Text];
+    problems : [Text];
+  };
+
+  public type SwotBatchInput = {
+    fiplCode : Text;
+    swot : SWOTInput;
     traits : [Text];
     problems : [Text];
   };
@@ -889,5 +898,200 @@ actor {
         true;
       };
     };
+  };
+
+  // Batch Operation Functions
+
+  public shared ({ caller }) func upsertEmployeesBatch(inputs : [EmployeeFullInput]) : async [(Text, EmployeeId)] {
+    let resultArray = Array.tabulate(
+      inputs.size(),
+      func(i) {
+        let input = inputs[i];
+        let fiplCode = input.employeeInfo.fiplCode;
+        var employeeId : EmployeeId = 0;
+
+        switch (findEmployeeIdByFiplCode(fiplCode)) {
+          case (?id) {
+            employeeId := id;
+            let employee : Employee = {
+              id = employeeId;
+              fiplCode = input.employeeInfo.fiplCode;
+              name = input.employeeInfo.name;
+              role = input.employeeInfo.role;
+              department = input.employeeInfo.department;
+              status = input.employeeInfo.status;
+              joinDate = input.employeeInfo.joinDate;
+              avatar = input.employeeInfo.avatar;
+              region = input.employeeInfo.region;
+              familyDetails = input.employeeInfo.familyDetails;
+              pastExperience = input.employeeInfo.pastExperience;
+              fseCategory = input.employeeInfo.fseCategory;
+            };
+            employees.add(employeeId, employee);
+          };
+          case (null) {
+            employeeId := nextEmployeeId;
+            nextEmployeeId += 1;
+            let employee : Employee = {
+              id = employeeId;
+              fiplCode = input.employeeInfo.fiplCode;
+              name = input.employeeInfo.name;
+              role = input.employeeInfo.role;
+              department = input.employeeInfo.department;
+              status = input.employeeInfo.status;
+              joinDate = input.employeeInfo.joinDate;
+              avatar = input.employeeInfo.avatar;
+              region = input.employeeInfo.region;
+              familyDetails = input.employeeInfo.familyDetails;
+              pastExperience = input.employeeInfo.pastExperience;
+              fseCategory = input.employeeInfo.fseCategory;
+            };
+
+            let performance : Performance = {
+              employeeId = employeeId;
+              salesInfluenceIndex = input.performance.salesInfluenceIndex;
+              reviewCount = input.performance.reviewCount;
+              operationalDiscipline = input.performance.operationalDiscipline;
+              productKnowledgeScore = input.performance.productKnowledgeScore;
+              softSkillsScore = input.performance.softSkillsScore;
+            };
+
+            let swot : SWOT = {
+              employeeId = employeeId;
+              strengths = input.swotAnalysis.strengths;
+              weaknesses = input.swotAnalysis.weaknesses;
+              opportunities = input.swotAnalysis.opportunities;
+              threats = input.swotAnalysis.threats;
+            };
+
+            employees.add(employeeId, employee);
+            performances.add(employeeId, performance);
+            swots.add(employeeId, swot);
+            traits.add(employeeId, input.traits);
+            problems.add(employeeId, input.problems);
+          };
+        };
+        (fiplCode, employeeId);
+      },
+    );
+    resultArray;
+  };
+
+  public shared ({ caller }) func updatePerformanceBatch(inputs : [(Text, PerformanceInput)]) : async Nat {
+    var count = 0;
+    for ((fiplCode, perfInput) in inputs.values()) {
+      if (await updatePerformanceByFiplCode(fiplCode, perfInput)) {
+        count += 1;
+      };
+    };
+    count;
+  };
+
+  public shared ({ caller }) func addAttendanceRecordsBatch(inputs : [AttendanceRecordInput]) : async [Nat] {
+    let idsArray = Array.tabulate(
+      inputs.size(),
+      func(i) {
+        let newId = nextAttendanceId + i;
+        let input = inputs[i];
+
+        let record : AttendanceRecord = {
+          id = newId;
+          employeeId = input.employeeId;
+          date = input.date;
+          lapseType = input.lapseType;
+          reason = input.reason;
+          daysOff = input.daysOff;
+        };
+
+        attendanceRecords.add(newId, record);
+        newId;
+      },
+    );
+    nextAttendanceId += inputs.size();
+    idsArray;
+  };
+
+  public shared ({ caller }) func updateSwotBatch(inputs : [SwotBatchInput]) : async Nat {
+    var count = 0;
+    for (input in inputs.values()) {
+      if (await updateSwotByFiplCode(input.fiplCode, input.swot, input.traits, input.problems)) {
+        count += 1;
+      };
+    };
+    count;
+  };
+
+  // New Clear Functions
+
+  public shared ({ caller }) func clearAllEmployees() : async Bool {
+    employees.clear();
+    performances.clear();
+    swots.clear();
+    traits.clear();
+    problems.clear();
+    feedback.clear();
+    nextEmployeeId := 1;
+    nextFeedbackId := 1;
+    true;
+  };
+
+  public shared ({ caller }) func clearAllSalesRecords() : async Bool {
+    salesRecords.clear();
+    nextRecordId := 1;
+    true;
+  };
+
+  public shared ({ caller }) func clearAllAttendance() : async Bool {
+    attendanceRecords.clear();
+    nextAttendanceId := 1;
+    true;
+  };
+
+  public shared ({ caller }) func clearAllFeedback() : async Bool {
+    feedback.clear();
+    nextFeedbackId := 1;
+    true;
+  };
+
+  public shared ({ caller }) func clearAllIssues() : async Bool {
+    issues.clear();
+    nextIssueId := 1;
+    true;
+  };
+
+  public shared ({ caller }) func clearAllTopPerformers() : async Bool {
+    topPerformers.clear();
+    true;
+  };
+
+  public shared ({ caller }) func clearAllData() : async Bool {
+    employees.clear();
+    performances.clear();
+    swots.clear();
+    traits.clear();
+    problems.clear();
+    feedback.clear();
+    salesRecords.clear();
+    attendanceRecords.clear();
+    issues.clear();
+    topPerformers.clear();
+
+    nextEmployeeId := 1;
+    nextFeedbackId := 1;
+    nextRecordId := 1;
+    nextAttendanceId := 1;
+    nextIssueId := 1;
+    true;
+  };
+
+  // Helper Functions
+
+  func findEmployeeIdByFiplCode(fiplCode : Text) : ?EmployeeId {
+    for ((id, empData) in employees.entries()) {
+      if (empData.fiplCode == fiplCode) {
+        return ?id;
+      };
+    };
+    null;
   };
 };

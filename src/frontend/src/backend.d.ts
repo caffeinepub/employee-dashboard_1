@@ -69,6 +69,12 @@ export interface TopPerformerInput {
     extendedWarranty: bigint;
     fiplCode: string;
 }
+export interface SwotBatchInput {
+    traits: Array<string>;
+    swot: SWOTInput;
+    problems: Array<string>;
+    fiplCode: string;
+}
 export interface SalesRecord {
     id: bigint;
     saleType: SaleType;
@@ -180,6 +186,7 @@ export enum Status {
 }
 export interface backendInterface {
     addAttendanceRecord(input: AttendanceRecordInput): Promise<bigint>;
+    addAttendanceRecordsBatch(inputs: Array<AttendanceRecordInput>): Promise<Array<bigint>>;
     addEmployee(input: EmployeeFullInput): Promise<EmployeeId>;
     addFeedback(input: FeedbackInput): Promise<bigint>;
     addIssueSuggestion(input: IssueSuggestionInput): Promise<bigint>;
@@ -188,6 +195,13 @@ export interface backendInterface {
     addSalesRecordsBatch(inputs: Array<SalesRecordInput>): Promise<Array<bigint>>;
     addTrait(employeeId: EmployeeId, trait: string): Promise<boolean>;
     bulkAddEmployees(inputs: Array<EmployeeInput>): Promise<Array<EmployeeId>>;
+    clearAllAttendance(): Promise<boolean>;
+    clearAllData(): Promise<boolean>;
+    clearAllEmployees(): Promise<boolean>;
+    clearAllFeedback(): Promise<boolean>;
+    clearAllIssues(): Promise<boolean>;
+    clearAllSalesRecords(): Promise<boolean>;
+    clearAllTopPerformers(): Promise<boolean>;
     deleteEmployee(id: EmployeeId): Promise<boolean>;
     deleteIssueSuggestion(id: bigint): Promise<boolean>;
     getActiveEmployeeCount(): Promise<bigint>;
@@ -207,6 +221,9 @@ export interface backendInterface {
     updateEmployeeSWOT(employeeId: EmployeeId, swotInput: SWOTInput): Promise<boolean>;
     updateEmployeeStatus(id: EmployeeId, newStatus: Status): Promise<boolean>;
     updateIssueSuggestion(id: bigint, input: IssueSuggestionInput): Promise<boolean>;
+    updatePerformanceBatch(inputs: Array<[string, PerformanceInput]>): Promise<bigint>;
     updatePerformanceByFiplCode(fiplCode: string, input: PerformanceInput): Promise<boolean>;
+    updateSwotBatch(inputs: Array<SwotBatchInput>): Promise<bigint>;
     updateSwotByFiplCode(fiplCode: string, swotInput: SWOTInput, newTraits: Array<string>, newProblems: Array<string>): Promise<boolean>;
+    upsertEmployeesBatch(inputs: Array<EmployeeFullInput>): Promise<Array<[string, EmployeeId]>>;
 }

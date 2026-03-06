@@ -151,6 +151,12 @@ export interface TopPerformerInput {
     extendedWarranty: bigint;
     fiplCode: string;
 }
+export interface SwotBatchInput {
+    traits: Array<string>;
+    swot: SWOTInput;
+    problems: Array<string>;
+    fiplCode: string;
+}
 export interface SalesRecord {
     id: bigint;
     saleType: SaleType;
@@ -262,6 +268,7 @@ export enum Status {
 }
 export interface backendInterface {
     addAttendanceRecord(input: AttendanceRecordInput): Promise<bigint>;
+    addAttendanceRecordsBatch(inputs: Array<AttendanceRecordInput>): Promise<Array<bigint>>;
     addEmployee(input: EmployeeFullInput): Promise<EmployeeId>;
     addFeedback(input: FeedbackInput): Promise<bigint>;
     addIssueSuggestion(input: IssueSuggestionInput): Promise<bigint>;
@@ -270,6 +277,13 @@ export interface backendInterface {
     addSalesRecordsBatch(inputs: Array<SalesRecordInput>): Promise<Array<bigint>>;
     addTrait(employeeId: EmployeeId, trait: string): Promise<boolean>;
     bulkAddEmployees(inputs: Array<EmployeeInput>): Promise<Array<EmployeeId>>;
+    clearAllAttendance(): Promise<boolean>;
+    clearAllData(): Promise<boolean>;
+    clearAllEmployees(): Promise<boolean>;
+    clearAllFeedback(): Promise<boolean>;
+    clearAllIssues(): Promise<boolean>;
+    clearAllSalesRecords(): Promise<boolean>;
+    clearAllTopPerformers(): Promise<boolean>;
     deleteEmployee(id: EmployeeId): Promise<boolean>;
     deleteIssueSuggestion(id: bigint): Promise<boolean>;
     getActiveEmployeeCount(): Promise<bigint>;
@@ -289,8 +303,11 @@ export interface backendInterface {
     updateEmployeeSWOT(employeeId: EmployeeId, swotInput: SWOTInput): Promise<boolean>;
     updateEmployeeStatus(id: EmployeeId, newStatus: Status): Promise<boolean>;
     updateIssueSuggestion(id: bigint, input: IssueSuggestionInput): Promise<boolean>;
+    updatePerformanceBatch(inputs: Array<[string, PerformanceInput]>): Promise<bigint>;
     updatePerformanceByFiplCode(fiplCode: string, input: PerformanceInput): Promise<boolean>;
+    updateSwotBatch(inputs: Array<SwotBatchInput>): Promise<bigint>;
     updateSwotByFiplCode(fiplCode: string, swotInput: SWOTInput, newTraits: Array<string>, newProblems: Array<string>): Promise<boolean>;
+    upsertEmployeesBatch(inputs: Array<EmployeeFullInput>): Promise<Array<[string, EmployeeId]>>;
 }
 import type { Employee as _Employee, EmployeeDetails as _EmployeeDetails, EmployeeFullInput as _EmployeeFullInput, EmployeeId as _EmployeeId, EmployeeInput as _EmployeeInput, Feedback as _Feedback, FeedbackInput as _FeedbackInput, Performance as _Performance, PerformanceInput as _PerformanceInput, SWOT as _SWOT, SWOTInput as _SWOTInput, SaleType as _SaleType, SalesBrand as _SalesBrand, SalesRecord as _SalesRecord, SalesRecordInput as _SalesRecordInput, Severity as _Severity, Status as _Status } from "./declarations/backend.did.d.ts";
 export class Backend implements backendInterface {
@@ -306,6 +323,20 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.addAttendanceRecord(arg0);
+            return result;
+        }
+    }
+    async addAttendanceRecordsBatch(arg0: Array<AttendanceRecordInput>): Promise<Array<bigint>> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.addAttendanceRecordsBatch(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.addAttendanceRecordsBatch(arg0);
             return result;
         }
     }
@@ -418,6 +449,104 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.bulkAddEmployees(to_candid_vec_n18(this._uploadFile, this._downloadFile, arg0));
+            return result;
+        }
+    }
+    async clearAllAttendance(): Promise<boolean> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.clearAllAttendance();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.clearAllAttendance();
+            return result;
+        }
+    }
+    async clearAllData(): Promise<boolean> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.clearAllData();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.clearAllData();
+            return result;
+        }
+    }
+    async clearAllEmployees(): Promise<boolean> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.clearAllEmployees();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.clearAllEmployees();
+            return result;
+        }
+    }
+    async clearAllFeedback(): Promise<boolean> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.clearAllFeedback();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.clearAllFeedback();
+            return result;
+        }
+    }
+    async clearAllIssues(): Promise<boolean> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.clearAllIssues();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.clearAllIssues();
+            return result;
+        }
+    }
+    async clearAllSalesRecords(): Promise<boolean> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.clearAllSalesRecords();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.clearAllSalesRecords();
+            return result;
+        }
+    }
+    async clearAllTopPerformers(): Promise<boolean> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.clearAllTopPerformers();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.clearAllTopPerformers();
             return result;
         }
     }
@@ -687,6 +816,20 @@ export class Backend implements backendInterface {
             return result;
         }
     }
+    async updatePerformanceBatch(arg0: Array<[string, PerformanceInput]>): Promise<bigint> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.updatePerformanceBatch(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.updatePerformanceBatch(arg0);
+            return result;
+        }
+    }
     async updatePerformanceByFiplCode(arg0: string, arg1: PerformanceInput): Promise<boolean> {
         if (this.processError) {
             try {
@@ -701,6 +844,20 @@ export class Backend implements backendInterface {
             return result;
         }
     }
+    async updateSwotBatch(arg0: Array<SwotBatchInput>): Promise<bigint> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.updateSwotBatch(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.updateSwotBatch(arg0);
+            return result;
+        }
+    }
     async updateSwotByFiplCode(arg0: string, arg1: SWOTInput, arg2: Array<string>, arg3: Array<string>): Promise<boolean> {
         if (this.processError) {
             try {
@@ -712,6 +869,20 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.updateSwotByFiplCode(arg0, arg1, arg2, arg3);
+            return result;
+        }
+    }
+    async upsertEmployeesBatch(arg0: Array<EmployeeFullInput>): Promise<Array<[string, EmployeeId]>> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.upsertEmployeesBatch(to_candid_vec_n38(this._uploadFile, this._downloadFile, arg0));
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.upsertEmployeesBatch(to_candid_vec_n38(this._uploadFile, this._downloadFile, arg0));
             return result;
         }
     }
@@ -1111,6 +1282,9 @@ function to_candid_vec_n17(_uploadFile: (file: ExternalBlob) => Promise<Uint8Arr
 }
 function to_candid_vec_n18(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Array<EmployeeInput>): Array<_EmployeeInput> {
     return value.map((x)=>to_candid_EmployeeInput_n3(_uploadFile, _downloadFile, x));
+}
+function to_candid_vec_n38(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Array<EmployeeFullInput>): Array<_EmployeeFullInput> {
+    return value.map((x)=>to_candid_EmployeeFullInput_n1(_uploadFile, _downloadFile, x));
 }
 export interface CreateActorOptions {
     agent?: Agent;

@@ -157,6 +157,12 @@ export type Severity = { 'low' : null } |
 export type Status = { 'active' : null } |
   { 'inactive' : null } |
   { 'onHold' : null };
+export interface SwotBatchInput {
+  'traits' : Array<string>,
+  'swot' : SWOTInput,
+  'problems' : Array<string>,
+  'fiplCode' : string,
+}
 export interface TopPerformer {
   'accessories' : bigint,
   'name' : string,
@@ -175,6 +181,10 @@ export interface TopPerformerInput {
 }
 export interface _SERVICE {
   'addAttendanceRecord' : ActorMethod<[AttendanceRecordInput], bigint>,
+  'addAttendanceRecordsBatch' : ActorMethod<
+    [Array<AttendanceRecordInput>],
+    Array<bigint>
+  >,
   'addEmployee' : ActorMethod<[EmployeeFullInput], EmployeeId>,
   'addFeedback' : ActorMethod<[FeedbackInput], bigint>,
   'addIssueSuggestion' : ActorMethod<[IssueSuggestionInput], bigint>,
@@ -186,6 +196,13 @@ export interface _SERVICE {
   >,
   'addTrait' : ActorMethod<[EmployeeId, string], boolean>,
   'bulkAddEmployees' : ActorMethod<[Array<EmployeeInput>], Array<EmployeeId>>,
+  'clearAllAttendance' : ActorMethod<[], boolean>,
+  'clearAllData' : ActorMethod<[], boolean>,
+  'clearAllEmployees' : ActorMethod<[], boolean>,
+  'clearAllFeedback' : ActorMethod<[], boolean>,
+  'clearAllIssues' : ActorMethod<[], boolean>,
+  'clearAllSalesRecords' : ActorMethod<[], boolean>,
+  'clearAllTopPerformers' : ActorMethod<[], boolean>,
   'deleteEmployee' : ActorMethod<[EmployeeId], boolean>,
   'deleteIssueSuggestion' : ActorMethod<[bigint], boolean>,
   'getActiveEmployeeCount' : ActorMethod<[], bigint>,
@@ -214,13 +231,22 @@ export interface _SERVICE {
     [bigint, IssueSuggestionInput],
     boolean
   >,
+  'updatePerformanceBatch' : ActorMethod<
+    [Array<[string, PerformanceInput]>],
+    bigint
+  >,
   'updatePerformanceByFiplCode' : ActorMethod<
     [string, PerformanceInput],
     boolean
   >,
+  'updateSwotBatch' : ActorMethod<[Array<SwotBatchInput>], bigint>,
   'updateSwotByFiplCode' : ActorMethod<
     [string, SWOTInput, Array<string>, Array<string>],
     boolean
+  >,
+  'upsertEmployeesBatch' : ActorMethod<
+    [Array<EmployeeFullInput>],
+    Array<[string, EmployeeId]>
   >,
 }
 export declare const idlService: IDL.ServiceClass;

@@ -179,9 +179,20 @@ export const TopPerformerInput = IDL.Record({
   'extendedWarranty' : IDL.Nat,
   'fiplCode' : IDL.Text,
 });
+export const SwotBatchInput = IDL.Record({
+  'traits' : IDL.Vec(IDL.Text),
+  'swot' : SWOTInput,
+  'problems' : IDL.Vec(IDL.Text),
+  'fiplCode' : IDL.Text,
+});
 
 export const idlService = IDL.Service({
   'addAttendanceRecord' : IDL.Func([AttendanceRecordInput], [IDL.Nat], []),
+  'addAttendanceRecordsBatch' : IDL.Func(
+      [IDL.Vec(AttendanceRecordInput)],
+      [IDL.Vec(IDL.Nat)],
+      [],
+    ),
   'addEmployee' : IDL.Func([EmployeeFullInput], [EmployeeId], []),
   'addFeedback' : IDL.Func([FeedbackInput], [IDL.Nat], []),
   'addIssueSuggestion' : IDL.Func([IssueSuggestionInput], [IDL.Nat], []),
@@ -198,6 +209,13 @@ export const idlService = IDL.Service({
       [IDL.Vec(EmployeeId)],
       [],
     ),
+  'clearAllAttendance' : IDL.Func([], [IDL.Bool], []),
+  'clearAllData' : IDL.Func([], [IDL.Bool], []),
+  'clearAllEmployees' : IDL.Func([], [IDL.Bool], []),
+  'clearAllFeedback' : IDL.Func([], [IDL.Bool], []),
+  'clearAllIssues' : IDL.Func([], [IDL.Bool], []),
+  'clearAllSalesRecords' : IDL.Func([], [IDL.Bool], []),
+  'clearAllTopPerformers' : IDL.Func([], [IDL.Bool], []),
   'deleteEmployee' : IDL.Func([EmployeeId], [IDL.Bool], []),
   'deleteIssueSuggestion' : IDL.Func([IDL.Nat], [IDL.Bool], []),
   'getActiveEmployeeCount' : IDL.Func([], [IDL.Nat], ['query']),
@@ -237,14 +255,25 @@ export const idlService = IDL.Service({
       [IDL.Bool],
       [],
     ),
+  'updatePerformanceBatch' : IDL.Func(
+      [IDL.Vec(IDL.Tuple(IDL.Text, PerformanceInput))],
+      [IDL.Nat],
+      [],
+    ),
   'updatePerformanceByFiplCode' : IDL.Func(
       [IDL.Text, PerformanceInput],
       [IDL.Bool],
       [],
     ),
+  'updateSwotBatch' : IDL.Func([IDL.Vec(SwotBatchInput)], [IDL.Nat], []),
   'updateSwotByFiplCode' : IDL.Func(
       [IDL.Text, SWOTInput, IDL.Vec(IDL.Text), IDL.Vec(IDL.Text)],
       [IDL.Bool],
+      [],
+    ),
+  'upsertEmployeesBatch' : IDL.Func(
+      [IDL.Vec(EmployeeFullInput)],
+      [IDL.Vec(IDL.Tuple(IDL.Text, EmployeeId))],
       [],
     ),
 });
@@ -423,9 +452,20 @@ export const idlFactory = ({ IDL }) => {
     'extendedWarranty' : IDL.Nat,
     'fiplCode' : IDL.Text,
   });
+  const SwotBatchInput = IDL.Record({
+    'traits' : IDL.Vec(IDL.Text),
+    'swot' : SWOTInput,
+    'problems' : IDL.Vec(IDL.Text),
+    'fiplCode' : IDL.Text,
+  });
   
   return IDL.Service({
     'addAttendanceRecord' : IDL.Func([AttendanceRecordInput], [IDL.Nat], []),
+    'addAttendanceRecordsBatch' : IDL.Func(
+        [IDL.Vec(AttendanceRecordInput)],
+        [IDL.Vec(IDL.Nat)],
+        [],
+      ),
     'addEmployee' : IDL.Func([EmployeeFullInput], [EmployeeId], []),
     'addFeedback' : IDL.Func([FeedbackInput], [IDL.Nat], []),
     'addIssueSuggestion' : IDL.Func([IssueSuggestionInput], [IDL.Nat], []),
@@ -442,6 +482,13 @@ export const idlFactory = ({ IDL }) => {
         [IDL.Vec(EmployeeId)],
         [],
       ),
+    'clearAllAttendance' : IDL.Func([], [IDL.Bool], []),
+    'clearAllData' : IDL.Func([], [IDL.Bool], []),
+    'clearAllEmployees' : IDL.Func([], [IDL.Bool], []),
+    'clearAllFeedback' : IDL.Func([], [IDL.Bool], []),
+    'clearAllIssues' : IDL.Func([], [IDL.Bool], []),
+    'clearAllSalesRecords' : IDL.Func([], [IDL.Bool], []),
+    'clearAllTopPerformers' : IDL.Func([], [IDL.Bool], []),
     'deleteEmployee' : IDL.Func([EmployeeId], [IDL.Bool], []),
     'deleteIssueSuggestion' : IDL.Func([IDL.Nat], [IDL.Bool], []),
     'getActiveEmployeeCount' : IDL.Func([], [IDL.Nat], ['query']),
@@ -485,14 +532,25 @@ export const idlFactory = ({ IDL }) => {
         [IDL.Bool],
         [],
       ),
+    'updatePerformanceBatch' : IDL.Func(
+        [IDL.Vec(IDL.Tuple(IDL.Text, PerformanceInput))],
+        [IDL.Nat],
+        [],
+      ),
     'updatePerformanceByFiplCode' : IDL.Func(
         [IDL.Text, PerformanceInput],
         [IDL.Bool],
         [],
       ),
+    'updateSwotBatch' : IDL.Func([IDL.Vec(SwotBatchInput)], [IDL.Nat], []),
     'updateSwotByFiplCode' : IDL.Func(
         [IDL.Text, SWOTInput, IDL.Vec(IDL.Text), IDL.Vec(IDL.Text)],
         [IDL.Bool],
+        [],
+      ),
+    'upsertEmployeesBatch' : IDL.Func(
+        [IDL.Vec(EmployeeFullInput)],
+        [IDL.Vec(IDL.Tuple(IDL.Text, EmployeeId))],
         [],
       ),
   });
