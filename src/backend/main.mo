@@ -7,8 +7,6 @@ import Int "mo:core/Int";
 import Order "mo:core/Order";
 import Time "mo:core/Time";
 
-
-
 actor {
   public type EmployeeId = Nat;
   public type Status = { #active; #inactive; #onHold };
@@ -97,14 +95,6 @@ actor {
     totalSales : Nat;
   };
 
-  public type EmployeeDetails = {
-    info : Employee;
-    performance : Performance;
-    swot : SWOT;
-    traits : [Text];
-    problems : [Text];
-  };
-
   public type EmployeeInput = {
     fiplCode : Text;
     name : Text;
@@ -132,14 +122,6 @@ actor {
     weaknesses : [Text];
     opportunities : [Text];
     threats : [Text];
-  };
-
-  public type EmployeeFullInput = {
-    employeeInfo : EmployeeInput;
-    performance : PerformanceInput;
-    swotAnalysis : SWOTInput;
-    traits : [Text];
-    problems : [Text];
   };
 
   public type FeedbackInput = {
@@ -181,6 +163,22 @@ actor {
     accessories : Nat;
     extendedWarranty : Nat;
     totalSales : Nat;
+  };
+
+  public type EmployeeDetails = {
+    info : Employee;
+    performance : Performance;
+    swot : SWOT;
+    traits : [Text];
+    problems : [Text];
+  };
+
+  public type EmployeeFullInput = {
+    employeeInfo : EmployeeInput;
+    performance : PerformanceInput;
+    swotAnalysis : SWOTInput;
+    traits : [Text];
+    problems : [Text];
   };
 
   module Employee {
@@ -730,6 +728,34 @@ actor {
 
     salesRecords.add(newId, record);
     newId;
+  };
+
+  public shared ({ caller }) func addSalesRecordsBatch(inputs : [SalesRecordInput]) : async [Nat] {
+    let idsArray = Array.tabulate(
+      inputs.size(),
+      func(i) {
+        let newId = nextRecordId + i;
+        let input = inputs[i];
+
+        let record : SalesRecord = {
+          id = newId;
+          employeeId = input.employeeId;
+          fiplCode = input.fiplCode;
+          brand = input.brand;
+          product = input.product;
+          saleType = input.saleType;
+          quantity = input.quantity;
+          amount = input.amount;
+          recordDate = Time.now();
+          saleDate = input.saleDate;
+        };
+
+        salesRecords.add(newId, record);
+        newId;
+      },
+    );
+    nextRecordId += inputs.size();
+    idsArray;
   };
 
   public shared ({ caller }) func addAttendanceRecord(input : AttendanceRecordInput) : async Nat {

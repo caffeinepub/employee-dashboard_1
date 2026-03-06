@@ -185,6 +185,7 @@ export interface backendInterface {
     addIssueSuggestion(input: IssueSuggestionInput): Promise<bigint>;
     addProblem(employeeId: EmployeeId, problem: string): Promise<boolean>;
     addSalesRecord(input: SalesRecordInput): Promise<bigint>;
+    addSalesRecordsBatch(inputs: Array<SalesRecordInput>): Promise<Array<bigint>>;
     addTrait(employeeId: EmployeeId, trait: string): Promise<boolean>;
     bulkAddEmployees(inputs: Array<EmployeeInput>): Promise<Array<EmployeeId>>;
     deleteEmployee(id: EmployeeId): Promise<boolean>;

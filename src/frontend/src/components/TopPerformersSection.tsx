@@ -18,6 +18,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   CheckCircle2,
   Download,
@@ -29,7 +30,8 @@ import {
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 import type { TopPerformerInput } from "../backend.d.ts";
-import { useSetTopPerformers, useTopPerformers } from "../hooks/useQueries";
+import { useActor } from "../hooks/useActor";
+import { useTopPerformers } from "../hooks/useQueries";
 
 const TOP_PERFORMERS_TEMPLATE = `rank,name,fiplCode,accessories,extendedWarranty,totalSales
 1,Rajesh Kumar,FIPL-001,45,12,320000
@@ -188,7 +190,9 @@ const SKELETON_KEYS = ["sk-a", "sk-b", "sk-c", "sk-d", "sk-e"];
 
 export function TopPerformersSection() {
   const { data: performers = [], isLoading } = useTopPerformers();
-  const setTopPerformers = useSetTopPerformers();
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+  const [isSaving, setIsSaving] = useState(false);
   const [uploadOpen, setUploadOpen] = useState(false);
   const [parsedRows, setParsedRows] = useState<ParsedPerformer[]>([]);
   const [step, setStep] = useState<"upload" | "preview">("upload");
@@ -231,8 +235,13 @@ export function TopPerformersSection() {
     if (file) handleFile(file);
   };
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
     const validRows = parsedRows.filter((r) => !r.error);
+    if (validRows.length === 0) return;
+    if (!actor) {
+      toast.error("Backend not ready. Please wait a moment and try again.");
+      return;
+    }
     const inputs: TopPerformerInput[] = validRows.map((r) => ({
       rank: BigInt(r.rank),
       name: r.name,
@@ -241,19 +250,28 @@ export function TopPerformersSection() {
       extendedWarranty: BigInt(r.extendedWarranty),
       totalSales: BigInt(r.totalSales),
     }));
-    setTopPerformers.mutate(inputs, {
-      onSuccess: () => {
-        toast.success(`Top ${inputs.length} performers updated`);
-        setUploadOpen(false);
-        setStep("upload");
-        setParsedRows([]);
-      },
-      onError: () => toast.error("Failed to update top performers"),
-    });
+    setIsSaving(true);
+    const toastId = toast.loading("Saving top performers...");
+    try {
+      await actor.setTopPerformers(inputs);
+      await queryClient.invalidateQueries();
+      toast.success(`Top ${inputs.length} performers updated`, { id: toastId });
+      setUploadOpen(false);
+      setStep("upload");
+      setParsedRows([]);
+    } catch (err) {
+      console.error("Top performers save error:", err);
+      toast.error(
+        `Failed to save: ${err instanceof Error ? err.message : String(err)}`,
+        { id: toastId },
+      );
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleClose = () => {
-    if (!setTopPerformers.isPending) {
+    if (!isSaving) {
       setUploadOpen(false);
       setStep("upload");
       setParsedRows([]);
@@ -591,7 +609,7 @@ export function TopPerformersSection() {
               variant="outline"
               size="sm"
               onClick={handleClose}
-              disabled={setTopPerformers.isPending}
+              disabled={isSaving}
               data-ocid="top_performers.cancel_button"
             >
               Cancel
@@ -602,13 +620,12 @@ export function TopPerformersSection() {
                 size="sm"
                 onClick={handleConfirm}
                 disabled={
-                  parsedRows.filter((r) => !r.error).length === 0 ||
-                  setTopPerformers.isPending
+                  parsedRows.filter((r) => !r.error).length === 0 || isSaving
                 }
                 className="gap-2"
                 data-ocid="top_performers.confirm_button"
               >
-                {setTopPerformers.isPending ? (
+                {isSaving ? (
                   <>
                     <Loader2 className="w-3.5 h-3.5 animate-spin" />
                     Saving...

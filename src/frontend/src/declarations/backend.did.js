@@ -187,6 +187,11 @@ export const idlService = IDL.Service({
   'addIssueSuggestion' : IDL.Func([IssueSuggestionInput], [IDL.Nat], []),
   'addProblem' : IDL.Func([EmployeeId, IDL.Text], [IDL.Bool], []),
   'addSalesRecord' : IDL.Func([SalesRecordInput], [IDL.Nat], []),
+  'addSalesRecordsBatch' : IDL.Func(
+      [IDL.Vec(SalesRecordInput)],
+      [IDL.Vec(IDL.Nat)],
+      [],
+    ),
   'addTrait' : IDL.Func([EmployeeId, IDL.Text], [IDL.Bool], []),
   'bulkAddEmployees' : IDL.Func(
       [IDL.Vec(EmployeeInput)],
@@ -426,6 +431,11 @@ export const idlFactory = ({ IDL }) => {
     'addIssueSuggestion' : IDL.Func([IssueSuggestionInput], [IDL.Nat], []),
     'addProblem' : IDL.Func([EmployeeId, IDL.Text], [IDL.Bool], []),
     'addSalesRecord' : IDL.Func([SalesRecordInput], [IDL.Nat], []),
+    'addSalesRecordsBatch' : IDL.Func(
+        [IDL.Vec(SalesRecordInput)],
+        [IDL.Vec(IDL.Nat)],
+        [],
+      ),
     'addTrait' : IDL.Func([EmployeeId, IDL.Text], [IDL.Bool], []),
     'bulkAddEmployees' : IDL.Func(
         [IDL.Vec(EmployeeInput)],

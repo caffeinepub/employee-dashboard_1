@@ -180,6 +180,10 @@ export interface _SERVICE {
   'addIssueSuggestion' : ActorMethod<[IssueSuggestionInput], bigint>,
   'addProblem' : ActorMethod<[EmployeeId, string], boolean>,
   'addSalesRecord' : ActorMethod<[SalesRecordInput], bigint>,
+  'addSalesRecordsBatch' : ActorMethod<
+    [Array<SalesRecordInput>],
+    Array<bigint>
+  >,
   'addTrait' : ActorMethod<[EmployeeId, string], boolean>,
   'bulkAddEmployees' : ActorMethod<[Array<EmployeeInput>], Array<EmployeeId>>,
   'deleteEmployee' : ActorMethod<[EmployeeId], boolean>,

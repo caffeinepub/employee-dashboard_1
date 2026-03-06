@@ -267,6 +267,7 @@ export interface backendInterface {
     addIssueSuggestion(input: IssueSuggestionInput): Promise<bigint>;
     addProblem(employeeId: EmployeeId, problem: string): Promise<boolean>;
     addSalesRecord(input: SalesRecordInput): Promise<bigint>;
+    addSalesRecordsBatch(inputs: Array<SalesRecordInput>): Promise<Array<bigint>>;
     addTrait(employeeId: EmployeeId, trait: string): Promise<boolean>;
     bulkAddEmployees(inputs: Array<EmployeeInput>): Promise<Array<EmployeeId>>;
     deleteEmployee(id: EmployeeId): Promise<boolean>;
@@ -378,6 +379,20 @@ export class Backend implements backendInterface {
             return result;
         }
     }
+    async addSalesRecordsBatch(arg0: Array<SalesRecordInput>): Promise<Array<bigint>> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.addSalesRecordsBatch(to_candid_vec_n17(this._uploadFile, this._downloadFile, arg0));
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.addSalesRecordsBatch(to_candid_vec_n17(this._uploadFile, this._downloadFile, arg0));
+            return result;
+        }
+    }
     async addTrait(arg0: EmployeeId, arg1: string): Promise<boolean> {
         if (this.processError) {
             try {
@@ -395,14 +410,14 @@ export class Backend implements backendInterface {
     async bulkAddEmployees(arg0: Array<EmployeeInput>): Promise<Array<EmployeeId>> {
         if (this.processError) {
             try {
-                const result = await this.actor.bulkAddEmployees(to_candid_vec_n17(this._uploadFile, this._downloadFile, arg0));
+                const result = await this.actor.bulkAddEmployees(to_candid_vec_n18(this._uploadFile, this._downloadFile, arg0));
                 return result;
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor.bulkAddEmployees(to_candid_vec_n17(this._uploadFile, this._downloadFile, arg0));
+            const result = await this.actor.bulkAddEmployees(to_candid_vec_n18(this._uploadFile, this._downloadFile, arg0));
             return result;
         }
     }
@@ -452,28 +467,28 @@ export class Backend implements backendInterface {
         if (this.processError) {
             try {
                 const result = await this.actor.getAllEmployees();
-                return from_candid_vec_n18(this._uploadFile, this._downloadFile, result);
+                return from_candid_vec_n19(this._uploadFile, this._downloadFile, result);
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
             const result = await this.actor.getAllEmployees();
-            return from_candid_vec_n18(this._uploadFile, this._downloadFile, result);
+            return from_candid_vec_n19(this._uploadFile, this._downloadFile, result);
         }
     }
     async getAllFeedback(): Promise<Array<Feedback>> {
         if (this.processError) {
             try {
                 const result = await this.actor.getAllFeedback();
-                return from_candid_vec_n23(this._uploadFile, this._downloadFile, result);
+                return from_candid_vec_n24(this._uploadFile, this._downloadFile, result);
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
             const result = await this.actor.getAllFeedback();
-            return from_candid_vec_n23(this._uploadFile, this._downloadFile, result);
+            return from_candid_vec_n24(this._uploadFile, this._downloadFile, result);
         }
     }
     async getAllIssues(): Promise<Array<IssueSuggestion>> {
@@ -508,56 +523,56 @@ export class Backend implements backendInterface {
         if (this.processError) {
             try {
                 const result = await this.actor.getEmployeeDetails(arg0);
-                return from_candid_EmployeeDetails_n28(this._uploadFile, this._downloadFile, result);
+                return from_candid_EmployeeDetails_n29(this._uploadFile, this._downloadFile, result);
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
             const result = await this.actor.getEmployeeDetails(arg0);
-            return from_candid_EmployeeDetails_n28(this._uploadFile, this._downloadFile, result);
+            return from_candid_EmployeeDetails_n29(this._uploadFile, this._downloadFile, result);
         }
     }
     async getFeedbackByEmployee(arg0: EmployeeId): Promise<Array<Feedback>> {
         if (this.processError) {
             try {
                 const result = await this.actor.getFeedbackByEmployee(arg0);
-                return from_candid_vec_n23(this._uploadFile, this._downloadFile, result);
+                return from_candid_vec_n24(this._uploadFile, this._downloadFile, result);
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
             const result = await this.actor.getFeedbackByEmployee(arg0);
-            return from_candid_vec_n23(this._uploadFile, this._downloadFile, result);
+            return from_candid_vec_n24(this._uploadFile, this._downloadFile, result);
         }
     }
     async getSalesRecords(): Promise<Array<SalesRecord>> {
         if (this.processError) {
             try {
                 const result = await this.actor.getSalesRecords();
-                return from_candid_vec_n30(this._uploadFile, this._downloadFile, result);
+                return from_candid_vec_n31(this._uploadFile, this._downloadFile, result);
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
             const result = await this.actor.getSalesRecords();
-            return from_candid_vec_n30(this._uploadFile, this._downloadFile, result);
+            return from_candid_vec_n31(this._uploadFile, this._downloadFile, result);
         }
     }
     async getSalesRecordsByEmployee(arg0: EmployeeId): Promise<Array<SalesRecord>> {
         if (this.processError) {
             try {
                 const result = await this.actor.getSalesRecordsByEmployee(arg0);
-                return from_candid_vec_n30(this._uploadFile, this._downloadFile, result);
+                return from_candid_vec_n31(this._uploadFile, this._downloadFile, result);
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
             const result = await this.actor.getSalesRecordsByEmployee(arg0);
-            return from_candid_vec_n30(this._uploadFile, this._downloadFile, result);
+            return from_candid_vec_n31(this._uploadFile, this._downloadFile, result);
         }
     }
     async getTopPerformers(): Promise<Array<TopPerformer>> {
@@ -701,31 +716,31 @@ export class Backend implements backendInterface {
         }
     }
 }
-function from_candid_EmployeeDetails_n28(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _EmployeeDetails): EmployeeDetails {
-    return from_candid_record_n29(_uploadFile, _downloadFile, value);
+function from_candid_EmployeeDetails_n29(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _EmployeeDetails): EmployeeDetails {
+    return from_candid_record_n30(_uploadFile, _downloadFile, value);
 }
-function from_candid_Employee_n19(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _Employee): Employee {
-    return from_candid_record_n20(_uploadFile, _downloadFile, value);
+function from_candid_Employee_n20(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _Employee): Employee {
+    return from_candid_record_n21(_uploadFile, _downloadFile, value);
 }
-function from_candid_Feedback_n24(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _Feedback): Feedback {
-    return from_candid_record_n25(_uploadFile, _downloadFile, value);
+function from_candid_Feedback_n25(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _Feedback): Feedback {
+    return from_candid_record_n26(_uploadFile, _downloadFile, value);
 }
-function from_candid_SaleType_n33(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _SaleType): SaleType {
-    return from_candid_variant_n34(_uploadFile, _downloadFile, value);
+function from_candid_SaleType_n34(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _SaleType): SaleType {
+    return from_candid_variant_n35(_uploadFile, _downloadFile, value);
 }
-function from_candid_SalesBrand_n35(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _SalesBrand): SalesBrand {
-    return from_candid_variant_n36(_uploadFile, _downloadFile, value);
+function from_candid_SalesBrand_n36(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _SalesBrand): SalesBrand {
+    return from_candid_variant_n37(_uploadFile, _downloadFile, value);
 }
-function from_candid_SalesRecord_n31(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _SalesRecord): SalesRecord {
-    return from_candid_record_n32(_uploadFile, _downloadFile, value);
+function from_candid_SalesRecord_n32(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _SalesRecord): SalesRecord {
+    return from_candid_record_n33(_uploadFile, _downloadFile, value);
 }
-function from_candid_Severity_n26(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _Severity): Severity {
-    return from_candid_variant_n27(_uploadFile, _downloadFile, value);
+function from_candid_Severity_n27(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _Severity): Severity {
+    return from_candid_variant_n28(_uploadFile, _downloadFile, value);
 }
-function from_candid_Status_n21(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _Status): Status {
-    return from_candid_variant_n22(_uploadFile, _downloadFile, value);
+function from_candid_Status_n22(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _Status): Status {
+    return from_candid_variant_n23(_uploadFile, _downloadFile, value);
 }
-function from_candid_record_n20(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
+function from_candid_record_n21(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
     id: _EmployeeId;
     region: string;
     status: _Status;
@@ -755,7 +770,7 @@ function from_candid_record_n20(_uploadFile: (file: ExternalBlob) => Promise<Uin
     return {
         id: value.id,
         region: value.region,
-        status: from_candid_Status_n21(_uploadFile, _downloadFile, value.status),
+        status: from_candid_Status_n22(_uploadFile, _downloadFile, value.status),
         joinDate: value.joinDate,
         name: value.name,
         role: value.role,
@@ -767,7 +782,7 @@ function from_candid_record_n20(_uploadFile: (file: ExternalBlob) => Promise<Uin
         fiplCode: value.fiplCode
     };
 }
-function from_candid_record_n25(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
+function from_candid_record_n26(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
     id: bigint;
     date: bigint;
     description: string;
@@ -788,10 +803,10 @@ function from_candid_record_n25(_uploadFile: (file: ExternalBlob) => Promise<Uin
         description: value.description,
         employeeId: value.employeeId,
         category: value.category,
-        severity: from_candid_Severity_n26(_uploadFile, _downloadFile, value.severity)
+        severity: from_candid_Severity_n27(_uploadFile, _downloadFile, value.severity)
     };
 }
-function from_candid_record_n29(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
+function from_candid_record_n30(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
     traits: Array<string>;
     info: _Employee;
     swot: _SWOT;
@@ -806,13 +821,13 @@ function from_candid_record_n29(_uploadFile: (file: ExternalBlob) => Promise<Uin
 } {
     return {
         traits: value.traits,
-        info: from_candid_Employee_n19(_uploadFile, _downloadFile, value.info),
+        info: from_candid_Employee_n20(_uploadFile, _downloadFile, value.info),
         swot: value.swot,
         performance: value.performance,
         problems: value.problems
     };
 }
-function from_candid_record_n32(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
+function from_candid_record_n33(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
     id: bigint;
     saleType: _SaleType;
     recordDate: bigint;
@@ -837,18 +852,18 @@ function from_candid_record_n32(_uploadFile: (file: ExternalBlob) => Promise<Uin
 } {
     return {
         id: value.id,
-        saleType: from_candid_SaleType_n33(_uploadFile, _downloadFile, value.saleType),
+        saleType: from_candid_SaleType_n34(_uploadFile, _downloadFile, value.saleType),
         recordDate: value.recordDate,
         employeeId: value.employeeId,
         quantity: value.quantity,
-        brand: from_candid_SalesBrand_n35(_uploadFile, _downloadFile, value.brand),
+        brand: from_candid_SalesBrand_n36(_uploadFile, _downloadFile, value.brand),
         amount: value.amount,
         product: value.product,
         saleDate: value.saleDate,
         fiplCode: value.fiplCode
     };
 }
-function from_candid_variant_n22(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
+function from_candid_variant_n23(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
     active: null;
 } | {
     inactive: null;
@@ -857,7 +872,7 @@ function from_candid_variant_n22(_uploadFile: (file: ExternalBlob) => Promise<Ui
 }): Status {
     return "active" in value ? Status.active : "inactive" in value ? Status.inactive : "onHold" in value ? Status.onHold : value;
 }
-function from_candid_variant_n27(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
+function from_candid_variant_n28(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
     low: null;
 } | {
     high: null;
@@ -866,14 +881,14 @@ function from_candid_variant_n27(_uploadFile: (file: ExternalBlob) => Promise<Ui
 }): Severity {
     return "low" in value ? Severity.low : "high" in value ? Severity.high : "medium" in value ? Severity.medium : value;
 }
-function from_candid_variant_n34(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
+function from_candid_variant_n35(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
     accessories: null;
 } | {
     extendedWarranty: null;
 }): SaleType {
     return "accessories" in value ? SaleType.accessories : "extendedWarranty" in value ? SaleType.extendedWarranty : value;
 }
-function from_candid_variant_n36(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
+function from_candid_variant_n37(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
     tineco: null;
 } | {
     ecovacs: null;
@@ -886,14 +901,14 @@ function from_candid_variant_n36(_uploadFile: (file: ExternalBlob) => Promise<Ui
 }): SalesBrand {
     return "tineco" in value ? SalesBrand.tineco : "ecovacs" in value ? SalesBrand.ecovacs : "coway" in value ? SalesBrand.coway : "kuvings" in value ? SalesBrand.kuvings : "instant" in value ? SalesBrand.instant : value;
 }
-function from_candid_vec_n18(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Array<_Employee>): Array<Employee> {
-    return value.map((x)=>from_candid_Employee_n19(_uploadFile, _downloadFile, x));
+function from_candid_vec_n19(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Array<_Employee>): Array<Employee> {
+    return value.map((x)=>from_candid_Employee_n20(_uploadFile, _downloadFile, x));
 }
-function from_candid_vec_n23(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Array<_Feedback>): Array<Feedback> {
-    return value.map((x)=>from_candid_Feedback_n24(_uploadFile, _downloadFile, x));
+function from_candid_vec_n24(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Array<_Feedback>): Array<Feedback> {
+    return value.map((x)=>from_candid_Feedback_n25(_uploadFile, _downloadFile, x));
 }
-function from_candid_vec_n30(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Array<_SalesRecord>): Array<SalesRecord> {
-    return value.map((x)=>from_candid_SalesRecord_n31(_uploadFile, _downloadFile, x));
+function from_candid_vec_n31(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Array<_SalesRecord>): Array<SalesRecord> {
+    return value.map((x)=>from_candid_SalesRecord_n32(_uploadFile, _downloadFile, x));
 }
 function to_candid_EmployeeFullInput_n1(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: EmployeeFullInput): _EmployeeFullInput {
     return to_candid_record_n2(_uploadFile, _downloadFile, value);
@@ -1091,7 +1106,10 @@ function to_candid_variant_n6(_uploadFile: (file: ExternalBlob) => Promise<Uint8
         onHold: null
     } : value;
 }
-function to_candid_vec_n17(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Array<EmployeeInput>): Array<_EmployeeInput> {
+function to_candid_vec_n17(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Array<SalesRecordInput>): Array<_SalesRecordInput> {
+    return value.map((x)=>to_candid_SalesRecordInput_n11(_uploadFile, _downloadFile, x));
+}
+function to_candid_vec_n18(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Array<EmployeeInput>): Array<_EmployeeInput> {
     return value.map((x)=>to_candid_EmployeeInput_n3(_uploadFile, _downloadFile, x));
 }
 export interface CreateActorOptions {

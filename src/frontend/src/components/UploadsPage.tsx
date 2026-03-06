@@ -27,7 +27,10 @@ import {
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { SaleType, SalesBrand, Status } from "../backend";
-import type { Employee } from "../backend.d.ts";
+import type {
+  Employee,
+  SalesRecordInput as SalesRecordInputType,
+} from "../backend.d.ts";
 import { useActor } from "../hooks/useActor";
 import { useAllEmployees } from "../hooks/useQueries";
 
@@ -1298,16 +1301,8 @@ export function UploadsPage() {
         freshEmployees.map((e) => [e.fiplCode.toUpperCase(), e]),
       );
 
-      // Split into new (FIPL not in system) and existing (FIPL already exists)
-      const toInsert: typeof valid = [];
-      const toUpdate: typeof valid = [];
-      for (const row of valid) {
-        if (freshFiplMap.get(row.fiplCode.toUpperCase())) toUpdate.push(row);
-        else toInsert.push(row);
-      }
-
       // Helper to build EmployeeInput from a parsed row
-      const buildInput = (row: ParsedEmployeeRow) => {
+      const buildEmployeeInfo = (row: ParsedEmployeeRow) => {
         const joinDateMs = row.joinDate
           ? new Date(row.joinDate).getTime()
           : Date.now();
@@ -1337,75 +1332,58 @@ export function UploadsPage() {
         };
       };
 
-      // Insert new employees in bulk
-      if (toInsert.length > 0) {
-        const ids = await actor.bulkAddEmployees(toInsert.map(buildInput));
-        added = ids.length;
-      }
+      const emptyPerf = {
+        salesInfluenceIndex: 0n,
+        reviewCount: 0n,
+        operationalDiscipline: 0n,
+        productKnowledgeScore: 0n,
+        softSkillsScore: 0n,
+      };
+      const emptySwot = {
+        strengths: [],
+        weaknesses: [],
+        opportunities: [],
+        threats: [],
+      };
 
-      // Update existing employees one-by-one, preserving existing performance/swot data
-      for (let i = 0; i < toUpdate.length; i++) {
-        const row = toUpdate[i];
-        toast.loading(`Updating employee ${added + i + 1}/${valid.length}...`, {
+      // Process every row one-by-one (no bulk call) to avoid IC message size limits
+      for (let i = 0; i < valid.length; i++) {
+        const row = valid[i];
+        toast.loading(`Importing employees: ${i + 1}/${valid.length}...`, {
           id: toastId,
         });
         const existing = freshFiplMap.get(row.fiplCode.toUpperCase());
-        if (!existing) continue;
-        let details: {
-          performance: {
-            salesInfluenceIndex: bigint;
-            reviewCount: bigint;
-            operationalDiscipline: bigint;
-            productKnowledgeScore: bigint;
-            softSkillsScore: bigint;
-          };
-          swot: {
-            strengths: string[];
-            weaknesses: string[];
-            opportunities: string[];
-            threats: string[];
-          };
-          traits: string[];
-          problems: string[];
-        } | null = null;
+
         try {
-          details = await actor.getEmployeeDetails(existing.id);
-        } catch (_) {
-          /* use defaults */
+          if (existing) {
+            // Update: preserve existing performance/swot, only update employee info
+            await actor.updateEmployee(existing.id, {
+              employeeInfo: buildEmployeeInfo(row),
+              performance: emptyPerf,
+              swotAnalysis: emptySwot,
+              traits: [],
+              problems: [],
+            });
+            updated++;
+          } else {
+            // Insert new employee
+            await actor.addEmployee({
+              employeeInfo: buildEmployeeInfo(row),
+              performance: emptyPerf,
+              swotAnalysis: emptySwot,
+              traits: [],
+              problems: [],
+            });
+            // Add to local map so duplicate FIPL codes in same sheet don't re-insert
+            added++;
+          }
+          // Small delay between calls to avoid overwhelming IC canister
+          if (i < valid.length - 1)
+            await new Promise((r) => setTimeout(r, 150));
+        } catch (rowErr) {
+          console.error(`Employee row error for ${row.fiplCode}:`, rowErr);
+          // Continue processing remaining rows even if one fails
         }
-        await actor.updateEmployee(existing.id, {
-          employeeInfo: buildInput(row),
-          performance: details
-            ? {
-                salesInfluenceIndex: details.performance.salesInfluenceIndex,
-                reviewCount: details.performance.reviewCount,
-                operationalDiscipline:
-                  details.performance.operationalDiscipline,
-                productKnowledgeScore:
-                  details.performance.productKnowledgeScore,
-                softSkillsScore: details.performance.softSkillsScore,
-              }
-            : {
-                salesInfluenceIndex: 0n,
-                reviewCount: 0n,
-                operationalDiscipline: 0n,
-                productKnowledgeScore: 0n,
-                softSkillsScore: 0n,
-              },
-          swotAnalysis: details
-            ? {
-                strengths: details.swot.strengths,
-                weaknesses: details.swot.weaknesses,
-                opportunities: details.swot.opportunities,
-                threats: details.swot.threats,
-              }
-            : { strengths: [], weaknesses: [], opportunities: [], threats: [] },
-          traits: details ? details.traits : [],
-          problems: details ? details.problems : [],
-        });
-        updated++;
-        if (i < toUpdate.length - 1)
-          await new Promise((r) => setTimeout(r, 200));
       }
 
       await queryClient.invalidateQueries();
@@ -1472,7 +1450,7 @@ export function UploadsPage() {
           if (result) updated++;
           else skipped++;
           if (i < valid.length - 1)
-            await new Promise((r) => setTimeout(r, 200));
+            await new Promise((r) => setTimeout(r, 150));
         } catch (rowErr) {
           console.error(`Params row error for ${row.fiplCode}:`, rowErr);
           skipped++;
@@ -1553,7 +1531,7 @@ export function UploadsPage() {
           if (!row.lapseType && row.daysOff <= 0) added++;
           // Small delay between calls to avoid overwhelming the IC canister
           if (i < valid.length - 1)
-            await new Promise((r) => setTimeout(r, 200));
+            await new Promise((r) => setTimeout(r, 150));
         } catch (rowErr) {
           console.error(`Attendance row error for ${row.fiplCode}:`, rowErr);
           skipped++;
@@ -1594,7 +1572,11 @@ export function UploadsPage() {
         freshEmployees.map((e) => [e.fiplCode.toUpperCase(), e]),
       );
 
-      for (const row of valid) {
+      for (let i = 0; i < valid.length; i++) {
+        const row = valid[i];
+        toast.loading(`Importing SWOT: ${i + 1}/${valid.length}...`, {
+          id: "swot-import",
+        });
         const emp = freshFiplMap.get(row.fiplCode.toUpperCase());
         if (!emp) {
           skipped++;
@@ -1614,12 +1596,15 @@ export function UploadsPage() {
           );
           if (result) updated++;
           else skipped++;
+          if (i < valid.length - 1)
+            await new Promise((r) => setTimeout(r, 150));
         } catch (rowErr) {
           console.error(`SWOT row error for ${row.fiplCode}:`, rowErr);
           skipped++;
         }
       }
-      queryClient.invalidateQueries();
+      await queryClient.invalidateQueries();
+      toast.dismiss("swot-import");
       toast.success(
         skipped > 0
           ? `${updated} updated, ${skipped} skipped (FIPL Code not found in system)`
@@ -1662,20 +1647,17 @@ export function UploadsPage() {
     }
 
     setSalesImporting(true);
-    let added = 0;
     let skipped = 0;
-    const toastId = toast.loading(`Importing sales: 0/${valid.length}...`);
+    const toastId = toast.loading("Preparing sales data...");
     try {
       const freshEmployees = await actor.getAllEmployees();
       const freshFiplMap = new Map<string, Employee>(
         freshEmployees.map((e) => [e.fiplCode.toUpperCase(), e]),
       );
 
-      for (let i = 0; i < valid.length; i++) {
-        const row = valid[i];
-        toast.loading(`Importing sales: ${i + 1}/${valid.length}...`, {
-          id: toastId,
-        });
+      // Build batch payload — skip rows whose FIPL code isn't in the system
+      const batchInputs: SalesRecordInputType[] = [];
+      for (const row of valid) {
         const emp = freshFiplMap.get(row.fiplCode.toUpperCase());
         if (!emp) {
           skipped++;
@@ -1684,34 +1666,53 @@ export function UploadsPage() {
         const dateMs = row.date ? new Date(row.date).getTime() : Date.now();
         const saleDateNs =
           BigInt(Number.isNaN(dateMs) ? Date.now() : dateMs) * 1_000_000n;
-        try {
-          await actor.addSalesRecord({
-            employeeId: emp.id,
-            fiplCode: row.fiplCode,
-            brand: mapBrand(row.brand),
-            product: row.product,
-            saleType: mapSaleType(row.saleType),
-            quantity: BigInt(Math.round(row.quantity)),
-            amount: BigInt(Math.round(row.amount)),
-            saleDate: saleDateNs,
-          });
-          added++;
-          // Small delay between calls to avoid overwhelming the IC canister
-          if (i < valid.length - 1)
-            await new Promise((r) => setTimeout(r, 200));
-        } catch (rowErr) {
-          console.error(
-            `Sales row error for ${row.fiplCode} on ${row.date}:`,
-            rowErr,
-          );
-          skipped++;
-        }
+        batchInputs.push({
+          employeeId: emp.id,
+          fiplCode: row.fiplCode,
+          brand: mapBrand(row.brand),
+          product: row.product,
+          saleType: mapSaleType(row.saleType),
+          quantity: BigInt(Math.round(row.quantity)),
+          amount: BigInt(Math.round(row.amount)),
+          saleDate: saleDateNs,
+        });
       }
+
+      if (batchInputs.length === 0) {
+        toast.error(
+          "No valid rows to import. Make sure FIPL Codes exist in the system first.",
+          { id: toastId },
+        );
+        setSalesImporting(false);
+        return;
+      }
+
+      toast.loading(
+        `Uploading ${batchInputs.length} sales records in one batch...`,
+        { id: toastId },
+      );
+
+      // Single canister call for all rows — much faster than one-by-one
+      const CHUNK_SIZE = 50; // Stay well within IC message size limits
+      let totalAdded = 0;
+      for (let i = 0; i < batchInputs.length; i += CHUNK_SIZE) {
+        const chunk = batchInputs.slice(i, i + CHUNK_SIZE);
+        toast.loading(
+          `Uploading sales: ${Math.min(i + CHUNK_SIZE, batchInputs.length)}/${batchInputs.length}...`,
+          { id: toastId },
+        );
+        const ids = await actor.addSalesRecordsBatch(chunk);
+        totalAdded += ids.length;
+        // Small pause between chunks only if there are multiple chunks
+        if (i + CHUNK_SIZE < batchInputs.length)
+          await new Promise((r) => setTimeout(r, 200));
+      }
+
       await queryClient.invalidateQueries();
       toast.success(
         skipped > 0
-          ? `${added} records imported, ${skipped} skipped (FIPL Code not found -- upload Employee Data first)`
-          : `${added} sales record${added === 1 ? "" : "s"} imported`,
+          ? `${totalAdded} records imported, ${skipped} skipped (FIPL Code not found -- upload Employee Data first)`
+          : `${totalAdded} sales record${totalAdded === 1 ? "" : "s"} imported`,
         { id: toastId },
       );
       setSalesStep("done");
