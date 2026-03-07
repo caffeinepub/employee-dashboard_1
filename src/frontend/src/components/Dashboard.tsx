@@ -1,3 +1,4 @@
+import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
 import type { Employee } from "../backend.d.ts";
 import { useAllEmployees } from "../hooks/useQueries";
@@ -75,25 +76,40 @@ export function Dashboard() {
         onUploadsClick={handleUploadsClick}
         onFeedbackClick={handleFeedbackClick}
       />
-      <main className="flex-1 overflow-auto">
-        {view === "overview" ? (
-          <OverviewPage onSelectEmployee={handleSelectEmployee} />
-        ) : view === "employee" && selectedEmployee ? (
-          <EmployeeDetailPage
-            employee={selectedEmployee}
-            onBack={handleBackToOverview}
-          />
-        ) : view === "settings" ? (
-          <SettingsPage />
-        ) : view === "sales" ? (
-          <SalesTrendsPage />
-        ) : view === "employees" ? (
-          <EmployeesPage onSelectEmployee={handleSelectEmployee} />
-        ) : view === "uploads" ? (
-          <UploadsPage />
-        ) : view === "feedback" ? (
-          <FeedbackPage />
-        ) : null}
+      <main className="flex-1 overflow-hidden relative">
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.div
+            key={
+              view === "employee"
+                ? `employee-${selectedEmployee?.id?.toString() ?? "none"}`
+                : view
+            }
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.12, ease: "easeOut" }}
+            className="absolute inset-0 overflow-auto"
+          >
+            {view === "overview" ? (
+              <OverviewPage onSelectEmployee={handleSelectEmployee} />
+            ) : view === "employee" && selectedEmployee ? (
+              <EmployeeDetailPage
+                employee={selectedEmployee}
+                onBack={handleBackToOverview}
+              />
+            ) : view === "settings" ? (
+              <SettingsPage />
+            ) : view === "sales" ? (
+              <SalesTrendsPage />
+            ) : view === "employees" ? (
+              <EmployeesPage onSelectEmployee={handleSelectEmployee} />
+            ) : view === "uploads" ? (
+              <UploadsPage />
+            ) : view === "feedback" ? (
+              <FeedbackPage />
+            ) : null}
+          </motion.div>
+        </AnimatePresence>
       </main>
     </div>
   );

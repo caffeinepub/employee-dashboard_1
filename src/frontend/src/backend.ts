@@ -94,6 +94,7 @@ export interface SWOT {
     strengths: Array<string>;
     threats: Array<string>;
     opportunities: Array<string>;
+    cesScore: bigint;
     employeeId: EmployeeId;
 }
 export interface IssueSuggestionInput {
@@ -175,6 +176,7 @@ export interface SWOTInput {
     strengths: Array<string>;
     threats: Array<string>;
     opportunities: Array<string>;
+    cesScore: bigint;
 }
 export type EmployeeId = bigint;
 export interface Employee {
@@ -216,13 +218,19 @@ export interface EmployeeFullInput {
 }
 export interface CallingRecord {
     id: bigint;
+    remark: string;
     customerName: string;
+    customerContact: string;
+    agent: string;
     date: bigint;
     createdAt: bigint;
     callDuration: string;
+    cesScore: bigint;
     notes: string;
+    brand: string;
     outcome: string;
     fseName: string;
+    product: string;
     fiplCode: string;
 }
 export interface CustomerReviewInput {
@@ -234,12 +242,18 @@ export interface CustomerReviewInput {
     fiplCode: string;
 }
 export interface CallingRecordInput {
+    remark: string;
     customerName: string;
+    customerContact: string;
+    agent: string;
     date: bigint;
     callDuration: string;
+    cesScore: bigint;
     notes: string;
+    brand: string;
     outcome: string;
     fseName: string;
+    product: string;
     fiplCode: string;
 }
 export interface AttendanceRecordInput {

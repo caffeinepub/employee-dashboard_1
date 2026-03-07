@@ -144,6 +144,7 @@ interface FormData {
   operationalDiscipline: string;
   productKnowledgeScore: string;
   softSkillsScore: string;
+  cesScore: string;
   strengths: string[];
   weaknesses: string[];
   opportunities: string[];
@@ -169,6 +170,7 @@ const defaultFormData: FormData = {
   operationalDiscipline: "50",
   productKnowledgeScore: "50",
   softSkillsScore: "50",
+  cesScore: "0",
   strengths: [],
   weaknesses: [],
   opportunities: [],
@@ -295,6 +297,7 @@ export function AddEmployeeModal({
         weaknesses: form.weaknesses,
         opportunities: form.opportunities,
         threats: form.threats,
+        cesScore: BigInt(Number(form.cesScore) || 0),
       },
       traits: form.traits,
       problems: form.problems,
@@ -773,6 +776,27 @@ export function AddEmployeeModal({
             {/* SWOT Section */}
             {activeSection === "swot" && (
               <div className="grid grid-cols-2 gap-4">
+                <div className="col-span-2 space-y-1.5">
+                  <Label
+                    htmlFor="emp-ces-score"
+                    className="text-xs font-semibold text-foreground/80"
+                  >
+                    CES Score (0–100)
+                  </Label>
+                  <Input
+                    id="emp-ces-score"
+                    type="number"
+                    min={0}
+                    max={100}
+                    value={form.cesScore}
+                    onChange={(e) => set("cesScore", e.target.value)}
+                    className="text-sm"
+                    placeholder="e.g. 72"
+                  />
+                  <p className="text-[10px] text-muted-foreground/50">
+                    Customer Effort Score stored in SWOT (0–100)
+                  </p>
+                </div>
                 <TagInput
                   label="Strengths"
                   placeholder="e.g. Leadership, Communication..."

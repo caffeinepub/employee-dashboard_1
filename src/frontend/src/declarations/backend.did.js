@@ -17,12 +17,18 @@ export const AttendanceRecordInput = IDL.Record({
   'daysOff' : IDL.Nat,
 });
 export const CallingRecordInput = IDL.Record({
+  'remark' : IDL.Text,
   'customerName' : IDL.Text,
+  'customerContact' : IDL.Text,
+  'agent' : IDL.Text,
   'date' : IDL.Int,
   'callDuration' : IDL.Text,
+  'cesScore' : IDL.Nat,
   'notes' : IDL.Text,
+  'brand' : IDL.Text,
   'outcome' : IDL.Text,
   'fseName' : IDL.Text,
+  'product' : IDL.Text,
   'fiplCode' : IDL.Text,
 });
 export const CustomerReviewInput = IDL.Record({
@@ -38,6 +44,7 @@ export const SWOTInput = IDL.Record({
   'strengths' : IDL.Vec(IDL.Text),
   'threats' : IDL.Vec(IDL.Text),
   'opportunities' : IDL.Vec(IDL.Text),
+  'cesScore' : IDL.Nat,
 });
 export const Status = IDL.Variant({
   'active' : IDL.Null,
@@ -110,13 +117,19 @@ export const SalesRecordInput = IDL.Record({
 });
 export const CallingRecord = IDL.Record({
   'id' : IDL.Nat,
+  'remark' : IDL.Text,
   'customerName' : IDL.Text,
+  'customerContact' : IDL.Text,
+  'agent' : IDL.Text,
   'date' : IDL.Int,
   'createdAt' : IDL.Int,
   'callDuration' : IDL.Text,
+  'cesScore' : IDL.Nat,
   'notes' : IDL.Text,
+  'brand' : IDL.Text,
   'outcome' : IDL.Text,
   'fseName' : IDL.Text,
+  'product' : IDL.Text,
   'fiplCode' : IDL.Text,
 });
 export const CustomerReview = IDL.Record({
@@ -172,6 +185,7 @@ export const SWOT = IDL.Record({
   'strengths' : IDL.Vec(IDL.Text),
   'threats' : IDL.Vec(IDL.Text),
   'opportunities' : IDL.Vec(IDL.Text),
+  'cesScore' : IDL.Nat,
   'employeeId' : EmployeeId,
 });
 export const Performance = IDL.Record({
@@ -340,12 +354,18 @@ export const idlFactory = ({ IDL }) => {
     'daysOff' : IDL.Nat,
   });
   const CallingRecordInput = IDL.Record({
+    'remark' : IDL.Text,
     'customerName' : IDL.Text,
+    'customerContact' : IDL.Text,
+    'agent' : IDL.Text,
     'date' : IDL.Int,
     'callDuration' : IDL.Text,
+    'cesScore' : IDL.Nat,
     'notes' : IDL.Text,
+    'brand' : IDL.Text,
     'outcome' : IDL.Text,
     'fseName' : IDL.Text,
+    'product' : IDL.Text,
     'fiplCode' : IDL.Text,
   });
   const CustomerReviewInput = IDL.Record({
@@ -361,6 +381,7 @@ export const idlFactory = ({ IDL }) => {
     'strengths' : IDL.Vec(IDL.Text),
     'threats' : IDL.Vec(IDL.Text),
     'opportunities' : IDL.Vec(IDL.Text),
+    'cesScore' : IDL.Nat,
   });
   const Status = IDL.Variant({
     'active' : IDL.Null,
@@ -433,13 +454,19 @@ export const idlFactory = ({ IDL }) => {
   });
   const CallingRecord = IDL.Record({
     'id' : IDL.Nat,
+    'remark' : IDL.Text,
     'customerName' : IDL.Text,
+    'customerContact' : IDL.Text,
+    'agent' : IDL.Text,
     'date' : IDL.Int,
     'createdAt' : IDL.Int,
     'callDuration' : IDL.Text,
+    'cesScore' : IDL.Nat,
     'notes' : IDL.Text,
+    'brand' : IDL.Text,
     'outcome' : IDL.Text,
     'fseName' : IDL.Text,
+    'product' : IDL.Text,
     'fiplCode' : IDL.Text,
   });
   const CustomerReview = IDL.Record({
@@ -495,6 +522,7 @@ export const idlFactory = ({ IDL }) => {
     'strengths' : IDL.Vec(IDL.Text),
     'threats' : IDL.Vec(IDL.Text),
     'opportunities' : IDL.Vec(IDL.Text),
+    'cesScore' : IDL.Nat,
     'employeeId' : EmployeeId,
   });
   const Performance = IDL.Record({

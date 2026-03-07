@@ -147,6 +147,7 @@ interface FormData {
   operationalDiscipline: string;
   productKnowledgeScore: string;
   softSkillsScore: string;
+  cesScore: string;
   strengths: string[];
   weaknesses: string[];
   opportunities: string[];
@@ -242,6 +243,7 @@ function buildFormFromDetails(details: EmployeeDetails): FormData {
     ),
     productKnowledgeScore: String(Number(perfAny.productKnowledgeScore ?? 0)),
     softSkillsScore: String(Number(perfAny.softSkillsScore ?? 0)),
+    cesScore: String(Number(swot.cesScore ?? 0n)),
     strengths: [...swot.strengths],
     weaknesses: [...swot.weaknesses],
     opportunities: [...swot.opportunities],
@@ -328,6 +330,7 @@ export function EditEmployeeModal({
         weaknesses: form.weaknesses,
         opportunities: form.opportunities,
         threats: form.threats,
+        cesScore: BigInt(Number(form.cesScore) || 0),
       },
       traits: form.traits,
       problems: form.problems,
@@ -799,6 +802,27 @@ export function EditEmployeeModal({
             {/* SWOT Section */}
             {activeSection === "swot" && (
               <div className="grid grid-cols-2 gap-4">
+                <div className="col-span-2 space-y-1.5">
+                  <Label
+                    htmlFor="edit-emp-ces-score"
+                    className="text-xs font-semibold text-foreground/80"
+                  >
+                    CES Score (0–100)
+                  </Label>
+                  <Input
+                    id="edit-emp-ces-score"
+                    type="number"
+                    min={0}
+                    max={100}
+                    value={form.cesScore}
+                    onChange={(e) => set("cesScore", e.target.value)}
+                    className="text-sm"
+                    placeholder="e.g. 72"
+                  />
+                  <p className="text-[10px] text-muted-foreground/50">
+                    Customer Effort Score stored in SWOT (0–100)
+                  </p>
+                </div>
                 <TagInput
                   label="Strengths"
                   placeholder="e.g. Leadership, Communication..."

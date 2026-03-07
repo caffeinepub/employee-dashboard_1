@@ -476,10 +476,16 @@ const EMPTY_CALLING_FORM = {
   fiplCode: "",
   fseName: "",
   customerName: "",
+  customerContact: "",
+  brand: "",
+  product: "",
+  cesScore: "",
+  remark: "",
   date: new Date().toISOString().split("T")[0],
   callDuration: "",
   outcome: "Completed",
   notes: "",
+  agent: "",
 };
 
 function AddCallingRecordDialog({
@@ -514,10 +520,16 @@ function AddCallingRecordDialog({
         fiplCode: form.fiplCode,
         fseName: form.fseName,
         customerName: form.customerName,
+        customerContact: form.customerContact,
+        brand: form.brand,
+        product: form.product,
+        cesScore: BigInt(Number(form.cesScore) || 0),
+        remark: form.remark,
         date: parseDateToNs(form.date),
         callDuration: form.callDuration,
         outcome: form.outcome,
         notes: form.notes,
+        agent: form.agent,
       },
       {
         onSuccess: () => {
@@ -532,7 +544,10 @@ function AddCallingRecordDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-sm" data-ocid="feedback.calling.dialog">
+      <DialogContent
+        className="max-w-lg max-h-[90vh] overflow-y-auto"
+        data-ocid="feedback.calling.dialog"
+      >
         <DialogHeader>
           <DialogTitle className="font-display text-base font-bold">
             Add Calling Record
@@ -573,9 +588,82 @@ function AddCallingRecordDialog({
               className="text-sm"
             />
           </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs font-semibold">Customer Contact</Label>
+            <Input
+              value={form.customerContact}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, customerContact: e.target.value }))
+              }
+              placeholder="e.g. 9876543210"
+              className="text-sm"
+            />
+          </div>
           <div className="grid grid-cols-2 gap-2">
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold">Date</Label>
+              <Label className="text-xs font-semibold">Brand</Label>
+              <Input
+                value={form.brand}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, brand: e.target.value }))
+                }
+                placeholder="e.g. Ecovacs"
+                className="text-sm"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">Product</Label>
+              <Input
+                value={form.product}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, product: e.target.value }))
+                }
+                placeholder="e.g. X2 PRO"
+                className="text-sm"
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">CES Score (0-10)</Label>
+              <Input
+                type="number"
+                min={0}
+                max={10}
+                value={form.cesScore}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, cesScore: e.target.value }))
+                }
+                placeholder="e.g. 8"
+                className="text-sm"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">Agent</Label>
+              <Input
+                value={form.agent}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, agent: e.target.value }))
+                }
+                placeholder="e.g. Ramesh Kumar"
+                className="text-sm"
+              />
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs font-semibold">Remark</Label>
+            <Input
+              value={form.remark}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, remark: e.target.value }))
+              }
+              placeholder="e.g. Customer was satisfied"
+              className="text-sm"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">Date of Call</Label>
               <Input
                 type="date"
                 value={form.date}
@@ -667,10 +755,16 @@ interface ParsedCallingRow {
   fiplCode: string;
   fseName: string;
   customerName: string;
-  date: string;
+  customerContact: string;
+  brand: string;
+  product: string;
+  cesScore: number;
+  remark: string;
+  dateOfCall: string;
   callDuration: string;
   outcome: string;
   notes: string;
+  agent: string;
   valid: boolean;
   error?: string;
 }
@@ -680,19 +774,25 @@ function downloadCallingTemplate() {
     "FIPL Code",
     "FSE Name",
     "Customer Name",
-    "Date (DD-MM-YYYY)",
-    "Call Duration",
-    "Outcome",
-    "Notes",
+    "Customer Contact",
+    "Brand",
+    "Product",
+    "CES Score",
+    "Remark",
+    "Date of Call",
+    "Agent",
   ];
   const sample = [
     "FIPL001",
     "Arjun Singh",
     "Priya Sharma",
+    "9876543210",
+    "Ecovacs",
+    "Ecovacs X2 PRO",
+    "8",
+    "Customer was satisfied with demo",
     "15-03-2026",
-    "20 mins",
-    "Completed",
-    "Customer was satisfied",
+    "Ramesh Kumar",
   ];
   const csv = [headers.join(","), sample.join(",")].join("\n");
   const blob = new Blob([csv], { type: "text/csv" });
@@ -717,19 +817,28 @@ function parseCallingCsv(text: string): ParsedCallingRow[] {
 
   const colIdx = (candidates: string[]) => {
     for (const c of candidates) {
-      const idx = header.findIndex((h) => h.includes(c));
+      const normalized = c.toLowerCase().replace(/[^a-z0-9]/g, "");
+      const idx = header.findIndex(
+        (h) => h === normalized || h.includes(normalized),
+      );
       if (idx >= 0) return idx;
     }
     return -1;
   };
 
-  const fiplIdx = colIdx(["fipl", "fiplcode"]);
-  const nameIdx = colIdx(["fsename", "fse", "name"]);
-  const custIdx = colIdx(["customer", "customername"]);
-  const dateIdx = colIdx(["date"]);
-  const durIdx = colIdx(["duration", "callduration"]);
+  const fiplIdx = colIdx(["fiplcode", "fipl"]);
+  const nameIdx = colIdx(["fsename", "fsename"]);
+  const custIdx = colIdx(["customername", "customer"]);
+  const contactIdx = colIdx(["customercontact", "contact"]);
+  const brandIdx = colIdx(["brand"]);
+  const productIdx = colIdx(["product"]);
+  const cesIdx = colIdx(["cesscore", "ces"]);
+  const remarkIdx = colIdx(["remark", "remarks"]);
+  const dateIdx = colIdx(["dateofcall", "date"]);
+  const durIdx = colIdx(["callduration", "duration"]);
   const outIdx = colIdx(["outcome"]);
   const notesIdx = colIdx(["notes"]);
+  const agentIdx = colIdx(["agent"]);
 
   return lines.slice(1).map((line) => {
     // Handle quoted CSV fields
@@ -744,10 +853,16 @@ function parseCallingCsv(text: string): ParsedCallingRow[] {
       fiplCode: get(fiplIdx),
       fseName: get(nameIdx),
       customerName,
-      date: get(dateIdx),
+      customerContact: get(contactIdx),
+      brand: get(brandIdx),
+      product: get(productIdx),
+      cesScore: Number(get(cesIdx)) || 0,
+      remark: get(remarkIdx),
+      dateOfCall: get(dateIdx),
       callDuration: get(durIdx),
       outcome: get(outIdx) || "Completed",
       notes: get(notesIdx),
+      agent: get(agentIdx),
       valid: !!customerName.trim(),
       error: !customerName.trim() ? "Customer name is required" : undefined,
     };
@@ -792,22 +907,28 @@ function BulkUploadDialog({
     const inputs = valid.map((r) => {
       // Parse DD-MM-YYYY or YYYY-MM-DD
       let dateMs: number;
-      const ddmm = r.date.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
+      const ddmm = r.dateOfCall.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
       if (ddmm) {
         dateMs = new Date(
           `${ddmm[3]}-${ddmm[2].padStart(2, "0")}-${ddmm[1].padStart(2, "0")}`,
         ).getTime();
       } else {
-        dateMs = new Date(r.date).getTime();
+        dateMs = new Date(r.dateOfCall).getTime();
       }
       return {
         fiplCode: r.fiplCode,
         fseName: r.fseName,
         customerName: r.customerName,
+        customerContact: r.customerContact,
+        brand: r.brand,
+        product: r.product,
+        cesScore: BigInt(r.cesScore || 0),
+        remark: r.remark,
         date: BigInt(Number.isNaN(dateMs) ? Date.now() : dateMs) * 1_000_000n,
-        callDuration: r.callDuration,
+        callDuration: r.callDuration || "",
         outcome: r.outcome || "Completed",
-        notes: r.notes,
+        notes: r.notes || "",
+        agent: r.agent,
       };
     });
 
@@ -926,7 +1047,17 @@ function BulkUploadDialog({
                       <TableHead className="text-[10px] py-2">
                         Customer
                       </TableHead>
+                      <TableHead className="text-[10px] py-2">
+                        Contact
+                      </TableHead>
+                      <TableHead className="text-[10px] py-2">Brand</TableHead>
+                      <TableHead className="text-[10px] py-2">
+                        Product
+                      </TableHead>
+                      <TableHead className="text-[10px] py-2">CES</TableHead>
+                      <TableHead className="text-[10px] py-2">Remark</TableHead>
                       <TableHead className="text-[10px] py-2">Date</TableHead>
+                      <TableHead className="text-[10px] py-2">Agent</TableHead>
                       <TableHead className="text-[10px] py-2">
                         Outcome
                       </TableHead>
@@ -969,7 +1100,25 @@ function BulkUploadDialog({
                           {row.customerName}
                         </TableCell>
                         <TableCell className="text-xs py-1.5 text-muted-foreground">
-                          {row.date}
+                          {row.customerContact || "—"}
+                        </TableCell>
+                        <TableCell className="text-xs py-1.5 text-muted-foreground">
+                          {row.brand || "—"}
+                        </TableCell>
+                        <TableCell className="text-xs py-1.5 text-muted-foreground max-w-[80px] truncate">
+                          {row.product || "—"}
+                        </TableCell>
+                        <TableCell className="text-xs py-1.5 font-mono-data">
+                          {row.cesScore}
+                        </TableCell>
+                        <TableCell className="text-xs py-1.5 text-muted-foreground max-w-[100px] truncate">
+                          {row.remark || "—"}
+                        </TableCell>
+                        <TableCell className="text-xs py-1.5 text-muted-foreground">
+                          {row.dateOfCall}
+                        </TableCell>
+                        <TableCell className="text-xs py-1.5 text-muted-foreground">
+                          {row.agent || "—"}
                         </TableCell>
                         <TableCell className="text-xs py-1.5 text-muted-foreground">
                           {row.outcome}
@@ -1115,10 +1264,25 @@ function CallingRecordsTab() {
                     Customer Name
                   </TableHead>
                   <TableHead className="text-[10px] font-bold uppercase tracking-wider py-3">
+                    Contact
+                  </TableHead>
+                  <TableHead className="text-[10px] font-bold uppercase tracking-wider py-3">
+                    Brand
+                  </TableHead>
+                  <TableHead className="text-[10px] font-bold uppercase tracking-wider py-3">
+                    Product
+                  </TableHead>
+                  <TableHead className="text-[10px] font-bold uppercase tracking-wider py-3">
+                    CES
+                  </TableHead>
+                  <TableHead className="text-[10px] font-bold uppercase tracking-wider py-3">
+                    Remark
+                  </TableHead>
+                  <TableHead className="text-[10px] font-bold uppercase tracking-wider py-3">
                     Date
                   </TableHead>
                   <TableHead className="text-[10px] font-bold uppercase tracking-wider py-3">
-                    Duration
+                    Agent
                   </TableHead>
                   <TableHead className="text-[10px] font-bold uppercase tracking-wider py-3">
                     Outcome
@@ -1145,10 +1309,25 @@ function CallingRecordsTab() {
                       {record.customerName}
                     </TableCell>
                     <TableCell className="py-3 text-xs text-muted-foreground">
+                      {record.customerContact || "—"}
+                    </TableCell>
+                    <TableCell className="py-3 text-xs text-muted-foreground">
+                      {record.brand || "—"}
+                    </TableCell>
+                    <TableCell className="py-3 text-xs text-muted-foreground max-w-[120px] truncate">
+                      {record.product || "—"}
+                    </TableCell>
+                    <TableCell className="py-3 text-xs font-mono-data">
+                      {Number(record.cesScore)}
+                    </TableCell>
+                    <TableCell className="py-3 text-xs text-muted-foreground max-w-[150px] truncate">
+                      {record.remark || "—"}
+                    </TableCell>
+                    <TableCell className="py-3 text-xs text-muted-foreground">
                       {formatDate(record.date)}
                     </TableCell>
                     <TableCell className="py-3 text-xs text-muted-foreground">
-                      {record.callDuration || "—"}
+                      {record.agent || "—"}
                     </TableCell>
                     <TableCell className="py-3">
                       <Badge

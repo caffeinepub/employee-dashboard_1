@@ -7,6 +7,8 @@ import Int "mo:core/Int";
 import Order "mo:core/Order";
 import Time "mo:core/Time";
 
+
+
 actor {
   public type EmployeeId = Nat;
   public type Status = { #active; #inactive; #onHold };
@@ -44,6 +46,7 @@ actor {
     weaknesses : [Text];
     opportunities : [Text];
     threats : [Text];
+    cesScore : Nat;
   };
 
   public type Feedback = {
@@ -122,6 +125,7 @@ actor {
     weaknesses : [Text];
     opportunities : [Text];
     threats : [Text];
+    cesScore : Nat;
   };
 
   public type FeedbackInput = {
@@ -198,6 +202,12 @@ actor {
     outcome : Text;
     notes : Text;
     createdAt : Int;
+    customerContact : Text;
+    brand : Text;
+    product : Text;
+    cesScore : Nat;
+    remark : Text;
+    agent : Text;
   };
 
   public type CallingRecordInput = {
@@ -208,6 +218,12 @@ actor {
     callDuration : Text;
     outcome : Text;
     notes : Text;
+    customerContact : Text;
+    brand : Text;
+    product : Text;
+    cesScore : Nat;
+    remark : Text;
+    agent : Text;
   };
 
   public type CustomerReview = {
@@ -292,7 +308,13 @@ actor {
         };
       };
       case (_, _, _, _, _) {
-        { info = { id = 0; fiplCode = "none"; name = "none"; role = "none"; department = "none"; status = #inactive; joinDate = 0; avatar = "none"; region = "none"; familyDetails = "none"; pastExperience = []; fseCategory = "none" }; performance = { employeeId = 0; salesInfluenceIndex = 0; reviewCount = 0; operationalDiscipline = 0; productKnowledgeScore = 0; softSkillsScore = 0 }; swot = { employeeId = 0; strengths = []; weaknesses = []; opportunities = []; threats = [] }; traits = []; problems = [] };
+        {
+          info = { id = 0; fiplCode = "none"; name = "none"; role = "none"; department = "none"; status = #inactive; joinDate = 0; avatar = "none"; region = "none"; familyDetails = "none"; pastExperience = []; fseCategory = "none" };
+          performance = { employeeId = 0; salesInfluenceIndex = 0; reviewCount = 0; operationalDiscipline = 0; productKnowledgeScore = 0; softSkillsScore = 0 };
+          swot = { employeeId = 0; strengths = []; weaknesses = []; opportunities = []; threats = []; cesScore = 0 };
+          traits = [];
+          problems = [];
+        };
       };
     };
   };
@@ -469,6 +491,7 @@ actor {
         weaknesses = ["Time management"];
         opportunities = ["New market expansion"];
         threats = ["Competitor growth"];
+        cesScore = 0;
       },
       {
         employeeId = 2;
@@ -476,6 +499,7 @@ actor {
         weaknesses = ["Public speaking"];
         opportunities = ["Training programs"];
         threats = ["Industry regulations"];
+        cesScore = 0;
       },
       {
         employeeId = 3;
@@ -483,6 +507,7 @@ actor {
         weaknesses = ["Data analysis"];
         opportunities = ["HR software adoption"];
         threats = ["Retention issues"];
+        cesScore = 0;
       },
       {
         employeeId = 4;
@@ -490,6 +515,7 @@ actor {
         weaknesses = ["Presentation skills"];
         opportunities = ["Cross-department projects"];
         threats = ["Economic downturn"];
+        cesScore = 0;
       },
       {
         employeeId = 5;
@@ -497,6 +523,7 @@ actor {
         weaknesses = ["Budgeting"];
         opportunities = ["Digital marketing"];
         threats = ["Market saturation"];
+        cesScore = 0;
       },
       {
         employeeId = 6;
@@ -504,6 +531,7 @@ actor {
         weaknesses = ["Interpersonal communication"];
         opportunities = ["Cloud migration"];
         threats = ["Cybersecurity risks"];
+        cesScore = 0;
       },
     ];
 
@@ -551,6 +579,7 @@ actor {
       weaknesses = input.swotAnalysis.weaknesses;
       opportunities = input.swotAnalysis.opportunities;
       threats = input.swotAnalysis.threats;
+      cesScore = input.swotAnalysis.cesScore;
     };
 
     employees.add(newId, employee);
@@ -596,6 +625,7 @@ actor {
           weaknesses = input.swotAnalysis.weaknesses;
           opportunities = input.swotAnalysis.opportunities;
           threats = input.swotAnalysis.threats;
+          cesScore = input.swotAnalysis.cesScore;
         };
 
         employees.add(id, employee);
@@ -652,6 +682,7 @@ actor {
           weaknesses = swotInput.weaknesses;
           opportunities = swotInput.opportunities;
           threats = swotInput.threats;
+          cesScore = swotInput.cesScore;
         };
         swots.add(id, swot);
         traits.add(id, newTraits);
@@ -727,6 +758,7 @@ actor {
           weaknesses = [];
           opportunities = [];
           threats = [];
+          cesScore = 0;
         };
 
         employees.add(newId, employee);
@@ -917,6 +949,7 @@ actor {
           weaknesses = swotInput.weaknesses;
           opportunities = swotInput.opportunities;
           threats = swotInput.threats;
+          cesScore = swotInput.cesScore;
         };
         swots.add(employeeId, updatedSWOT);
         true;
@@ -1008,6 +1041,7 @@ actor {
               weaknesses = input.swotAnalysis.weaknesses;
               opportunities = input.swotAnalysis.opportunities;
               threats = input.swotAnalysis.threats;
+              cesScore = input.swotAnalysis.cesScore;
             };
 
             employees.add(employeeId, employee);
@@ -1080,6 +1114,7 @@ actor {
             weaknesses = input.swot.weaknesses;
             opportunities = input.swot.opportunities;
             threats = input.swot.threats;
+            cesScore = input.swot.cesScore;
           };
           swots.add(employeeId, swot);
           traits.add(employeeId, input.traits);
@@ -1180,6 +1215,12 @@ actor {
       outcome = input.outcome;
       notes = input.notes;
       createdAt = currentTime;
+      customerContact = input.customerContact;
+      brand = input.brand;
+      product = input.product;
+      cesScore = input.cesScore;
+      remark = input.remark;
+      agent = input.agent;
     };
 
     callingRecords.add(newId, record);
@@ -1204,6 +1245,12 @@ actor {
           outcome = input.outcome;
           notes = input.notes;
           createdAt = currentTime;
+          customerContact = input.customerContact;
+          brand = input.brand;
+          product = input.product;
+          cesScore = input.cesScore;
+          remark = input.remark;
+          agent = input.agent;
         };
 
         callingRecords.add(newId, record);
@@ -1268,3 +1315,4 @@ actor {
     null;
   };
 };
+

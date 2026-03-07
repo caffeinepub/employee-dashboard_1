@@ -75,21 +75,21 @@ export function OverviewPage({ onSelectEmployee }: OverviewPageProps) {
 
   const containerVariants: Variants = {
     hidden: { opacity: 0 },
-    visible: { opacity: 1, transition: { staggerChildren: 0.07 } },
+    visible: { opacity: 1, transition: { staggerChildren: 0.04 } },
   };
 
   const itemVariants: Variants = {
-    hidden: { opacity: 0, y: 16 },
-    visible: { opacity: 1, y: 0, transition: { duration: 0.4 } },
+    hidden: { opacity: 0, y: 8 },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.2 } },
   };
 
   return (
     <div className="p-8 max-w-7xl mx-auto">
       {/* Header */}
       <motion.div
-        initial={{ opacity: 0, y: -12 }}
+        initial={{ opacity: 0, y: -8 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
+        transition={{ duration: 0.2 }}
         className="mb-8"
       >
         <div className="flex items-start justify-between">
@@ -194,9 +194,9 @@ export function OverviewPage({ onSelectEmployee }: OverviewPageProps) {
 
       {/* Issues & Suggestions Buttons Row */}
       <motion.div
-        initial={{ opacity: 0, y: 12 }}
+        initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, delay: 0.2 }}
+        transition={{ duration: 0.2, delay: 0.08 }}
         className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6"
       >
         {/* Issues Button */}
@@ -252,9 +252,9 @@ export function OverviewPage({ onSelectEmployee }: OverviewPageProps) {
 
       {/* Top Performers */}
       <motion.div
-        initial={{ opacity: 0, y: 16 }}
+        initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.25 }}
+        transition={{ duration: 0.2, delay: 0.1 }}
         className="mb-6"
       >
         <TopPerformersSection />
@@ -262,9 +262,9 @@ export function OverviewPage({ onSelectEmployee }: OverviewPageProps) {
 
       {/* Employee Directory — top performers only */}
       <motion.div
-        initial={{ opacity: 0, y: 16 }}
+        initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.35 }}
+        transition={{ duration: 0.2, delay: 0.14 }}
       >
         <div className="glass-card rounded-xl overflow-hidden">
           <div className="px-5 py-4 border-b border-border/50 flex items-center justify-between">

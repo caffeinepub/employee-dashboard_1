@@ -70,16 +70,18 @@ interface ParsedParamsRow {
 
 interface ParsedAttendanceRow {
   fiplCode: string;
-  date: string;
-  lapseType: string;
-  lapseReason: string;
+  fseName: string;
+  lapseDate: string;
+  labType: string;
   daysOff: number;
-  daysOffReason: string;
+  dayOffReason: string;
+  dayOffDate: string;
   error?: string;
 }
 
 interface ParsedSwotRow {
   fiplCode: string;
+  cesScore: number;
   swotStrengths: string[];
   swotWeaknesses: string[];
   swotOpportunities: string[];
@@ -426,45 +428,83 @@ function parseAttendanceSheetStandalone(
         "fiplCode",
         "FIPLCode",
       ),
-      date: parseXlsxDate(
-        pick(norm, "Date (YYYY-MM-DD)*", "Date (YYYY-MM-DD)", "Date", "date"),
+      fseName: pick(
+        norm,
+        "FSE Name",
+        "FSA Name",
+        "Name (auto-filled)",
+        "Name",
+        "fseName",
+        "fsaname",
+      ),
+      lapseDate: parseXlsxDate(
+        pick(
+          norm,
+          "Lapse Date (DD-MM-YYYY)",
+          "Lapse Date",
+          "lapseDate",
+          "lapsedate",
+        ),
         xlsx,
       ),
-      lapseType: pick(
+      labType: pick(
         norm,
-        "Attendance Lapse Type (Late Attendance / Missing / Other)",
-        "Attendance Lapse Type",
+        "Type of Lapses",
+        "Type of Lapses (Attendance Lapses / EOD Picture Lapses / Days Brief Lapses)",
+        "Type of Lab",
+        "Type of Lab (Attendance Lab / EOD Picture Lab / Days Brief Lab)",
         "Lapse Type",
         "lapseType",
-        "AttendanceLapseType",
-      ),
-      lapseReason: pick(
-        norm,
-        "Lapse Reason",
-        "lapseReason",
-        "Reason",
-        "reason",
+        "labType",
+        "labtype",
       ),
       daysOff:
         Number(
           pick(
             norm,
-            "Days Taken Off (0 or 1)",
             "Days Taken Off",
+            "Days Taken Off (0 or 1)",
             "Days Off",
             "daysOff",
             "daysoff",
+            "numberofdays",
           ),
         ) || 0,
-      daysOffReason: pick(
+      dayOffReason: pick(
         norm,
+        "Reason for Day Off",
         "Days Off Reason",
+        "Reason",
+        "dayOffReason",
         "daysOffReason",
-        "DaysOffReason",
+        "reason",
+      ),
+      dayOffDate: parseXlsxDate(
+        pick(
+          norm,
+          "Day Off Date (DD-MM-YYYY)",
+          "Day Off Date",
+          "dayOffDate",
+          "dayoffdate",
+          // fallback: old single-date templates
+          "Date (DD-MM-YYYY)*",
+          "Date (YYYY-MM-DD)*",
+          "Date (YYYY-MM-DD)",
+          "Date (DD-MM-YYYY)",
+          "Date",
+          "date",
+        ),
+        xlsx,
       ),
     };
     if (!row.fiplCode) row.error = "FIPL Code is required";
-    else if (!row.date) row.error = "Date is required";
+    else if (!row.labType && row.daysOff === 0) {
+      row.error = "Either Type of Lapses or Days Taken Off must be filled in";
+    } else if (row.labType && !row.lapseDate) {
+      row.error = "Lapse Date is required when Type of Lapses is filled";
+    } else if (row.daysOff > 0 && !row.dayOffDate) {
+      row.error = "Day Off Date is required when Days Taken Off is filled";
+    }
     return row;
   });
 }
@@ -496,6 +536,10 @@ function parseSwotSheetStandalone(
         "fiplCode",
         "FIPLCode",
       ),
+      cesScore:
+        Number(
+          pick(norm, "CES Score (0-100)", "CES Score", "cesScore", "CESScore"),
+        ) || 0,
       swotStrengths: parseSemicolon(
         pick(norm, "Strengths (semicolon-separated)", "Strengths", "strengths"),
       ),
@@ -711,40 +755,31 @@ async function downloadAttendanceTemplate() {
   const wb = XLSX.utils.book_new();
   const headers = [
     "FIPL Code (Primary Key)*",
-    "Date (YYYY-MM-DD)*",
-    "Attendance Lapse Type (Late Attendance / Missing / Other)",
-    "Lapse Reason",
-    "Days Taken Off (0 or 1)",
-    "Days Off Reason",
+    "FSE Name (auto-filled)",
+    "Lapse Date (DD-MM-YYYY)",
+    "Type of Lapses (Attendance Lapses / EOD Picture Lapses / Days Brief Lapses)",
+    "Days Taken Off",
+    "Reason for Day Off",
+    "Day Off Date (DD-MM-YYYY)",
   ];
   const ws = XLSX.utils.aoa_to_sheet([
     headers,
-    [
-      "FIPL-001",
-      "2026-01-10",
-      "Late Attendance",
-      "Forgot to mark on app",
-      0,
-      "",
-    ],
-    ["FIPL-001", "2026-02-05", "Missing", "No reason provided", 0, ""],
-    ["FIPL-001", "2026-03-01", "", "", 1, "Sick Leave"],
-    [
-      "FIPL-002",
-      "2026-01-15",
-      "Late Attendance",
-      "Client meeting ran late",
-      0,
-      "",
-    ],
+    ["FIPL-001", "Priya Sharma", "10-01-2026", "Attendance Lapses", 0, "", ""],
+    ["FIPL-001", "Priya Sharma", "05-02-2026", "EOD Picture Lapses", 0, "", ""],
+    ["FIPL-001", "Priya Sharma", "12-02-2026", "Days Brief Lapses", 0, "", ""],
+    ["FIPL-001", "Priya Sharma", "", "", 1, "Sick Leave", "01-03-2026"],
+    ["FIPL-002", "Raj Mehta", "15-01-2026", "Attendance Lapses", 0, "", ""],
+    ["FIPL-002", "Raj Mehta", "20-01-2026", "EOD Picture Lapses", 0, "", ""],
+    ["FIPL-002", "Raj Mehta", "", "", 1, "Personal emergency", "22-01-2026"],
   ]);
   ws["!cols"] = [
     { wch: 22 },
-    { wch: 22 },
-    { wch: 42 },
-    { wch: 36 },
-    { wch: 22 },
-    { wch: 30 },
+    { wch: 28 },
+    { wch: 26 },
+    { wch: 52 },
+    { wch: 18 },
+    { wch: 32 },
+    { wch: 26 },
   ];
   XLSX.utils.book_append_sheet(wb, ws, "Attendance");
   XLSX.writeFile(wb, "FSE-attendance-template.xlsx");
@@ -755,6 +790,7 @@ async function downloadSwotTemplate() {
   const wb = XLSX.utils.book_new();
   const headers = [
     "FIPL Code (Primary Key)*",
+    "CES Score (0-100)",
     "Strengths (semicolon-separated)",
     "Weaknesses (semicolon-separated)",
     "Opportunities (semicolon-separated)",
@@ -767,6 +803,7 @@ async function downloadSwotTemplate() {
     headers,
     [
       "FIPL-001",
+      72,
       "Strong technical skills;Fast learner",
       "Occasionally over-commits;Public speaking",
       "Cross-team leadership;Architecture ownership",
@@ -777,6 +814,7 @@ async function downloadSwotTemplate() {
     ],
     [
       "FIPL-002",
+      85,
       "Top closer;Persuasive communicator",
       "Poor CRM hygiene;Misses follow-ups",
       "Enterprise accounts;Team lead track",
@@ -788,6 +826,7 @@ async function downloadSwotTemplate() {
   ]);
   ws["!cols"] = [
     { wch: 22 },
+    { wch: 20 },
     { wch: 38 },
     { wch: 38 },
     { wch: 38 },
@@ -1315,15 +1354,12 @@ export function UploadsPage() {
             error: `FIPL Code "${r.fiplCode}" not found in system -- upload Employee Data first`,
           };
         }
-        // Warn if both lapse and daysOff are empty (row will produce 0 records)
-        if (!r.lapseType && r.daysOff === 0) {
-          return {
-            ...r,
-            error:
-              "No lapse type and no days off -- row will be skipped. Fill in at least one.",
-          };
-        }
-        return r;
+        // Auto-fill FSE name from employee record if not provided
+        const emp = freshMap.get(r.fiplCode.toUpperCase());
+        return {
+          ...r,
+          fseName: r.fseName || emp?.name || "",
+        };
       });
       setAttRows(enriched);
       setAttStep("preview");
@@ -1450,6 +1486,7 @@ export function UploadsPage() {
         weaknesses: [] as string[],
         opportunities: [] as string[],
         threats: [] as string[],
+        cesScore: 0n,
       };
 
       // Build full batch payload
@@ -1630,7 +1667,7 @@ export function UploadsPage() {
         freshEmployees.map((e) => [e.fiplCode.toUpperCase(), e]),
       );
 
-      // Build full batch payload — one or two records per row depending on lapse + daysOff
+      // Build full batch payload
       let skipped = 0;
       const batchInputs: AttendanceRecordInput[] = [];
       for (const row of valid) {
@@ -1639,25 +1676,35 @@ export function UploadsPage() {
           skipped++;
           continue;
         }
-        const dateMs = row.date ? new Date(row.date).getTime() : Date.now();
-        const dateNs =
-          BigInt(Number.isNaN(dateMs) ? Date.now() : dateMs) * 1_000_000n;
-
-        if (row.lapseType) {
+        // If a lapse type is specified, use the lapse date
+        if (row.labType) {
+          const lapseDateMs = row.lapseDate
+            ? new Date(row.lapseDate).getTime()
+            : Date.now();
+          const lapseDateNs =
+            BigInt(Number.isNaN(lapseDateMs) ? Date.now() : lapseDateMs) *
+            1_000_000n;
           batchInputs.push({
             employeeId: emp.id,
-            lapseType: row.lapseType,
-            date: dateNs,
-            reason: row.lapseReason,
+            lapseType: row.labType,
+            date: lapseDateNs,
+            reason: "",
             daysOff: 0n,
           });
         }
+        // If days off are specified, use the day off date
         if (row.daysOff > 0) {
+          const dayOffDateMs = row.dayOffDate
+            ? new Date(row.dayOffDate).getTime()
+            : Date.now();
+          const dayOffDateNs =
+            BigInt(Number.isNaN(dayOffDateMs) ? Date.now() : dayOffDateMs) *
+            1_000_000n;
           batchInputs.push({
             employeeId: emp.id,
-            lapseType: "Day Off",
-            date: dateNs,
-            reason: row.daysOffReason,
+            lapseType: "Days Off",
+            date: dayOffDateNs,
+            reason: row.dayOffReason,
             daysOff: BigInt(row.daysOff),
           });
         }
@@ -1741,6 +1788,7 @@ export function UploadsPage() {
             weaknesses: row.swotWeaknesses,
             opportunities: row.swotOpportunities,
             threats: row.swotThreats,
+            cesScore: BigInt(Math.round(row.cesScore)),
           },
           traits: row.traits,
           problems: row.problems,
@@ -1922,12 +1970,21 @@ export function UploadsPage() {
   const renderAttRow = (row: ParsedAttendanceRow) => (
     <>
       <TableCell className="font-mono text-[10px]">{row.fiplCode}</TableCell>
-      <TableCell>{row.date}</TableCell>
+      <TableCell>{row.fseName || "—"}</TableCell>
       <TableCell className="text-muted-foreground">
-        {row.lapseType || "—"}
+        {row.lapseDate || "—"}
+      </TableCell>
+      <TableCell className="text-muted-foreground">
+        {row.labType || "—"}
       </TableCell>
       <TableCell className="text-muted-foreground">
         {row.daysOff > 0 ? `${row.daysOff} day(s)` : "—"}
+      </TableCell>
+      <TableCell className="text-muted-foreground max-w-[100px] truncate">
+        {row.dayOffReason || "—"}
+      </TableCell>
+      <TableCell className="text-muted-foreground">
+        {row.dayOffDate || "—"}
       </TableCell>
     </>
   );
@@ -1935,6 +1992,7 @@ export function UploadsPage() {
   const renderSwotRow = (row: ParsedSwotRow) => (
     <>
       <TableCell className="font-mono text-[10px]">{row.fiplCode}</TableCell>
+      <TableCell className="font-mono text-xs">{row.cesScore}</TableCell>
       <TableCell className="text-muted-foreground max-w-[120px] truncate">
         {row.swotStrengths.slice(0, 2).join(", ") || "—"}
       </TableCell>
@@ -2126,8 +2184,16 @@ export function UploadsPage() {
             <UploadTabPanel
               tabId="attendance"
               title="Attendance Records"
-              description="Upload attendance data linked by FIPL Code: Date, Lapse Type (Late Attendance / Missing / Other), Lapse Reason, Days Taken Off, and Days Off Reason."
-              columns={["FIPL Code", "Date", "Lapse Type", "Days Off"]}
+              description="Upload attendance data linked by FIPL Code. Three lapse types: Attendance Lapses, EOD Picture Lapses, Days Brief Lapses. Include Days Taken Off and Reason for Day Off."
+              columns={[
+                "FIPL Code",
+                "FSE Name",
+                "Lapse Date",
+                "Type of Lapses",
+                "Days Off",
+                "Reason",
+                "Day Off Date",
+              ]}
               rows={attRows}
               renderRow={renderAttRow}
               step={attStep}
@@ -2165,6 +2231,7 @@ export function UploadsPage() {
               description="Upload SWOT data, traits, problems, and feedback linked by FIPL Code. Values in each SWOT column are semicolon-separated."
               columns={[
                 "FIPL Code",
+                "CES Score",
                 "Strengths (preview)",
                 "Traits",
                 "Problems",

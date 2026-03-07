@@ -926,123 +926,139 @@ export function EmployeeDetailPage({
                 ))}
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {/* Strengths */}
-                <div className="swot-strength rounded-xl p-5 border">
-                  <div className="flex items-center gap-2 mb-3">
-                    <CheckCircle2 className="w-4 h-4 text-[oklch(0.42_0.16_145)]" />
-                    <span className="text-xs font-bold uppercase tracking-wider text-[oklch(0.42_0.16_145)]">
-                      Strengths
+              <>
+                {/* CES Score Badge */}
+                <div className="mb-3 flex items-center gap-2">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-muted/60 border border-border/50 text-xs font-semibold text-foreground/80">
+                    <span className="text-muted-foreground font-normal">
+                      CES Score
                     </span>
-                  </div>
-                  <ul className="space-y-1.5">
-                    {(details?.swot.strengths ?? []).length === 0 ? (
-                      <li className="text-xs text-muted-foreground/60 italic">
-                        No data
-                      </li>
-                    ) : (
-                      (details?.swot.strengths ?? []).map((s) => (
-                        <li
-                          key={s}
-                          className="flex items-start gap-2 text-xs text-foreground/80"
-                        >
-                          <span className="text-[oklch(0.42_0.16_145)] mt-0.5 shrink-0">
-                            ▸
-                          </span>
-                          {s}
-                        </li>
-                      ))
-                    )}
-                  </ul>
+                    <span className="font-mono font-bold text-primary">
+                      {Number(details?.swot?.cesScore ?? 0n)}
+                    </span>
+                    <span className="text-muted-foreground/60 font-normal">
+                      / 100
+                    </span>
+                  </span>
                 </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {/* Strengths */}
+                  <div className="swot-strength rounded-xl p-5 border">
+                    <div className="flex items-center gap-2 mb-3">
+                      <CheckCircle2 className="w-4 h-4 text-[oklch(0.42_0.16_145)]" />
+                      <span className="text-xs font-bold uppercase tracking-wider text-[oklch(0.42_0.16_145)]">
+                        Strengths
+                      </span>
+                    </div>
+                    <ul className="space-y-1.5">
+                      {(details?.swot.strengths ?? []).length === 0 ? (
+                        <li className="text-xs text-muted-foreground/60 italic">
+                          No data
+                        </li>
+                      ) : (
+                        (details?.swot.strengths ?? []).map((s) => (
+                          <li
+                            key={s}
+                            className="flex items-start gap-2 text-xs text-foreground/80"
+                          >
+                            <span className="text-[oklch(0.42_0.16_145)] mt-0.5 shrink-0">
+                              ▸
+                            </span>
+                            {s}
+                          </li>
+                        ))
+                      )}
+                    </ul>
+                  </div>
 
-                {/* Weaknesses */}
-                <div className="swot-weakness rounded-xl p-5 border">
-                  <div className="flex items-center gap-2 mb-3">
-                    <AlertCircle className="w-4 h-4 text-[oklch(0.48_0.2_25)]" />
-                    <span className="text-xs font-bold uppercase tracking-wider text-[oklch(0.48_0.2_25)]">
-                      Weaknesses
-                    </span>
-                  </div>
-                  <ul className="space-y-1.5">
-                    {(details?.swot.weaknesses ?? []).length === 0 ? (
-                      <li className="text-xs text-muted-foreground/60 italic">
-                        No data
-                      </li>
-                    ) : (
-                      (details?.swot.weaknesses ?? []).map((s) => (
-                        <li
-                          key={s}
-                          className="flex items-start gap-2 text-xs text-foreground/80"
-                        >
-                          <span className="text-[oklch(0.48_0.2_25)] mt-0.5 shrink-0">
-                            ▸
-                          </span>
-                          {s}
+                  {/* Weaknesses */}
+                  <div className="swot-weakness rounded-xl p-5 border">
+                    <div className="flex items-center gap-2 mb-3">
+                      <AlertCircle className="w-4 h-4 text-[oklch(0.48_0.2_25)]" />
+                      <span className="text-xs font-bold uppercase tracking-wider text-[oklch(0.48_0.2_25)]">
+                        Weaknesses
+                      </span>
+                    </div>
+                    <ul className="space-y-1.5">
+                      {(details?.swot.weaknesses ?? []).length === 0 ? (
+                        <li className="text-xs text-muted-foreground/60 italic">
+                          No data
                         </li>
-                      ))
-                    )}
-                  </ul>
-                </div>
+                      ) : (
+                        (details?.swot.weaknesses ?? []).map((s) => (
+                          <li
+                            key={s}
+                            className="flex items-start gap-2 text-xs text-foreground/80"
+                          >
+                            <span className="text-[oklch(0.48_0.2_25)] mt-0.5 shrink-0">
+                              ▸
+                            </span>
+                            {s}
+                          </li>
+                        ))
+                      )}
+                    </ul>
+                  </div>
 
-                {/* Opportunities */}
-                <div className="swot-opportunity rounded-xl p-5 border">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Lightbulb className="w-4 h-4 text-[oklch(0.42_0.16_240)]" />
-                    <span className="text-xs font-bold uppercase tracking-wider text-[oklch(0.42_0.16_240)]">
-                      Opportunities
-                    </span>
-                  </div>
-                  <ul className="space-y-1.5">
-                    {(details?.swot.opportunities ?? []).length === 0 ? (
-                      <li className="text-xs text-muted-foreground/60 italic">
-                        No data
-                      </li>
-                    ) : (
-                      (details?.swot.opportunities ?? []).map((s) => (
-                        <li
-                          key={s}
-                          className="flex items-start gap-2 text-xs text-foreground/80"
-                        >
-                          <span className="text-[oklch(0.42_0.16_240)] mt-0.5 shrink-0">
-                            ▸
-                          </span>
-                          {s}
+                  {/* Opportunities */}
+                  <div className="swot-opportunity rounded-xl p-5 border">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Lightbulb className="w-4 h-4 text-[oklch(0.42_0.16_240)]" />
+                      <span className="text-xs font-bold uppercase tracking-wider text-[oklch(0.42_0.16_240)]">
+                        Opportunities
+                      </span>
+                    </div>
+                    <ul className="space-y-1.5">
+                      {(details?.swot.opportunities ?? []).length === 0 ? (
+                        <li className="text-xs text-muted-foreground/60 italic">
+                          No data
                         </li>
-                      ))
-                    )}
-                  </ul>
-                </div>
+                      ) : (
+                        (details?.swot.opportunities ?? []).map((s) => (
+                          <li
+                            key={s}
+                            className="flex items-start gap-2 text-xs text-foreground/80"
+                          >
+                            <span className="text-[oklch(0.42_0.16_240)] mt-0.5 shrink-0">
+                              ▸
+                            </span>
+                            {s}
+                          </li>
+                        ))
+                      )}
+                    </ul>
+                  </div>
 
-                {/* Threats */}
-                <div className="swot-threat rounded-xl p-5 border">
-                  <div className="flex items-center gap-2 mb-3">
-                    <ShieldAlert className="w-4 h-4 text-[oklch(0.48_0.16_75)]" />
-                    <span className="text-xs font-bold uppercase tracking-wider text-[oklch(0.48_0.16_75)]">
-                      Threats
-                    </span>
-                  </div>
-                  <ul className="space-y-1.5">
-                    {(details?.swot.threats ?? []).length === 0 ? (
-                      <li className="text-xs text-muted-foreground/60 italic">
-                        No data
-                      </li>
-                    ) : (
-                      (details?.swot.threats ?? []).map((s) => (
-                        <li
-                          key={s}
-                          className="flex items-start gap-2 text-xs text-foreground/80"
-                        >
-                          <span className="text-[oklch(0.48_0.16_75)] mt-0.5 shrink-0">
-                            ▸
-                          </span>
-                          {s}
+                  {/* Threats */}
+                  <div className="swot-threat rounded-xl p-5 border">
+                    <div className="flex items-center gap-2 mb-3">
+                      <ShieldAlert className="w-4 h-4 text-[oklch(0.48_0.16_75)]" />
+                      <span className="text-xs font-bold uppercase tracking-wider text-[oklch(0.48_0.16_75)]">
+                        Threats
+                      </span>
+                    </div>
+                    <ul className="space-y-1.5">
+                      {(details?.swot.threats ?? []).length === 0 ? (
+                        <li className="text-xs text-muted-foreground/60 italic">
+                          No data
                         </li>
-                      ))
-                    )}
-                  </ul>
+                      ) : (
+                        (details?.swot.threats ?? []).map((s) => (
+                          <li
+                            key={s}
+                            className="flex items-start gap-2 text-xs text-foreground/80"
+                          >
+                            <span className="text-[oklch(0.48_0.16_75)] mt-0.5 shrink-0">
+                              ▸
+                            </span>
+                            {s}
+                          </li>
+                        ))
+                      )}
+                    </ul>
+                  </div>
                 </div>
-              </div>
+              </>
             )}
           </motion.div>
 
