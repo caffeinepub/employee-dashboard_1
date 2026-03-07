@@ -47,6 +47,8 @@ import {
   Building2,
   Calendar,
   CheckCircle2,
+  ChevronDown,
+  ChevronUp,
   ClipboardList,
   Lightbulb,
   Loader2,
@@ -62,7 +64,19 @@ import {
   Users,
 } from "lucide-react";
 import { AnimatePresence, type Variants, motion } from "motion/react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Legend,
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import { toast } from "sonner";
 import { SaleType, SalesBrand, Status } from "../backend";
 import type { Employee } from "../backend.d.ts";
@@ -117,6 +131,8 @@ export function EmployeeDetailPage({
   const [editOpen, setEditOpen] = useState(false);
   const [addSalesOpen, setAddSalesOpen] = useState(false);
   const [addAttendanceOpen, setAddAttendanceOpen] = useState(false);
+  const [salesOpen, setSalesOpen] = useState(false);
+  const [attendanceOpen, setAttendanceOpen] = useState(false);
 
   // Add Sales form state
   const [salesForm, setSalesForm] = useState({
@@ -226,6 +242,111 @@ export function EmployeeDetailPage({
       currency: "INR",
       maximumFractionDigits: 0,
     }).format(Number(amount));
+
+  // ── Sales Trend Chart Data ──────────────────────────────────────────────────
+  // Build month-over-month line data per year (last 2 years shown as separate lines)
+  const salesChartData = useMemo(() => {
+    if (salesRecords.length === 0) return { monthlyData: [], years: [] };
+
+    type MonthEntry = {
+      monthKey: string; // "Jan", "Feb", ...
+      monthIndex: number;
+      [year: string]: number | string;
+    };
+
+    const monthNames = [
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec",
+    ];
+    const yearMap = new Map<number, Map<number, number>>();
+
+    for (const rec of salesRecords) {
+      const d = new Date(Number(rec.saleDate) / 1_000_000);
+      const year = d.getFullYear();
+      const month = d.getMonth();
+      if (!yearMap.has(year)) yearMap.set(year, new Map());
+      const ym = yearMap.get(year)!;
+      ym.set(month, (ym.get(month) ?? 0) + Number(rec.amount));
+    }
+
+    const years = Array.from(yearMap.keys()).sort();
+    // Build 12-month array
+    const monthlyData: MonthEntry[] = monthNames.map((name, idx) => {
+      const entry: MonthEntry = { monthKey: name, monthIndex: idx };
+      for (const yr of years) {
+        entry[yr.toString()] = yearMap.get(yr)?.get(idx) ?? 0;
+      }
+      return entry;
+    });
+
+    return { monthlyData, years };
+  }, [salesRecords]);
+
+  // ── Attendance Chart Data ───────────────────────────────────────────────────
+  const attendanceChartData = useMemo(() => {
+    if (attendanceRecords.length === 0) return [];
+
+    const monthNames = [
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec",
+    ];
+    type AttMonth = {
+      month: string;
+      lapses: number;
+      daysOff: number;
+      sortKey: number;
+    };
+    const map = new Map<string, AttMonth>();
+
+    for (const rec of attendanceRecords) {
+      const d = new Date(Number(rec.date) / 1_000_000);
+      const key = `${d.getFullYear()}-${String(d.getMonth()).padStart(2, "0")}`;
+      const existing = map.get(key) ?? {
+        month: `${monthNames[d.getMonth()]} ${d.getFullYear()}`,
+        lapses: 0,
+        daysOff: 0,
+        sortKey: d.getFullYear() * 100 + d.getMonth(),
+      };
+      if (rec.lapseType === "Day Off") {
+        existing.daysOff += Number(rec.daysOff) || 1;
+      } else {
+        existing.lapses += 1;
+      }
+      map.set(key, existing);
+    }
+
+    return Array.from(map.values())
+      .sort((a, b) => a.sortKey - b.sortKey)
+      .slice(-12); // last 12 months
+  }, [attendanceRecords]);
+
+  const LINE_COLORS = [
+    "oklch(0.52 0.14 175)",
+    "oklch(0.55 0.2 25)",
+    "oklch(0.52 0.16 240)",
+    "oklch(0.62 0.16 75)",
+    "oklch(0.52 0.16 290)",
+  ];
 
   const handleAddSales = () => {
     const dateMs = salesForm.date
@@ -1010,10 +1131,108 @@ export function EmployeeDetailPage({
             </div>
           </motion.div>
 
-          {/* Sales Records */}
+          {/* Sales Trend Chart — always visible */}
           <motion.div variants={sectionVariants}>
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-xs uppercase tracking-widest text-muted-foreground font-semibold flex items-center gap-2">
+            <h2 className="text-xs uppercase tracking-widest text-muted-foreground font-semibold mb-3 flex items-center gap-2">
+              <BarChart2 className="w-3.5 h-3.5" />
+              Sales Trend — Year-wise Monthly Performance
+            </h2>
+            <div className="glass-card rounded-xl p-5">
+              {salesLoading ? (
+                <div className="h-64 flex items-center justify-center">
+                  <Skeleton className="w-full h-full rounded-lg bg-muted/50" />
+                </div>
+              ) : salesRecords.length === 0 ? (
+                <div className="h-64 flex flex-col items-center justify-center text-muted-foreground/50">
+                  <ShoppingBag className="w-8 h-8 mb-2 opacity-25" />
+                  <p className="text-sm">No sales data to chart</p>
+                  <p className="text-xs mt-1 opacity-70">
+                    Add sales records to see the trend
+                  </p>
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height={280}>
+                  <LineChart
+                    data={salesChartData.monthlyData}
+                    margin={{ top: 8, right: 16, left: 0, bottom: 4 }}
+                  >
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      stroke="oklch(0.88 0.008 240)"
+                      vertical={false}
+                    />
+                    <XAxis
+                      dataKey="monthKey"
+                      tick={{ fontSize: 11, fill: "oklch(0.5 0.012 240)" }}
+                      axisLine={{ stroke: "oklch(0.88 0.008 240)" }}
+                      tickLine={false}
+                    />
+                    <YAxis
+                      tick={{ fontSize: 10, fill: "oklch(0.5 0.012 240)" }}
+                      axisLine={false}
+                      tickLine={false}
+                      tickFormatter={(v) =>
+                        v >= 100000
+                          ? `₹${(v / 100000).toFixed(1)}L`
+                          : v >= 1000
+                            ? `₹${(v / 1000).toFixed(0)}K`
+                            : `₹${v}`
+                      }
+                      width={56}
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        background: "oklch(0.99 0 0)",
+                        border: "1px solid oklch(0.88 0.008 240)",
+                        borderRadius: "8px",
+                        fontSize: "12px",
+                        boxShadow: "0 4px 12px oklch(0.18 0.01 240 / 0.1)",
+                      }}
+                      formatter={(value: number, name: string) => [
+                        new Intl.NumberFormat("en-IN", {
+                          style: "currency",
+                          currency: "INR",
+                          maximumFractionDigits: 0,
+                        }).format(value),
+                        name,
+                      ]}
+                    />
+                    <Legend
+                      wrapperStyle={{ fontSize: "11px", paddingTop: "8px" }}
+                    />
+                    {salesChartData.years.map((yr, idx) => (
+                      <Line
+                        key={yr}
+                        type="monotone"
+                        dataKey={yr.toString()}
+                        name={yr.toString()}
+                        stroke={LINE_COLORS[idx % LINE_COLORS.length]}
+                        strokeWidth={2.5}
+                        dot={{
+                          r: 3.5,
+                          fill: LINE_COLORS[idx % LINE_COLORS.length],
+                          strokeWidth: 0,
+                        }}
+                        activeDot={{ r: 5, strokeWidth: 0 }}
+                        connectNulls={false}
+                      />
+                    ))}
+                  </LineChart>
+                </ResponsiveContainer>
+              )}
+            </div>
+          </motion.div>
+
+          {/* Sales Records — collapsible dropdown */}
+          <motion.div variants={sectionVariants}>
+            {/* Header row — clicking toggles the table */}
+            <button
+              type="button"
+              className="w-full flex items-center justify-between mb-3 group"
+              onClick={() => setSalesOpen((v) => !v)}
+              data-ocid="sales.toggle"
+            >
+              <h2 className="text-xs uppercase tracking-widest text-muted-foreground font-semibold flex items-center gap-2 group-hover:text-foreground transition-colors">
                 <ShoppingBag className="w-3.5 h-3.5" />
                 Sales Records
                 {!salesLoading && (
@@ -1022,192 +1241,208 @@ export function EmployeeDetailPage({
                   </span>
                 )}
               </h2>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setAddSalesOpen(true)}
-                className="gap-1.5 text-xs h-7 px-3"
-                data-ocid="sales.open_modal_button"
-              >
-                <Plus className="w-3 h-3" />
-                Add Sales Record
-              </Button>
-            </div>
-            <div className="glass-card rounded-xl overflow-hidden">
-              {salesLoading ? (
-                <div className="p-4 space-y-3">
-                  {SKELETON_KEYS_3.map((k) => (
-                    <Skeleton key={k} className="h-10 rounded-lg bg-muted/50" />
-                  ))}
-                </div>
-              ) : salesRecords.length === 0 ? (
-                <div
-                  className="flex flex-col items-center justify-center py-8 text-muted-foreground/50"
-                  data-ocid="sales.empty_state"
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setAddSalesOpen(true);
+                  }}
+                  className="gap-1.5 text-xs h-7 px-3"
+                  data-ocid="sales.open_modal_button"
                 >
-                  <ShoppingBag className="w-7 h-7 mb-2 opacity-30" />
-                  <p className="text-sm">No sales records</p>
-                </div>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-muted/10">
-                      <TableHead className="text-[10px] font-bold uppercase py-2">
-                        Date
-                      </TableHead>
-                      <TableHead className="text-[10px] font-bold uppercase py-2">
-                        Brand
-                      </TableHead>
-                      <TableHead className="text-[10px] font-bold uppercase py-2">
-                        Product
-                      </TableHead>
-                      <TableHead className="text-[10px] font-bold uppercase py-2">
-                        Type
-                      </TableHead>
-                      <TableHead className="text-[10px] font-bold uppercase py-2 text-right">
-                        Qty
-                      </TableHead>
-                      <TableHead className="text-[10px] font-bold uppercase py-2 text-right">
-                        Amount (₹)
-                      </TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {salesRecords.map((record, i) => (
-                      <TableRow
-                        key={record.id.toString()}
-                        data-ocid={`sales.item.${i + 1}`}
-                      >
-                        <TableCell className="text-xs py-2 text-muted-foreground">
-                          {formatDate(record.saleDate)}
-                        </TableCell>
-                        <TableCell className="text-xs py-2 capitalize">
-                          {String(record.brand)}
-                        </TableCell>
-                        <TableCell className="text-xs py-2 max-w-[120px] truncate">
-                          {record.product}
-                        </TableCell>
-                        <TableCell className="text-xs py-2 text-muted-foreground">
-                          {record.saleType === SaleType.extendedWarranty
-                            ? "Ext. Warranty"
-                            : "Accessories"}
-                        </TableCell>
-                        <TableCell className="text-xs py-2 text-right font-mono-data">
-                          {Number(record.quantity)}
-                        </TableCell>
-                        <TableCell className="text-xs py-2 text-right font-mono-data font-bold text-primary">
-                          {formatCurrency(record.amount)}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )}
-            </div>
-          </motion.div>
+                  <Plus className="w-3 h-3" />
+                  Add Record
+                </Button>
+                <span className="text-muted-foreground/50 group-hover:text-muted-foreground transition-colors">
+                  {salesOpen ? (
+                    <ChevronUp className="w-4 h-4" />
+                  ) : (
+                    <ChevronDown className="w-4 h-4" />
+                  )}
+                </span>
+              </div>
+            </button>
 
-          {/* Monthly Sales Summary */}
-          <motion.div variants={sectionVariants}>
-            <h2 className="text-xs uppercase tracking-widest text-muted-foreground font-semibold mb-3 flex items-center gap-2">
-              <BarChart2 className="w-3.5 h-3.5" />
-              Monthly Sales Summary
-            </h2>
-            <div className="glass-card rounded-xl overflow-hidden">
-              {salesLoading ? (
-                <div className="p-4 space-y-3">
-                  {SKELETON_KEYS_3.map((k) => (
-                    <Skeleton key={k} className="h-10 rounded-lg bg-muted/50" />
-                  ))}
-                </div>
-              ) : salesRecords.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-8 text-muted-foreground/50">
-                  <ShoppingBag className="w-7 h-7 mb-2 opacity-30" />
-                  <p className="text-sm">No sales data yet</p>
-                </div>
-              ) : (
-                (() => {
-                  // Aggregate by year-month
-                  const monthMap = new Map<
-                    string,
-                    {
-                      totalAmount: number;
-                      totalQty: number;
-                      sortKey: number;
-                    }
-                  >();
-                  for (const rec of salesRecords) {
-                    const d = new Date(Number(rec.saleDate) / 1_000_000);
-                    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-                    const sortKey = d.getFullYear() * 100 + (d.getMonth() + 1);
-                    const existing = monthMap.get(key) ?? {
-                      totalAmount: 0,
-                      totalQty: 0,
-                      sortKey,
-                    };
-                    monthMap.set(key, {
-                      totalAmount: existing.totalAmount + Number(rec.amount),
-                      totalQty: existing.totalQty + Number(rec.quantity),
-                      sortKey,
-                    });
-                  }
-                  const sorted = Array.from(monthMap.entries()).sort(
-                    (a, b) => b[1].sortKey - a[1].sortKey,
-                  );
-                  return (
-                    <Table>
-                      <TableHeader>
-                        <TableRow className="bg-muted/10">
-                          <TableHead className="text-[10px] font-bold uppercase py-2">
-                            Month
-                          </TableHead>
-                          <TableHead className="text-[10px] font-bold uppercase py-2 text-right">
-                            Total Qty
-                          </TableHead>
-                          <TableHead className="text-[10px] font-bold uppercase py-2 text-right">
-                            Total Amount (₹)
-                          </TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {sorted.map(([key, agg], i) => {
-                          const [yr, mo] = key.split("-");
-                          const label = new Date(
-                            Number(yr),
-                            Number(mo) - 1,
-                            1,
-                          ).toLocaleDateString("en-IN", {
-                            month: "long",
-                            year: "numeric",
-                          });
-                          return (
+            <AnimatePresence initial={false}>
+              {salesOpen && (
+                <motion.div
+                  key="sales-body"
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.25, ease: "easeInOut" }}
+                  style={{ overflow: "hidden" }}
+                >
+                  <div className="glass-card rounded-xl overflow-hidden">
+                    {salesLoading ? (
+                      <div className="p-4 space-y-3">
+                        {SKELETON_KEYS_3.map((k) => (
+                          <Skeleton
+                            key={k}
+                            className="h-10 rounded-lg bg-muted/50"
+                          />
+                        ))}
+                      </div>
+                    ) : salesRecords.length === 0 ? (
+                      <div
+                        className="flex flex-col items-center justify-center py-8 text-muted-foreground/50"
+                        data-ocid="sales.empty_state"
+                      >
+                        <ShoppingBag className="w-7 h-7 mb-2 opacity-30" />
+                        <p className="text-sm">No sales records</p>
+                      </div>
+                    ) : (
+                      <Table>
+                        <TableHeader>
+                          <TableRow className="bg-muted/10">
+                            <TableHead className="text-[10px] font-bold uppercase py-2">
+                              Date
+                            </TableHead>
+                            <TableHead className="text-[10px] font-bold uppercase py-2">
+                              Brand
+                            </TableHead>
+                            <TableHead className="text-[10px] font-bold uppercase py-2">
+                              Product
+                            </TableHead>
+                            <TableHead className="text-[10px] font-bold uppercase py-2">
+                              Type
+                            </TableHead>
+                            <TableHead className="text-[10px] font-bold uppercase py-2 text-right">
+                              Qty
+                            </TableHead>
+                            <TableHead className="text-[10px] font-bold uppercase py-2 text-right">
+                              Amount (₹)
+                            </TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {salesRecords.map((record, i) => (
                             <TableRow
-                              key={key}
-                              data-ocid={`monthly_sales.item.${i + 1}`}
+                              key={record.id.toString()}
+                              data-ocid={`sales.item.${i + 1}`}
                             >
                               <TableCell className="text-xs py-2 text-muted-foreground">
-                                {label}
+                                {formatDate(record.saleDate)}
+                              </TableCell>
+                              <TableCell className="text-xs py-2 capitalize">
+                                {String(record.brand)}
+                              </TableCell>
+                              <TableCell className="text-xs py-2 max-w-[120px] truncate">
+                                {record.product}
+                              </TableCell>
+                              <TableCell className="text-xs py-2 text-muted-foreground">
+                                {record.saleType === SaleType.extendedWarranty
+                                  ? "Ext. Warranty"
+                                  : "Accessories"}
                               </TableCell>
                               <TableCell className="text-xs py-2 text-right font-mono-data">
-                                {agg.totalQty}
+                                {Number(record.quantity)}
                               </TableCell>
                               <TableCell className="text-xs py-2 text-right font-mono-data font-bold text-primary">
-                                {formatCurrency(BigInt(agg.totalAmount))}
+                                {formatCurrency(record.amount)}
                               </TableCell>
                             </TableRow>
-                          );
-                        })}
-                      </TableBody>
-                    </Table>
-                  );
-                })()
+                          ))}
+                        </TableBody>
+                      </Table>
+                    )}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </motion.div>
+
+          {/* Attendance Chart — always visible */}
+          <motion.div variants={sectionVariants}>
+            <h2 className="text-xs uppercase tracking-widest text-muted-foreground font-semibold mb-3 flex items-center gap-2">
+              <ClipboardList className="w-3.5 h-3.5" />
+              Attendance Overview — Lapses &amp; Days Off
+            </h2>
+            <div className="glass-card rounded-xl p-5">
+              {attendanceLoading ? (
+                <div className="h-56 flex items-center justify-center">
+                  <Skeleton className="w-full h-full rounded-lg bg-muted/50" />
+                </div>
+              ) : attendanceChartData.length === 0 ? (
+                <div className="h-56 flex flex-col items-center justify-center text-muted-foreground/50">
+                  <ClipboardList className="w-8 h-8 mb-2 opacity-25" />
+                  <p className="text-sm">No attendance data to chart</p>
+                  <p className="text-xs mt-1 opacity-70">
+                    Add attendance records to see trends
+                  </p>
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height={220}>
+                  <BarChart
+                    data={attendanceChartData}
+                    margin={{ top: 4, right: 16, left: 0, bottom: 4 }}
+                  >
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      stroke="oklch(0.88 0.008 240)"
+                      vertical={false}
+                    />
+                    <XAxis
+                      dataKey="month"
+                      tick={{ fontSize: 10, fill: "oklch(0.5 0.012 240)" }}
+                      axisLine={{ stroke: "oklch(0.88 0.008 240)" }}
+                      tickLine={false}
+                      interval={0}
+                      angle={-30}
+                      textAnchor="end"
+                      height={44}
+                    />
+                    <YAxis
+                      tick={{ fontSize: 10, fill: "oklch(0.5 0.012 240)" }}
+                      axisLine={false}
+                      tickLine={false}
+                      allowDecimals={false}
+                      width={28}
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        background: "oklch(0.99 0 0)",
+                        border: "1px solid oklch(0.88 0.008 240)",
+                        borderRadius: "8px",
+                        fontSize: "12px",
+                        boxShadow: "0 4px 12px oklch(0.18 0.01 240 / 0.1)",
+                      }}
+                    />
+                    <Legend
+                      wrapperStyle={{ fontSize: "11px", paddingTop: "8px" }}
+                    />
+                    <Bar
+                      dataKey="lapses"
+                      name="Lapses"
+                      fill="oklch(0.55 0.2 25)"
+                      radius={[3, 3, 0, 0]}
+                      maxBarSize={32}
+                    />
+                    <Bar
+                      dataKey="daysOff"
+                      name="Days Off"
+                      fill="oklch(0.52 0.14 240)"
+                      radius={[3, 3, 0, 0]}
+                      maxBarSize={32}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
               )}
             </div>
           </motion.div>
 
-          {/* Attendance Records */}
+          {/* Attendance Records — collapsible dropdown */}
           <motion.div variants={sectionVariants}>
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-xs uppercase tracking-widest text-muted-foreground font-semibold flex items-center gap-2">
+            {/* Header row — clicking toggles the table */}
+            <button
+              type="button"
+              className="w-full flex items-center justify-between mb-3 group"
+              onClick={() => setAttendanceOpen((v) => !v)}
+              data-ocid="attendance.toggle"
+            >
+              <h2 className="text-xs uppercase tracking-widest text-muted-foreground font-semibold flex items-center gap-2 group-hover:text-foreground transition-colors">
                 <ClipboardList className="w-3.5 h-3.5" />
                 Attendance Records
                 {!attendanceLoading && (
@@ -1216,85 +1451,114 @@ export function EmployeeDetailPage({
                   </span>
                 )}
               </h2>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setAddAttendanceOpen(true)}
-                className="gap-1.5 text-xs h-7 px-3"
-                data-ocid="attendance.open_modal_button"
-              >
-                <Plus className="w-3 h-3" />
-                Add Attendance Record
-              </Button>
-            </div>
-            <div className="glass-card rounded-xl overflow-hidden">
-              {attendanceLoading ? (
-                <div className="p-4 space-y-3">
-                  {SKELETON_KEYS_3.map((k) => (
-                    <Skeleton key={k} className="h-10 rounded-lg bg-muted/50" />
-                  ))}
-                </div>
-              ) : attendanceRecords.length === 0 ? (
-                <div
-                  className="flex flex-col items-center justify-center py-8 text-muted-foreground/50"
-                  data-ocid="attendance.empty_state"
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setAddAttendanceOpen(true);
+                  }}
+                  className="gap-1.5 text-xs h-7 px-3"
+                  data-ocid="attendance.open_modal_button"
                 >
-                  <ClipboardList className="w-7 h-7 mb-2 opacity-30" />
-                  <p className="text-sm">No attendance records</p>
-                </div>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-muted/10">
-                      <TableHead className="text-[10px] font-bold uppercase py-2">
-                        Date
-                      </TableHead>
-                      <TableHead className="text-[10px] font-bold uppercase py-2">
-                        Type
-                      </TableHead>
-                      <TableHead className="text-[10px] font-bold uppercase py-2">
-                        Reason
-                      </TableHead>
-                      <TableHead className="text-[10px] font-bold uppercase py-2 text-right">
-                        Days Off
-                      </TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {attendanceRecords.map((record, i) => (
-                      <TableRow
-                        key={record.id.toString()}
-                        data-ocid={`attendance.item.${i + 1}`}
+                  <Plus className="w-3 h-3" />
+                  Add Record
+                </Button>
+                <span className="text-muted-foreground/50 group-hover:text-muted-foreground transition-colors">
+                  {attendanceOpen ? (
+                    <ChevronUp className="w-4 h-4" />
+                  ) : (
+                    <ChevronDown className="w-4 h-4" />
+                  )}
+                </span>
+              </div>
+            </button>
+
+            <AnimatePresence initial={false}>
+              {attendanceOpen && (
+                <motion.div
+                  key="attendance-body"
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.25, ease: "easeInOut" }}
+                  style={{ overflow: "hidden" }}
+                >
+                  <div className="glass-card rounded-xl overflow-hidden">
+                    {attendanceLoading ? (
+                      <div className="p-4 space-y-3">
+                        {SKELETON_KEYS_3.map((k) => (
+                          <Skeleton
+                            key={k}
+                            className="h-10 rounded-lg bg-muted/50"
+                          />
+                        ))}
+                      </div>
+                    ) : attendanceRecords.length === 0 ? (
+                      <div
+                        className="flex flex-col items-center justify-center py-8 text-muted-foreground/50"
+                        data-ocid="attendance.empty_state"
                       >
-                        <TableCell className="text-xs py-2 text-muted-foreground">
-                          {formatDate(record.date)}
-                        </TableCell>
-                        <TableCell className="text-xs py-2">
-                          <span
-                            className={cn(
-                              "text-[10px] font-semibold px-2 py-0.5 rounded-full border",
-                              record.lapseType === "Day Off"
-                                ? "bg-[oklch(0.93_0.04_240_/_0.5)] text-[oklch(0.38_0.14_240)] border-[oklch(0.65_0.12_240_/_0.3)]"
-                                : "bg-[oklch(0.95_0.04_25_/_0.5)] text-[oklch(0.42_0.18_25)] border-[oklch(0.65_0.14_25_/_0.3)]",
-                            )}
-                          >
-                            {record.lapseType}
-                          </span>
-                        </TableCell>
-                        <TableCell className="text-xs py-2 text-muted-foreground/80">
-                          {record.reason || "—"}
-                        </TableCell>
-                        <TableCell className="text-xs py-2 text-right font-mono-data">
-                          {Number(record.daysOff) > 0
-                            ? Number(record.daysOff)
-                            : "—"}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                        <ClipboardList className="w-7 h-7 mb-2 opacity-30" />
+                        <p className="text-sm">No attendance records</p>
+                      </div>
+                    ) : (
+                      <Table>
+                        <TableHeader>
+                          <TableRow className="bg-muted/10">
+                            <TableHead className="text-[10px] font-bold uppercase py-2">
+                              Date
+                            </TableHead>
+                            <TableHead className="text-[10px] font-bold uppercase py-2">
+                              Type
+                            </TableHead>
+                            <TableHead className="text-[10px] font-bold uppercase py-2">
+                              Reason
+                            </TableHead>
+                            <TableHead className="text-[10px] font-bold uppercase py-2 text-right">
+                              Days Off
+                            </TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {attendanceRecords.map((record, i) => (
+                            <TableRow
+                              key={record.id.toString()}
+                              data-ocid={`attendance.item.${i + 1}`}
+                            >
+                              <TableCell className="text-xs py-2 text-muted-foreground">
+                                {formatDate(record.date)}
+                              </TableCell>
+                              <TableCell className="text-xs py-2">
+                                <span
+                                  className={cn(
+                                    "text-[10px] font-semibold px-2 py-0.5 rounded-full border",
+                                    record.lapseType === "Day Off"
+                                      ? "bg-[oklch(0.93_0.04_240_/_0.5)] text-[oklch(0.38_0.14_240)] border-[oklch(0.65_0.12_240_/_0.3)]"
+                                      : "bg-[oklch(0.95_0.04_25_/_0.5)] text-[oklch(0.42_0.18_25)] border-[oklch(0.65_0.14_25_/_0.3)]",
+                                  )}
+                                >
+                                  {record.lapseType}
+                                </span>
+                              </TableCell>
+                              <TableCell className="text-xs py-2 text-muted-foreground/80">
+                                {record.reason || "—"}
+                              </TableCell>
+                              <TableCell className="text-xs py-2 text-right font-mono-data">
+                                {Number(record.daysOff) > 0
+                                  ? Number(record.daysOff)
+                                  : "—"}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    )}
+                  </div>
+                </motion.div>
               )}
-            </div>
+            </AnimatePresence>
           </motion.div>
         </motion.div>
       </motion.div>

@@ -1,10 +1,7 @@
 /**
- * Thin wrapper around the bundled SheetJS (xlsx) package.
- * This replaces the old CDN-based dynamic loader which silently hung
- * when the CDN was slow or blocked.
+ * Thin wrapper around SheetJS (xlsx) loaded dynamically.
+ * Uses a CDN import with a module declaration fallback.
  */
-
-import * as XLSXPkg from "xlsx";
 
 // ── Minimal types for the xlsx API surface we actually use ────────────────────
 
@@ -51,12 +48,48 @@ export interface XlsxLib {
 
 // ── Loader ────────────────────────────────────────────────────────────────────
 
+let _cached: XlsxLib | null = null;
+
 /**
- * Returns the bundled xlsx library synchronously wrapped in a Promise
- * for backwards compatibility with all existing call sites that use
- * `loadXlsx().then(...)` or `await loadXlsx()`.
+ * Loads the SheetJS (xlsx) library.
+ * First checks if it's already available on window (e.g. from a CDN script tag),
+ * otherwise loads it via CDN. Caches the result after first load.
  */
-export function loadXlsx(): Promise<XlsxLib> {
-  // The xlsx package is now bundled at build time -- no CDN, no network call.
-  return Promise.resolve(XLSXPkg as unknown as XlsxLib);
+export async function loadXlsx(): Promise<XlsxLib> {
+  if (_cached) return _cached;
+
+  // Try window.XLSX if already loaded
+  const win =
+    typeof window !== "undefined"
+      ? (window as unknown as Record<string, unknown>)
+      : {};
+  if (win.XLSX) {
+    _cached = win.XLSX as XlsxLib;
+    return _cached;
+  }
+
+  // Load from CDN
+  await new Promise<void>((resolve, reject) => {
+    const existing = document.querySelector("script[data-xlsx]");
+    if (existing) {
+      // Already loading – wait for it
+      existing.addEventListener("load", () => resolve());
+      existing.addEventListener("error", () =>
+        reject(new Error("xlsx CDN load failed")),
+      );
+      return;
+    }
+    const script = document.createElement("script");
+    script.src =
+      "https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js";
+    script.setAttribute("data-xlsx", "true");
+    script.crossOrigin = "anonymous";
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error("xlsx CDN load failed"));
+    document.head.appendChild(script);
+  });
+
+  _cached = (window as unknown as Record<string, unknown>).XLSX as XlsxLib;
+  if (!_cached) throw new Error("xlsx not available after CDN load");
+  return _cached;
 }

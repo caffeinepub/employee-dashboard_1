@@ -1,30 +1,42 @@
 # Employee Dashboard
 
 ## Current State
-
-A full-stack employee dashboard with:
-- Overview page: employee grid with active count, feedback highlights
-- Employee detail page: SWOT, performance scores, behavioral traits, problems, feedback
-- Add Employee form (full detail), Bulk Upload via CSV, Add Feedback form
-- Delete employee (with confirmation dialog) on card and detail page
-- Inline status change (Active / Inactive / On Hold) on card and detail page
-- Backend functions: initialize, getAllEmployees, getActiveEmployeeCount, getEmployeeDetails, getAllFeedback, getFeedbackByEmployee, addEmployee, addFeedback, bulkAddEmployees, deleteEmployee, updateEmployeeStatus
+- Employees page uses a card grid layout (boxes) with minimal info per card
+- Employee detail page shows all sections always visible: performance, SWOT, traits, problems, feedback, sales records (table), monthly sales summary (table), attendance records (table)
+- No charts/graphs on employee detail
+- Sales records and attendance records are always expanded/visible
+- EmployeeCard shows name, role, department, status badge only
 
 ## Requested Changes (Diff)
 
 ### Add
-- `updateEmployee(id, input: EmployeeFullInput): async Bool` backend function to update all fields of an existing employee (info, performance, SWOT, traits, problems)
-- "Edit" button on the employee detail page that opens a pre-filled form (same structure as Add Employee) with all current values. On save, call `updateEmployee` and refresh the detail view.
+- **Employee List view**: Replace card grid with a table/list showing columns: Avatar, Name, FIPL ID, Region, Joining Date, Sales (total amount), Attendance % (derived from lapses/days off), CES/Efficiency Score (composite of performance metrics), Category badge, Edit/Delete actions
+- **Sales trend chart** on employee detail: A line chart showing monthly sales amount trend across the last 3-6 months (month-over-month comparison). Similar to the reference screenshot showing multiple years/periods as lines.
+- **Attendance chart** on employee detail: A bar or line chart showing attendance lapses and days off per month.
+- **Collapsible/dropdown Sales Records section**: Sales records table is hidden by default, revealed by clicking a dropdown toggle
+- **Collapsible/dropdown Attendance Records section**: Attendance records table is hidden by default, revealed by clicking a dropdown toggle
 
 ### Modify
-- Employee detail page: add an Edit button (pencil icon or "Edit Employee" label) that opens a modal/drawer with all editable fields pre-populated
-- The edit form should cover: name, role, department, joinDate, avatar initials, salesScore, opsScore, reviewCount, strengths, weaknesses, opportunities, threats, traits, problems
+- **EmployeesPage**: Change from card grid to a rich table/list layout. Each row shows: avatar+name, FIPL ID, region, joining date, total sales amount (sum from sales records - shown as ₹Xk), attendance % (calculated as present days / working days, approximated from lapses count), efficiency/CES score (average of 5 performance params), FSE category badge, Edit+Delete action buttons
+- **EmployeeDetailPage**: 
+  - Sales Records section: wrap in a collapsible Accordion/Details component - hidden by default, expanded on click
+  - Attendance Records section: wrap in a collapsible Accordion/Details component - hidden by default, expanded on click
+  - Monthly Sales Summary table: replace with a line chart showing monthly sales trend
+  - Add attendance chart (bar chart) showing lapses and days off per month
 
 ### Remove
-- Nothing removed
+- Card grid layout from EmployeesPage (replace entirely with list/table)
 
 ## Implementation Plan
 
-1. Add `updateEmployee(id: EmployeeId, input: EmployeeFullInput): async Bool` to `main.mo` — updates employee info, performance, swot, traits, problems for the given id. Returns false if not found.
-2. Regenerate `backend.d.ts` with the new function.
-3. Frontend: on the employee detail page, add an "Edit Employee" button. Clicking it opens a modal or slide-over pre-filled with all current employee data. On submit, call `updateEmployee` and reload the detail.
+1. **EmployeesPage.tsx**: Rebuild the employee display as a full-width table with columns matching the reference screenshot (Name+Avatar, FIPL ID, Region, Joining Date, Sales, Attendance %, CES Score, Category, Actions). Use recharts for mini progress bars or inline indicators. Fetch performance data per employee using `useAllEmployees` (already available). For sales totals and attendance, these aren't pre-aggregated in the list endpoint - show placeholder values or compute from available data. Since we don't have per-employee aggregates in the list query, show performance scores as the efficiency indicator.
+
+2. **EmployeeDetailPage.tsx**:
+   - Import `recharts` (already available via package.json likely) for LineChart and BarChart
+   - Add `salesChartOpen` and `attendanceChartOpen` state (charts visible by default since they're informational)
+   - Wrap "Sales Records" section in a collapsible with a toggle button (ChevronDown/Up icon)
+   - Wrap "Attendance Records" section in a collapsible with a toggle button
+   - Replace "Monthly Sales Summary" table with a LineChart showing monthly sales amounts
+   - Add an attendance chart (BarChart) showing lapses and days off per month, also collapsible with the attendance section
+
+3. The charts should be built using recharts which is already installed or needs to be added to package.json.
