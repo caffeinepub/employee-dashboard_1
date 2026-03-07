@@ -1,14 +1,23 @@
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import {
+  ChevronLeft,
   ChevronRight,
   LayoutDashboard,
+  MessageSquare,
   Settings,
   TrendingUp,
   Upload,
   Users,
 } from "lucide-react";
+import { useState } from "react";
 import { Status } from "../backend";
 import type { Employee } from "../backend.d.ts";
 import { useAppSettings } from "../context/AppSettingsContext";
@@ -24,6 +33,7 @@ interface SidebarProps {
   onSalesTrendsClick: () => void;
   onEmployeesClick: () => void;
   onUploadsClick: () => void;
+  onFeedbackClick: () => void;
 }
 
 export function Sidebar({
@@ -36,9 +46,11 @@ export function Sidebar({
   onSalesTrendsClick,
   onEmployeesClick,
   onUploadsClick,
+  onFeedbackClick,
 }: SidebarProps) {
   const { settings } = useAppSettings();
   const { labels } = settings;
+  const [collapsed, setCollapsed] = useState(false);
 
   const getInitials = (name: string) =>
     name
@@ -48,190 +60,281 @@ export function Sidebar({
       .toUpperCase()
       .slice(0, 2);
 
+  const navItems = [
+    {
+      icon: <LayoutDashboard className="w-4 h-4 shrink-0" />,
+      label: labels.sidebarOverviewLabel,
+      view: "overview" as View,
+      onClick: onOverviewClick,
+      ocid: "nav.link",
+    },
+    {
+      icon: <TrendingUp className="w-4 h-4 shrink-0" />,
+      label: "Sales Trends",
+      view: "sales" as View,
+      onClick: onSalesTrendsClick,
+      ocid: "nav.link",
+    },
+    {
+      icon: <MessageSquare className="w-4 h-4 shrink-0" />,
+      label: "Feedback",
+      view: "feedback" as View,
+      onClick: onFeedbackClick,
+      ocid: "nav.feedback.link",
+    },
+    {
+      icon: <Upload className="w-4 h-4 shrink-0" />,
+      label: "Uploads",
+      view: "uploads" as View,
+      onClick: onUploadsClick,
+      ocid: "nav.link",
+    },
+    {
+      icon: <Users className="w-4 h-4 shrink-0" />,
+      label: labels.sidebarEmployeesLabel,
+      view: "employees" as View,
+      onClick: onEmployeesClick,
+      ocid: "nav.link",
+      badge: employees.length,
+    },
+  ];
+
   return (
-    <aside className="w-64 h-screen sticky top-0 flex flex-col border-r border-border/50 bg-sidebar shrink-0 overflow-hidden">
-      {/* Logo */}
-      <div className="px-4 py-4 border-b border-border/40">
-        <div className="flex items-center">
-          <div className="rounded-lg bg-white border border-border/30 px-3 py-2 flex items-center justify-center shadow-sm w-full">
-            <img
-              src="/assets/uploads/image-1-1.png"
-              alt="Frootle India"
-              className="h-10 w-auto object-contain"
-              style={{ maxWidth: "160px" }}
-            />
-          </div>
+    <TooltipProvider delayDuration={300}>
+      <aside
+        className={cn(
+          "h-screen sticky top-0 flex flex-col border-r border-border/50 bg-sidebar shrink-0 overflow-hidden transition-all duration-200 ease-in-out",
+          collapsed ? "w-16" : "w-64",
+        )}
+      >
+        {/* Logo */}
+        <div
+          className={cn(
+            "border-b border-border/40 relative flex items-center",
+            collapsed ? "px-0 py-4 justify-center" : "px-4 py-4",
+          )}
+        >
+          {collapsed ? (
+            <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-white border border-border/30 shadow-sm">
+              <span className="text-xs font-bold text-primary leading-none">
+                FI
+              </span>
+            </div>
+          ) : (
+            <div className="w-full">
+              <div className="rounded-lg bg-white border border-border/30 px-3 py-2 flex items-center justify-center shadow-sm w-full">
+                <img
+                  src="/assets/uploads/image-1-1.png"
+                  alt="Frootle India"
+                  className="h-10 w-auto object-contain"
+                  style={{ maxWidth: "160px" }}
+                />
+              </div>
+              <p className="text-muted-foreground text-[10px] tracking-wider uppercase mt-2 ml-0.5">
+                {labels.sidebarTagline}
+              </p>
+            </div>
+          )}
         </div>
-        <p className="text-muted-foreground text-[10px] tracking-wider uppercase mt-2 ml-0.5">
-          {labels.sidebarTagline}
-        </p>
-      </div>
 
-      {/* Navigation */}
-      <nav className="px-3 py-4 space-y-1">
-        <button
-          type="button"
-          onClick={onOverviewClick}
+        {/* Navigation */}
+        <nav className={cn("py-4 space-y-1", collapsed ? "px-2" : "px-3")}>
+          {navItems.map((item) => {
+            const isActive = currentView === item.view;
+            const btn = (
+              <button
+                key={item.view}
+                type="button"
+                onClick={item.onClick}
+                className={cn(
+                  "w-full flex items-center rounded-lg text-sm font-medium transition-all duration-150",
+                  collapsed
+                    ? "justify-center px-0 py-2.5"
+                    : "gap-3 px-3 py-2.5",
+                  isActive
+                    ? "bg-primary/15 text-primary border border-primary/25"
+                    : "text-muted-foreground hover:text-foreground hover:bg-accent",
+                )}
+                data-ocid={item.ocid}
+              >
+                {item.icon}
+                {!collapsed && (
+                  <>
+                    {item.badge !== undefined ? (
+                      <>
+                        <span className="flex-1 text-left">{item.label}</span>
+                        <span className="text-[10px] font-mono text-primary/70">
+                          {item.badge}
+                        </span>
+                      </>
+                    ) : (
+                      <span>{item.label}</span>
+                    )}
+                    {isActive && (
+                      <ChevronRight className="w-3.5 h-3.5 ml-auto shrink-0" />
+                    )}
+                  </>
+                )}
+              </button>
+            );
+
+            if (collapsed) {
+              return (
+                <Tooltip key={item.view}>
+                  <TooltipTrigger asChild>{btn}</TooltipTrigger>
+                  <TooltipContent side="right">
+                    <span>{item.label}</span>
+                  </TooltipContent>
+                </Tooltip>
+              );
+            }
+
+            return btn;
+          })}
+        </nav>
+
+        {/* Employee List (quick nav to individual profiles) */}
+        {!collapsed && (
+          <ScrollArea className="flex-1 min-h-0 px-3 pb-4">
+            <div className="space-y-0.5">
+              {employees.map((employee) => (
+                <button
+                  type="button"
+                  key={employee.id.toString()}
+                  onClick={() => onSelectEmployee(employee)}
+                  className={cn(
+                    "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-all duration-150 group",
+                    selectedEmployee?.id === employee.id &&
+                      currentView === "employee"
+                      ? "bg-primary/15 text-primary border border-primary/25"
+                      : "text-muted-foreground hover:text-foreground hover:bg-accent",
+                  )}
+                  data-ocid="nav.link"
+                >
+                  <div className="relative shrink-0">
+                    <Avatar className="w-7 h-7">
+                      <AvatarFallback className="text-[10px] font-bold bg-accent text-accent-foreground">
+                        {getInitials(employee.name)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <span
+                      className={cn(
+                        "absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-sidebar",
+                        employee.status === Status.active
+                          ? "bg-[oklch(0.52_0.18_145)]"
+                          : employee.status === Status.onHold
+                            ? "bg-[oklch(0.62_0.16_75)]"
+                            : "bg-muted-foreground/40",
+                      )}
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-semibold truncate">
+                      {employee.name}
+                    </p>
+                    <p className="text-[10px] truncate opacity-70">
+                      {employee.role}
+                    </p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </ScrollArea>
+        )}
+
+        {/* Collapsed spacer to push settings to bottom */}
+        {collapsed && <div className="flex-1" />}
+
+        {/* Settings Nav */}
+        <div
           className={cn(
-            "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150",
-            currentView === "overview"
-              ? "bg-primary/15 text-primary border border-primary/25"
-              : "text-muted-foreground hover:text-foreground hover:bg-accent",
+            "border-t border-border/40 pt-2",
+            collapsed ? "px-2 pb-2" : "px-3 pb-2",
           )}
-          data-ocid="nav.link"
         >
-          <LayoutDashboard className="w-4 h-4 shrink-0" />
-          <span>{labels.sidebarOverviewLabel}</span>
-          {currentView === "overview" && (
-            <ChevronRight className="w-3.5 h-3.5 ml-auto" />
-          )}
-        </button>
-
-        {/* Sales Trends nav */}
-        <button
-          type="button"
-          onClick={onSalesTrendsClick}
-          className={cn(
-            "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150",
-            currentView === "sales"
-              ? "bg-primary/15 text-primary border border-primary/25"
-              : "text-muted-foreground hover:text-foreground hover:bg-accent",
-          )}
-          data-ocid="nav.link"
-        >
-          <TrendingUp className="w-4 h-4 shrink-0" />
-          <span>Sales Trends</span>
-          {currentView === "sales" && (
-            <ChevronRight className="w-3.5 h-3.5 ml-auto" />
-          )}
-        </button>
-
-        {/* Uploads nav */}
-        <button
-          type="button"
-          onClick={onUploadsClick}
-          className={cn(
-            "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150",
-            currentView === "uploads"
-              ? "bg-primary/15 text-primary border border-primary/25"
-              : "text-muted-foreground hover:text-foreground hover:bg-accent",
-          )}
-          data-ocid="nav.link"
-        >
-          <Upload className="w-4 h-4 shrink-0" />
-          <span>Uploads</span>
-          {currentView === "uploads" && (
-            <ChevronRight className="w-3.5 h-3.5 ml-auto" />
-          )}
-        </button>
-
-        {/* Employees section — clickable nav button */}
-        <button
-          type="button"
-          onClick={onEmployeesClick}
-          className={cn(
-            "w-full flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150",
-            currentView === "employees"
-              ? "bg-primary/15 text-primary border border-primary/25"
-              : "text-muted-foreground hover:text-foreground hover:bg-accent",
-          )}
-          data-ocid="nav.link"
-        >
-          <Users className="w-4 h-4 shrink-0" />
-          <span className="flex-1 text-left">
-            {labels.sidebarEmployeesLabel}
-          </span>
-          <span className="text-[10px] font-mono-data text-primary/70">
-            {employees.length}
-          </span>
-          {currentView === "employees" && (
-            <ChevronRight className="w-3.5 h-3.5" />
-          )}
-        </button>
-      </nav>
-
-      {/* Employee List (quick nav to individual profiles) */}
-      <ScrollArea className="flex-1 min-h-0 px-3 pb-4">
-        <div className="space-y-0.5">
-          {employees.map((employee) => (
+          {collapsed ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  onClick={onSettingsClick}
+                  className={cn(
+                    "w-full flex items-center justify-center rounded-lg py-2.5 text-sm font-medium transition-all duration-150",
+                    currentView === "settings"
+                      ? "bg-primary/15 text-primary border border-primary/25"
+                      : "text-muted-foreground hover:text-foreground hover:bg-accent",
+                  )}
+                  data-ocid="nav.link"
+                >
+                  <Settings className="w-4 h-4 shrink-0" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="right">
+                <span>Settings</span>
+              </TooltipContent>
+            </Tooltip>
+          ) : (
             <button
               type="button"
-              key={employee.id.toString()}
-              onClick={() => onSelectEmployee(employee)}
+              onClick={onSettingsClick}
               className={cn(
-                "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-all duration-150 group",
-                selectedEmployee?.id === employee.id &&
-                  currentView === "employee"
+                "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150",
+                currentView === "settings"
                   ? "bg-primary/15 text-primary border border-primary/25"
                   : "text-muted-foreground hover:text-foreground hover:bg-accent",
               )}
               data-ocid="nav.link"
             >
-              <div className="relative shrink-0">
-                <Avatar className="w-7 h-7">
-                  <AvatarFallback className="text-[10px] font-bold bg-accent text-accent-foreground">
-                    {getInitials(employee.name)}
-                  </AvatarFallback>
-                </Avatar>
-                <span
-                  className={cn(
-                    "absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-sidebar",
-                    employee.status === Status.active
-                      ? "bg-[oklch(0.52_0.18_145)]"
-                      : employee.status === Status.onHold
-                        ? "bg-[oklch(0.62_0.16_75)]"
-                        : "bg-muted-foreground/40",
-                  )}
-                />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-semibold truncate">
-                  {employee.name}
-                </p>
-                <p className="text-[10px] truncate opacity-70">
-                  {employee.role}
-                </p>
-              </div>
+              <Settings className="w-4 h-4 shrink-0" />
+              <span>Settings</span>
+              {currentView === "settings" && (
+                <ChevronRight className="w-3.5 h-3.5 ml-auto" />
+              )}
             </button>
-          ))}
+          )}
         </div>
-      </ScrollArea>
 
-      {/* Settings Nav */}
-      <div className="px-3 pb-2 border-t border-border/40 pt-2">
-        <button
-          type="button"
-          onClick={onSettingsClick}
+        {/* Toggle Button */}
+        <div
           className={cn(
-            "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150",
-            currentView === "settings"
-              ? "bg-primary/15 text-primary border border-primary/25"
-              : "text-muted-foreground hover:text-foreground hover:bg-accent",
+            "border-t border-border/40",
+            collapsed
+              ? "px-2 py-2 flex justify-center"
+              : "px-3 py-2 flex justify-end",
           )}
-          data-ocid="nav.link"
         >
-          <Settings className="w-4 h-4 shrink-0" />
-          <span>Settings</span>
-          {currentView === "settings" && (
-            <ChevronRight className="w-3.5 h-3.5 ml-auto" />
-          )}
-        </button>
-      </div>
-
-      {/* Footer */}
-      <div className="px-6 py-4 border-t border-border/40">
-        <p className="text-[10px] text-muted-foreground/60 text-center leading-relaxed">
-          © {new Date().getFullYear()} Built with ❤️ using{" "}
-          <a
-            href={`https://caffeine.ai?utm_source=caffeine-footer&utm_medium=referral&utm_content=${encodeURIComponent(window.location.hostname)}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-primary/60 hover:text-primary transition-colors"
+          <button
+            type="button"
+            onClick={() => setCollapsed((prev) => !prev)}
+            className="flex items-center justify-center w-7 h-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-all duration-150"
+            data-ocid="sidebar.toggle"
+            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
-            caffeine.ai
-          </a>
-        </p>
-      </div>
-    </aside>
+            {collapsed ? (
+              <ChevronRight className="w-4 h-4" />
+            ) : (
+              <ChevronLeft className="w-4 h-4" />
+            )}
+          </button>
+        </div>
+
+        {/* Footer */}
+        {!collapsed && (
+          <div className="px-6 py-4 border-t border-border/40">
+            <p className="text-[10px] text-muted-foreground/60 text-center leading-relaxed">
+              © {new Date().getFullYear()} Built with ❤️ using{" "}
+              <a
+                href={`https://caffeine.ai?utm_source=caffeine-footer&utm_medium=referral&utm_content=${encodeURIComponent(window.location.hostname)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-primary/60 hover:text-primary transition-colors"
+              >
+                caffeine.ai
+              </a>
+            </p>
+          </div>
+        )}
+      </aside>
+    </TooltipProvider>
   );
 }

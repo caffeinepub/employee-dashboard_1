@@ -3,6 +3,7 @@ import type { Employee } from "../backend.d.ts";
 import { useAllEmployees } from "../hooks/useQueries";
 import { EmployeeDetailPage } from "./EmployeeDetailPage";
 import { EmployeesPage } from "./EmployeesPage";
+import { FeedbackPage } from "./FeedbackPage";
 import { OverviewPage } from "./OverviewPage";
 import { SalesTrendsPage } from "./SalesTrendsPage";
 import { SettingsPage } from "./SettingsPage";
@@ -15,7 +16,8 @@ export type View =
   | "settings"
   | "sales"
   | "employees"
-  | "uploads";
+  | "uploads"
+  | "feedback";
 
 export function Dashboard() {
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(
@@ -54,6 +56,11 @@ export function Dashboard() {
     setSelectedEmployee(null);
   };
 
+  const handleFeedbackClick = () => {
+    setView("feedback");
+    setSelectedEmployee(null);
+  };
+
   return (
     <div className="flex min-h-screen">
       <Sidebar
@@ -66,6 +73,7 @@ export function Dashboard() {
         onSalesTrendsClick={handleSalesTrendsClick}
         onEmployeesClick={handleEmployeesClick}
         onUploadsClick={handleUploadsClick}
+        onFeedbackClick={handleFeedbackClick}
       />
       <main className="flex-1 overflow-auto">
         {view === "overview" ? (
@@ -83,6 +91,8 @@ export function Dashboard() {
           <EmployeesPage onSelectEmployee={handleSelectEmployee} />
         ) : view === "uploads" ? (
           <UploadsPage />
+        ) : view === "feedback" ? (
+          <FeedbackPage />
         ) : null}
       </main>
     </div>

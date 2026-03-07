@@ -551,6 +551,16 @@ const DATA_COLLECTIONS: DataCollection[] = [
     label: "Top Performers",
     description: "The monthly top-10 performers leaderboard",
   },
+  {
+    key: "callingRecords",
+    label: "Calling Records",
+    description: "All feedback calling records uploaded via the Feedback tab",
+  },
+  {
+    key: "customerReviews",
+    label: "Customer Reviews",
+    description: "All customer reviews displayed in the Feedback masonry board",
+  },
 ];
 
 function DataManagementSection() {
@@ -608,6 +618,8 @@ function DataManagementSection() {
       if (selected.feedback) ops.push(actor.clearAllFeedback());
       if (selected.issues) ops.push(actor.clearAllIssues());
       if (selected.topPerformers) ops.push(actor.clearAllTopPerformers());
+      if (selected.callingRecords) ops.push(actor.clearAllCallingRecords());
+      if (selected.customerReviews) ops.push(actor.clearAllCustomerReviews());
       await Promise.all(ops);
       await queryClient.invalidateQueries();
       const deletedLabels = DATA_COLLECTIONS.filter((c) => selected[c.key])

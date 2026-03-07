@@ -394,7 +394,6 @@ export function RegionalSalesTrend({ className }: RegionalSalesTrendProps) {
     });
     const keys = fses.map((fc) => fseNames.get(fc) ?? fc);
     return { chartData: data, seriesKeys: keys };
-    // biome-ignore lint/correctness/useExhaustiveDependencies: filterBrand/filterSaleType are already captured via filteredRecords
   }, [
     filteredRecords,
     granularity,

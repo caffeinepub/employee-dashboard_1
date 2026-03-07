@@ -188,6 +188,48 @@ actor {
     problems : [Text];
   };
 
+  public type CallingRecord = {
+    id : Nat;
+    fiplCode : Text;
+    fseName : Text;
+    customerName : Text;
+    date : Int;
+    callDuration : Text;
+    outcome : Text;
+    notes : Text;
+    createdAt : Int;
+  };
+
+  public type CallingRecordInput = {
+    fiplCode : Text;
+    fseName : Text;
+    customerName : Text;
+    date : Int;
+    callDuration : Text;
+    outcome : Text;
+    notes : Text;
+  };
+
+  public type CustomerReview = {
+    id : Nat;
+    fiplCode : Text;
+    fseName : Text;
+    reviewerName : Text;
+    rating : Nat;
+    reviewText : Text;
+    date : Int;
+    createdAt : Int;
+  };
+
+  public type CustomerReviewInput = {
+    fiplCode : Text;
+    fseName : Text;
+    reviewerName : Text;
+    rating : Nat;
+    reviewText : Text;
+    date : Int;
+  };
+
   module Employee {
     public func compare(employee1 : Employee, employee2 : Employee) : Order.Order {
       Int.compare(employee1.id, employee2.id);
@@ -204,11 +246,17 @@ actor {
   let attendanceRecords = Map.empty<Nat, AttendanceRecord>();
   let issues = Map.empty<Nat, IssueSuggestion>();
   let topPerformers = Map.empty<Nat, TopPerformer>();
+
+  let callingRecords = Map.empty<Nat, CallingRecord>();
+  let customerReviews = Map.empty<Nat, CustomerReview>();
+
   var nextEmployeeId = 1;
   var nextFeedbackId = 1;
   var nextRecordId = 1;
   var nextAttendanceId = 1;
   var nextIssueId = 1;
+  var nextCallingRecordId = 1;
+  var nextReviewId = 1;
 
   public query ({ caller }) func getAllEmployees() : async [Employee] {
     employees.values().toArray().sort();
@@ -1099,11 +1147,113 @@ actor {
     issues.clear();
     topPerformers.clear();
 
+    callingRecords.clear();
+    customerReviews.clear();
+
     nextEmployeeId := 1;
     nextFeedbackId := 1;
     nextRecordId := 1;
     nextAttendanceId := 1;
     nextIssueId := 1;
+    nextCallingRecordId := 1;
+    nextReviewId := 1;
+    true;
+  };
+
+  // Calling Record Functions
+  public query ({ caller }) func getAllCallingRecords() : async [CallingRecord] {
+    callingRecords.values().toArray();
+  };
+
+  public shared ({ caller }) func addCallingRecord(input : CallingRecordInput) : async Nat {
+    let newId = nextCallingRecordId;
+    nextCallingRecordId += 1;
+    let currentTime = Time.now();
+
+    let record : CallingRecord = {
+      id = newId;
+      fiplCode = input.fiplCode;
+      fseName = input.fseName;
+      customerName = input.customerName;
+      date = input.date;
+      callDuration = input.callDuration;
+      outcome = input.outcome;
+      notes = input.notes;
+      createdAt = currentTime;
+    };
+
+    callingRecords.add(newId, record);
+    newId;
+  };
+
+  public shared ({ caller }) func addCallingRecordsBatch(inputs : [CallingRecordInput]) : async [Nat] {
+    let idsArray = Array.tabulate(
+      inputs.size(),
+      func(i) {
+        let newId = nextCallingRecordId + i;
+        let input = inputs[i];
+        let currentTime = Time.now();
+
+        let record : CallingRecord = {
+          id = newId;
+          fiplCode = input.fiplCode;
+          fseName = input.fseName;
+          customerName = input.customerName;
+          date = input.date;
+          callDuration = input.callDuration;
+          outcome = input.outcome;
+          notes = input.notes;
+          createdAt = currentTime;
+        };
+
+        callingRecords.add(newId, record);
+        newId;
+      },
+    );
+    nextCallingRecordId += inputs.size();
+    idsArray;
+  };
+
+  public shared ({ caller }) func clearAllCallingRecords() : async Bool {
+    callingRecords.clear();
+    nextCallingRecordId := 1;
+    true;
+  };
+
+  // Customer Review Functions
+  public query ({ caller }) func getAllCustomerReviews() : async [CustomerReview] {
+    customerReviews.values().toArray();
+  };
+
+  public shared ({ caller }) func addCustomerReview(input : CustomerReviewInput) : async Nat {
+    let newId = nextReviewId;
+    nextReviewId += 1;
+    let currentTime = Time.now();
+
+    let review : CustomerReview = {
+      id = newId;
+      fiplCode = input.fiplCode;
+      fseName = input.fseName;
+      reviewerName = input.reviewerName;
+      rating = input.rating;
+      reviewText = input.reviewText;
+      date = input.date;
+      createdAt = currentTime;
+    };
+
+    customerReviews.add(newId, review);
+    newId;
+  };
+
+  public shared ({ caller }) func deleteCustomerReview(id : Nat) : async Bool {
+    let existed = customerReviews.containsKey(id);
+    customerReviews.remove(id);
+    existed;
+  };
+
+  public shared ({ caller }) func clearAllCustomerReviews() : async Bool {
+    customerReviews.clear();
+    nextReviewId := 1;
     true;
   };
 

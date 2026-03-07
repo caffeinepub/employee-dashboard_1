@@ -14,14 +14,6 @@ export interface SWOT {
     opportunities: Array<string>;
     employeeId: EmployeeId;
 }
-export interface AttendanceRecord {
-    id: bigint;
-    lapseType: string;
-    date: bigint;
-    employeeId: EmployeeId;
-    reason: string;
-    daysOff: bigint;
-}
 export interface IssueSuggestionInput {
     title: string;
     description: string;
@@ -37,13 +29,13 @@ export interface SalesRecordInput {
     saleDate: bigint;
     fiplCode: string;
 }
-export interface Performance {
-    operationalDiscipline: bigint;
-    softSkillsScore: bigint;
-    productKnowledgeScore: bigint;
-    salesInfluenceIndex: bigint;
+export interface Feedback {
+    id: bigint;
+    date: bigint;
+    description: string;
     employeeId: EmployeeId;
-    reviewCount: bigint;
+    category: string;
+    severity: Severity;
 }
 export interface IssueSuggestion {
     id: bigint;
@@ -52,14 +44,6 @@ export interface IssueSuggestion {
     description: string;
     updatedAt: bigint;
     category: string;
-}
-export interface Feedback {
-    id: bigint;
-    date: bigint;
-    description: string;
-    employeeId: EmployeeId;
-    category: string;
-    severity: Severity;
 }
 export interface TopPerformerInput {
     accessories: bigint;
@@ -94,12 +78,15 @@ export interface PerformanceInput {
     salesInfluenceIndex: bigint;
     reviewCount: bigint;
 }
-export interface EmployeeFullInput {
-    swotAnalysis: SWOTInput;
-    employeeInfo: EmployeeInput;
-    traits: Array<string>;
-    performance: PerformanceInput;
-    problems: Array<string>;
+export interface CustomerReview {
+    id: bigint;
+    date: bigint;
+    createdAt: bigint;
+    reviewText: string;
+    reviewerName: string;
+    rating: bigint;
+    fseName: string;
+    fiplCode: string;
 }
 export interface SWOTInput {
     weaknesses: Array<string>;
@@ -108,6 +95,71 @@ export interface SWOTInput {
     opportunities: Array<string>;
 }
 export type EmployeeId = bigint;
+export interface Employee {
+    id: EmployeeId;
+    region: string;
+    status: Status;
+    joinDate: bigint;
+    name: string;
+    role: string;
+    fseCategory: string;
+    department: string;
+    familyDetails: string;
+    pastExperience: Array<string>;
+    avatar: string;
+    fiplCode: string;
+}
+export interface AttendanceRecord {
+    id: bigint;
+    lapseType: string;
+    date: bigint;
+    employeeId: EmployeeId;
+    reason: string;
+    daysOff: bigint;
+}
+export interface Performance {
+    operationalDiscipline: bigint;
+    softSkillsScore: bigint;
+    productKnowledgeScore: bigint;
+    salesInfluenceIndex: bigint;
+    employeeId: EmployeeId;
+    reviewCount: bigint;
+}
+export interface EmployeeFullInput {
+    swotAnalysis: SWOTInput;
+    employeeInfo: EmployeeInput;
+    traits: Array<string>;
+    performance: PerformanceInput;
+    problems: Array<string>;
+}
+export interface CallingRecord {
+    id: bigint;
+    customerName: string;
+    date: bigint;
+    createdAt: bigint;
+    callDuration: string;
+    notes: string;
+    outcome: string;
+    fseName: string;
+    fiplCode: string;
+}
+export interface CustomerReviewInput {
+    date: bigint;
+    reviewText: string;
+    reviewerName: string;
+    rating: bigint;
+    fseName: string;
+    fiplCode: string;
+}
+export interface CallingRecordInput {
+    customerName: string;
+    date: bigint;
+    callDuration: string;
+    notes: string;
+    outcome: string;
+    fseName: string;
+    fiplCode: string;
+}
 export interface AttendanceRecordInput {
     lapseType: string;
     date: bigint;
@@ -135,20 +187,6 @@ export interface FeedbackInput {
     employeeId: EmployeeId;
     category: string;
     severity: Severity;
-}
-export interface Employee {
-    id: EmployeeId;
-    region: string;
-    status: Status;
-    joinDate: bigint;
-    name: string;
-    role: string;
-    fseCategory: string;
-    department: string;
-    familyDetails: string;
-    pastExperience: Array<string>;
-    avatar: string;
-    fiplCode: string;
 }
 export interface EmployeeInput {
     region: string;
@@ -187,6 +225,9 @@ export enum Status {
 export interface backendInterface {
     addAttendanceRecord(input: AttendanceRecordInput): Promise<bigint>;
     addAttendanceRecordsBatch(inputs: Array<AttendanceRecordInput>): Promise<Array<bigint>>;
+    addCallingRecord(input: CallingRecordInput): Promise<bigint>;
+    addCallingRecordsBatch(inputs: Array<CallingRecordInput>): Promise<Array<bigint>>;
+    addCustomerReview(input: CustomerReviewInput): Promise<bigint>;
     addEmployee(input: EmployeeFullInput): Promise<EmployeeId>;
     addFeedback(input: FeedbackInput): Promise<bigint>;
     addIssueSuggestion(input: IssueSuggestionInput): Promise<bigint>;
@@ -196,15 +237,20 @@ export interface backendInterface {
     addTrait(employeeId: EmployeeId, trait: string): Promise<boolean>;
     bulkAddEmployees(inputs: Array<EmployeeInput>): Promise<Array<EmployeeId>>;
     clearAllAttendance(): Promise<boolean>;
+    clearAllCallingRecords(): Promise<boolean>;
+    clearAllCustomerReviews(): Promise<boolean>;
     clearAllData(): Promise<boolean>;
     clearAllEmployees(): Promise<boolean>;
     clearAllFeedback(): Promise<boolean>;
     clearAllIssues(): Promise<boolean>;
     clearAllSalesRecords(): Promise<boolean>;
     clearAllTopPerformers(): Promise<boolean>;
+    deleteCustomerReview(id: bigint): Promise<boolean>;
     deleteEmployee(id: EmployeeId): Promise<boolean>;
     deleteIssueSuggestion(id: bigint): Promise<boolean>;
     getActiveEmployeeCount(): Promise<bigint>;
+    getAllCallingRecords(): Promise<Array<CallingRecord>>;
+    getAllCustomerReviews(): Promise<Array<CustomerReview>>;
     getAllEmployees(): Promise<Array<Employee>>;
     getAllFeedback(): Promise<Array<Feedback>>;
     getAllIssues(): Promise<Array<IssueSuggestion>>;

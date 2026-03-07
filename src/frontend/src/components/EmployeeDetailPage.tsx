@@ -577,6 +577,44 @@ export function EmployeeDetailPage({
                     </span>
                   </div>
 
+                  {/* Efficiency Score summary */}
+                  {details?.performance &&
+                    (() => {
+                      const p = details.performance;
+                      const effScore = Math.round(
+                        (Number(p.salesInfluenceIndex) +
+                          Number(p.reviewCount) +
+                          Number(p.operationalDiscipline) +
+                          Number(p.productKnowledgeScore) +
+                          Number(p.softSkillsScore)) /
+                          5,
+                      );
+                      const effColor =
+                        effScore >= 75
+                          ? "text-[oklch(0.42_0.16_145)]"
+                          : effScore >= 50
+                            ? "text-[oklch(0.48_0.16_75)]"
+                            : "text-[oklch(0.42_0.2_25)]";
+                      return (
+                        <div className="mb-3 inline-flex items-center gap-2 bg-muted/30 border border-border/50 rounded-lg px-3 py-1.5">
+                          <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
+                            Efficiency Score
+                          </span>
+                          <span
+                            className={cn(
+                              "text-lg font-mono-data font-bold",
+                              effColor,
+                            )}
+                          >
+                            {effScore}
+                          </span>
+                          <span className="text-[10px] text-muted-foreground">
+                            /100
+                          </span>
+                        </div>
+                      );
+                    })()}
+
                   {/* Status change selector */}
                   <div className="flex items-center gap-2">
                     <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold shrink-0">

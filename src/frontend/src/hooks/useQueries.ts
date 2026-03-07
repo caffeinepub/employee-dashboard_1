@@ -3,6 +3,10 @@ import type { Status } from "../backend";
 import type {
   AttendanceRecord,
   AttendanceRecordInput,
+  CallingRecord,
+  CallingRecordInput,
+  CustomerReview,
+  CustomerReviewInput,
   Employee,
   EmployeeDetails,
   EmployeeFullInput,
@@ -379,6 +383,90 @@ export function useUpdateSwotByFiplCode() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries();
+    },
+  });
+}
+
+// ── Calling Records ──────────────────────────────────────────────────────────
+
+export function useCallingRecords() {
+  const { actor, isFetching } = useActor();
+  return useQuery<CallingRecord[]>({
+    queryKey: ["callingRecords"],
+    queryFn: async () => {
+      if (!actor) return [];
+      return actor.getAllCallingRecords();
+    },
+    enabled: !!actor && !isFetching,
+  });
+}
+
+export function useAddCallingRecord() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: CallingRecordInput) => {
+      if (!actor) throw new Error("Actor not available");
+      return actor.addCallingRecord(input);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["callingRecords"] });
+    },
+  });
+}
+
+export function useAddCallingRecordsBatch() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (inputs: CallingRecordInput[]) => {
+      if (!actor) throw new Error("Actor not available");
+      return actor.addCallingRecordsBatch(inputs);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["callingRecords"] });
+    },
+  });
+}
+
+// ── Customer Reviews ─────────────────────────────────────────────────────────
+
+export function useCustomerReviews() {
+  const { actor, isFetching } = useActor();
+  return useQuery<CustomerReview[]>({
+    queryKey: ["customerReviews"],
+    queryFn: async () => {
+      if (!actor) return [];
+      return actor.getAllCustomerReviews();
+    },
+    enabled: !!actor && !isFetching,
+  });
+}
+
+export function useAddCustomerReview() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: CustomerReviewInput) => {
+      if (!actor) throw new Error("Actor not available");
+      return actor.addCustomerReview(input);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["customerReviews"] });
+    },
+  });
+}
+
+export function useDeleteCustomerReview() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: bigint) => {
+      if (!actor) throw new Error("Actor not available");
+      return actor.deleteCustomerReview(id);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["customerReviews"] });
     },
   });
 }

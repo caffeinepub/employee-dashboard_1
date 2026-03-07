@@ -16,6 +16,23 @@ export const AttendanceRecordInput = IDL.Record({
   'reason' : IDL.Text,
   'daysOff' : IDL.Nat,
 });
+export const CallingRecordInput = IDL.Record({
+  'customerName' : IDL.Text,
+  'date' : IDL.Int,
+  'callDuration' : IDL.Text,
+  'notes' : IDL.Text,
+  'outcome' : IDL.Text,
+  'fseName' : IDL.Text,
+  'fiplCode' : IDL.Text,
+});
+export const CustomerReviewInput = IDL.Record({
+  'date' : IDL.Int,
+  'reviewText' : IDL.Text,
+  'reviewerName' : IDL.Text,
+  'rating' : IDL.Nat,
+  'fseName' : IDL.Text,
+  'fiplCode' : IDL.Text,
+});
 export const SWOTInput = IDL.Record({
   'weaknesses' : IDL.Vec(IDL.Text),
   'strengths' : IDL.Vec(IDL.Text),
@@ -89,6 +106,27 @@ export const SalesRecordInput = IDL.Record({
   'amount' : IDL.Int,
   'product' : IDL.Text,
   'saleDate' : IDL.Int,
+  'fiplCode' : IDL.Text,
+});
+export const CallingRecord = IDL.Record({
+  'id' : IDL.Nat,
+  'customerName' : IDL.Text,
+  'date' : IDL.Int,
+  'createdAt' : IDL.Int,
+  'callDuration' : IDL.Text,
+  'notes' : IDL.Text,
+  'outcome' : IDL.Text,
+  'fseName' : IDL.Text,
+  'fiplCode' : IDL.Text,
+});
+export const CustomerReview = IDL.Record({
+  'id' : IDL.Nat,
+  'date' : IDL.Int,
+  'createdAt' : IDL.Int,
+  'reviewText' : IDL.Text,
+  'reviewerName' : IDL.Text,
+  'rating' : IDL.Nat,
+  'fseName' : IDL.Text,
   'fiplCode' : IDL.Text,
 });
 export const Employee = IDL.Record({
@@ -193,6 +231,13 @@ export const idlService = IDL.Service({
       [IDL.Vec(IDL.Nat)],
       [],
     ),
+  'addCallingRecord' : IDL.Func([CallingRecordInput], [IDL.Nat], []),
+  'addCallingRecordsBatch' : IDL.Func(
+      [IDL.Vec(CallingRecordInput)],
+      [IDL.Vec(IDL.Nat)],
+      [],
+    ),
+  'addCustomerReview' : IDL.Func([CustomerReviewInput], [IDL.Nat], []),
   'addEmployee' : IDL.Func([EmployeeFullInput], [EmployeeId], []),
   'addFeedback' : IDL.Func([FeedbackInput], [IDL.Nat], []),
   'addIssueSuggestion' : IDL.Func([IssueSuggestionInput], [IDL.Nat], []),
@@ -210,15 +255,20 @@ export const idlService = IDL.Service({
       [],
     ),
   'clearAllAttendance' : IDL.Func([], [IDL.Bool], []),
+  'clearAllCallingRecords' : IDL.Func([], [IDL.Bool], []),
+  'clearAllCustomerReviews' : IDL.Func([], [IDL.Bool], []),
   'clearAllData' : IDL.Func([], [IDL.Bool], []),
   'clearAllEmployees' : IDL.Func([], [IDL.Bool], []),
   'clearAllFeedback' : IDL.Func([], [IDL.Bool], []),
   'clearAllIssues' : IDL.Func([], [IDL.Bool], []),
   'clearAllSalesRecords' : IDL.Func([], [IDL.Bool], []),
   'clearAllTopPerformers' : IDL.Func([], [IDL.Bool], []),
+  'deleteCustomerReview' : IDL.Func([IDL.Nat], [IDL.Bool], []),
   'deleteEmployee' : IDL.Func([EmployeeId], [IDL.Bool], []),
   'deleteIssueSuggestion' : IDL.Func([IDL.Nat], [IDL.Bool], []),
   'getActiveEmployeeCount' : IDL.Func([], [IDL.Nat], ['query']),
+  'getAllCallingRecords' : IDL.Func([], [IDL.Vec(CallingRecord)], ['query']),
+  'getAllCustomerReviews' : IDL.Func([], [IDL.Vec(CustomerReview)], ['query']),
   'getAllEmployees' : IDL.Func([], [IDL.Vec(Employee)], ['query']),
   'getAllFeedback' : IDL.Func([], [IDL.Vec(Feedback)], ['query']),
   'getAllIssues' : IDL.Func([], [IDL.Vec(IssueSuggestion)], ['query']),
@@ -288,6 +338,23 @@ export const idlFactory = ({ IDL }) => {
     'employeeId' : EmployeeId,
     'reason' : IDL.Text,
     'daysOff' : IDL.Nat,
+  });
+  const CallingRecordInput = IDL.Record({
+    'customerName' : IDL.Text,
+    'date' : IDL.Int,
+    'callDuration' : IDL.Text,
+    'notes' : IDL.Text,
+    'outcome' : IDL.Text,
+    'fseName' : IDL.Text,
+    'fiplCode' : IDL.Text,
+  });
+  const CustomerReviewInput = IDL.Record({
+    'date' : IDL.Int,
+    'reviewText' : IDL.Text,
+    'reviewerName' : IDL.Text,
+    'rating' : IDL.Nat,
+    'fseName' : IDL.Text,
+    'fiplCode' : IDL.Text,
   });
   const SWOTInput = IDL.Record({
     'weaknesses' : IDL.Vec(IDL.Text),
@@ -362,6 +429,27 @@ export const idlFactory = ({ IDL }) => {
     'amount' : IDL.Int,
     'product' : IDL.Text,
     'saleDate' : IDL.Int,
+    'fiplCode' : IDL.Text,
+  });
+  const CallingRecord = IDL.Record({
+    'id' : IDL.Nat,
+    'customerName' : IDL.Text,
+    'date' : IDL.Int,
+    'createdAt' : IDL.Int,
+    'callDuration' : IDL.Text,
+    'notes' : IDL.Text,
+    'outcome' : IDL.Text,
+    'fseName' : IDL.Text,
+    'fiplCode' : IDL.Text,
+  });
+  const CustomerReview = IDL.Record({
+    'id' : IDL.Nat,
+    'date' : IDL.Int,
+    'createdAt' : IDL.Int,
+    'reviewText' : IDL.Text,
+    'reviewerName' : IDL.Text,
+    'rating' : IDL.Nat,
+    'fseName' : IDL.Text,
     'fiplCode' : IDL.Text,
   });
   const Employee = IDL.Record({
@@ -466,6 +554,13 @@ export const idlFactory = ({ IDL }) => {
         [IDL.Vec(IDL.Nat)],
         [],
       ),
+    'addCallingRecord' : IDL.Func([CallingRecordInput], [IDL.Nat], []),
+    'addCallingRecordsBatch' : IDL.Func(
+        [IDL.Vec(CallingRecordInput)],
+        [IDL.Vec(IDL.Nat)],
+        [],
+      ),
+    'addCustomerReview' : IDL.Func([CustomerReviewInput], [IDL.Nat], []),
     'addEmployee' : IDL.Func([EmployeeFullInput], [EmployeeId], []),
     'addFeedback' : IDL.Func([FeedbackInput], [IDL.Nat], []),
     'addIssueSuggestion' : IDL.Func([IssueSuggestionInput], [IDL.Nat], []),
@@ -483,15 +578,24 @@ export const idlFactory = ({ IDL }) => {
         [],
       ),
     'clearAllAttendance' : IDL.Func([], [IDL.Bool], []),
+    'clearAllCallingRecords' : IDL.Func([], [IDL.Bool], []),
+    'clearAllCustomerReviews' : IDL.Func([], [IDL.Bool], []),
     'clearAllData' : IDL.Func([], [IDL.Bool], []),
     'clearAllEmployees' : IDL.Func([], [IDL.Bool], []),
     'clearAllFeedback' : IDL.Func([], [IDL.Bool], []),
     'clearAllIssues' : IDL.Func([], [IDL.Bool], []),
     'clearAllSalesRecords' : IDL.Func([], [IDL.Bool], []),
     'clearAllTopPerformers' : IDL.Func([], [IDL.Bool], []),
+    'deleteCustomerReview' : IDL.Func([IDL.Nat], [IDL.Bool], []),
     'deleteEmployee' : IDL.Func([EmployeeId], [IDL.Bool], []),
     'deleteIssueSuggestion' : IDL.Func([IDL.Nat], [IDL.Bool], []),
     'getActiveEmployeeCount' : IDL.Func([], [IDL.Nat], ['query']),
+    'getAllCallingRecords' : IDL.Func([], [IDL.Vec(CallingRecord)], ['query']),
+    'getAllCustomerReviews' : IDL.Func(
+        [],
+        [IDL.Vec(CustomerReview)],
+        ['query'],
+      ),
     'getAllEmployees' : IDL.Func([], [IDL.Vec(Employee)], ['query']),
     'getAllFeedback' : IDL.Func([], [IDL.Vec(Feedback)], ['query']),
     'getAllIssues' : IDL.Func([], [IDL.Vec(IssueSuggestion)], ['query']),

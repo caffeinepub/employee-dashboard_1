@@ -96,14 +96,6 @@ export interface SWOT {
     opportunities: Array<string>;
     employeeId: EmployeeId;
 }
-export interface AttendanceRecord {
-    id: bigint;
-    lapseType: string;
-    date: bigint;
-    employeeId: EmployeeId;
-    reason: string;
-    daysOff: bigint;
-}
 export interface IssueSuggestionInput {
     title: string;
     description: string;
@@ -119,13 +111,13 @@ export interface SalesRecordInput {
     saleDate: bigint;
     fiplCode: string;
 }
-export interface Performance {
-    operationalDiscipline: bigint;
-    softSkillsScore: bigint;
-    productKnowledgeScore: bigint;
-    salesInfluenceIndex: bigint;
+export interface Feedback {
+    id: bigint;
+    date: bigint;
+    description: string;
     employeeId: EmployeeId;
-    reviewCount: bigint;
+    category: string;
+    severity: Severity;
 }
 export interface IssueSuggestion {
     id: bigint;
@@ -134,14 +126,6 @@ export interface IssueSuggestion {
     description: string;
     updatedAt: bigint;
     category: string;
-}
-export interface Feedback {
-    id: bigint;
-    date: bigint;
-    description: string;
-    employeeId: EmployeeId;
-    category: string;
-    severity: Severity;
 }
 export interface TopPerformerInput {
     accessories: bigint;
@@ -176,12 +160,15 @@ export interface PerformanceInput {
     salesInfluenceIndex: bigint;
     reviewCount: bigint;
 }
-export interface EmployeeFullInput {
-    swotAnalysis: SWOTInput;
-    employeeInfo: EmployeeInput;
-    traits: Array<string>;
-    performance: PerformanceInput;
-    problems: Array<string>;
+export interface CustomerReview {
+    id: bigint;
+    date: bigint;
+    createdAt: bigint;
+    reviewText: string;
+    reviewerName: string;
+    rating: bigint;
+    fseName: string;
+    fiplCode: string;
 }
 export interface SWOTInput {
     weaknesses: Array<string>;
@@ -190,6 +177,71 @@ export interface SWOTInput {
     opportunities: Array<string>;
 }
 export type EmployeeId = bigint;
+export interface Employee {
+    id: EmployeeId;
+    region: string;
+    status: Status;
+    joinDate: bigint;
+    name: string;
+    role: string;
+    fseCategory: string;
+    department: string;
+    familyDetails: string;
+    pastExperience: Array<string>;
+    avatar: string;
+    fiplCode: string;
+}
+export interface AttendanceRecord {
+    id: bigint;
+    lapseType: string;
+    date: bigint;
+    employeeId: EmployeeId;
+    reason: string;
+    daysOff: bigint;
+}
+export interface Performance {
+    operationalDiscipline: bigint;
+    softSkillsScore: bigint;
+    productKnowledgeScore: bigint;
+    salesInfluenceIndex: bigint;
+    employeeId: EmployeeId;
+    reviewCount: bigint;
+}
+export interface EmployeeFullInput {
+    swotAnalysis: SWOTInput;
+    employeeInfo: EmployeeInput;
+    traits: Array<string>;
+    performance: PerformanceInput;
+    problems: Array<string>;
+}
+export interface CallingRecord {
+    id: bigint;
+    customerName: string;
+    date: bigint;
+    createdAt: bigint;
+    callDuration: string;
+    notes: string;
+    outcome: string;
+    fseName: string;
+    fiplCode: string;
+}
+export interface CustomerReviewInput {
+    date: bigint;
+    reviewText: string;
+    reviewerName: string;
+    rating: bigint;
+    fseName: string;
+    fiplCode: string;
+}
+export interface CallingRecordInput {
+    customerName: string;
+    date: bigint;
+    callDuration: string;
+    notes: string;
+    outcome: string;
+    fseName: string;
+    fiplCode: string;
+}
 export interface AttendanceRecordInput {
     lapseType: string;
     date: bigint;
@@ -217,20 +269,6 @@ export interface FeedbackInput {
     employeeId: EmployeeId;
     category: string;
     severity: Severity;
-}
-export interface Employee {
-    id: EmployeeId;
-    region: string;
-    status: Status;
-    joinDate: bigint;
-    name: string;
-    role: string;
-    fseCategory: string;
-    department: string;
-    familyDetails: string;
-    pastExperience: Array<string>;
-    avatar: string;
-    fiplCode: string;
 }
 export interface EmployeeInput {
     region: string;
@@ -269,6 +307,9 @@ export enum Status {
 export interface backendInterface {
     addAttendanceRecord(input: AttendanceRecordInput): Promise<bigint>;
     addAttendanceRecordsBatch(inputs: Array<AttendanceRecordInput>): Promise<Array<bigint>>;
+    addCallingRecord(input: CallingRecordInput): Promise<bigint>;
+    addCallingRecordsBatch(inputs: Array<CallingRecordInput>): Promise<Array<bigint>>;
+    addCustomerReview(input: CustomerReviewInput): Promise<bigint>;
     addEmployee(input: EmployeeFullInput): Promise<EmployeeId>;
     addFeedback(input: FeedbackInput): Promise<bigint>;
     addIssueSuggestion(input: IssueSuggestionInput): Promise<bigint>;
@@ -278,15 +319,20 @@ export interface backendInterface {
     addTrait(employeeId: EmployeeId, trait: string): Promise<boolean>;
     bulkAddEmployees(inputs: Array<EmployeeInput>): Promise<Array<EmployeeId>>;
     clearAllAttendance(): Promise<boolean>;
+    clearAllCallingRecords(): Promise<boolean>;
+    clearAllCustomerReviews(): Promise<boolean>;
     clearAllData(): Promise<boolean>;
     clearAllEmployees(): Promise<boolean>;
     clearAllFeedback(): Promise<boolean>;
     clearAllIssues(): Promise<boolean>;
     clearAllSalesRecords(): Promise<boolean>;
     clearAllTopPerformers(): Promise<boolean>;
+    deleteCustomerReview(id: bigint): Promise<boolean>;
     deleteEmployee(id: EmployeeId): Promise<boolean>;
     deleteIssueSuggestion(id: bigint): Promise<boolean>;
     getActiveEmployeeCount(): Promise<bigint>;
+    getAllCallingRecords(): Promise<Array<CallingRecord>>;
+    getAllCustomerReviews(): Promise<Array<CustomerReview>>;
     getAllEmployees(): Promise<Array<Employee>>;
     getAllFeedback(): Promise<Array<Feedback>>;
     getAllIssues(): Promise<Array<IssueSuggestion>>;
@@ -337,6 +383,48 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.addAttendanceRecordsBatch(arg0);
+            return result;
+        }
+    }
+    async addCallingRecord(arg0: CallingRecordInput): Promise<bigint> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.addCallingRecord(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.addCallingRecord(arg0);
+            return result;
+        }
+    }
+    async addCallingRecordsBatch(arg0: Array<CallingRecordInput>): Promise<Array<bigint>> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.addCallingRecordsBatch(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.addCallingRecordsBatch(arg0);
+            return result;
+        }
+    }
+    async addCustomerReview(arg0: CustomerReviewInput): Promise<bigint> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.addCustomerReview(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.addCustomerReview(arg0);
             return result;
         }
     }
@@ -466,6 +554,34 @@ export class Backend implements backendInterface {
             return result;
         }
     }
+    async clearAllCallingRecords(): Promise<boolean> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.clearAllCallingRecords();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.clearAllCallingRecords();
+            return result;
+        }
+    }
+    async clearAllCustomerReviews(): Promise<boolean> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.clearAllCustomerReviews();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.clearAllCustomerReviews();
+            return result;
+        }
+    }
     async clearAllData(): Promise<boolean> {
         if (this.processError) {
             try {
@@ -550,6 +666,20 @@ export class Backend implements backendInterface {
             return result;
         }
     }
+    async deleteCustomerReview(arg0: bigint): Promise<boolean> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.deleteCustomerReview(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.deleteCustomerReview(arg0);
+            return result;
+        }
+    }
     async deleteEmployee(arg0: EmployeeId): Promise<boolean> {
         if (this.processError) {
             try {
@@ -589,6 +719,34 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.getActiveEmployeeCount();
+            return result;
+        }
+    }
+    async getAllCallingRecords(): Promise<Array<CallingRecord>> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getAllCallingRecords();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getAllCallingRecords();
+            return result;
+        }
+    }
+    async getAllCustomerReviews(): Promise<Array<CustomerReview>> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getAllCustomerReviews();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getAllCustomerReviews();
             return result;
         }
     }

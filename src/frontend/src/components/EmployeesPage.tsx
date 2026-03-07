@@ -96,10 +96,48 @@ function getAttendanceColor(pct: number): string {
   return "bg-[oklch(0.55_0.22_25)]";
 }
 
-function getCesColor(score: number): string {
+function getEfficiencyColor(score: number): string {
   if (score >= 75) return "text-[oklch(0.42_0.16_145)]";
   if (score >= 50) return "text-[oklch(0.48_0.16_75)]";
   return "text-[oklch(0.42_0.2_25)]";
+}
+
+// Per-row efficiency score: fetches performance data and computes the average of 5 params
+function EfficiencyCell({ employeeId }: { employeeId: bigint }) {
+  const { data: details, isLoading } = useEmployeeDetails(employeeId);
+
+  if (isLoading) {
+    return (
+      <span className="text-sm font-mono-data text-muted-foreground/40">—</span>
+    );
+  }
+
+  if (!details?.performance) {
+    return (
+      <span className="text-sm font-mono-data text-muted-foreground/40">—</span>
+    );
+  }
+
+  const p = details.performance;
+  const efficiencyScore = Math.round(
+    (Number(p.salesInfluenceIndex) +
+      Number(p.reviewCount) +
+      Number(p.operationalDiscipline) +
+      Number(p.productKnowledgeScore) +
+      Number(p.softSkillsScore)) /
+      5,
+  );
+
+  return (
+    <span
+      className={cn(
+        "text-sm font-mono-data font-bold",
+        getEfficiencyColor(efficiencyScore),
+      )}
+    >
+      {efficiencyScore}
+    </span>
+  );
 }
 
 // Inline edit row: fetches details for the edit modal
@@ -314,8 +352,8 @@ export function EmployeesPage({ onSelectEmployee }: EmployeesPageProps) {
                   <TableHead className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground py-3 w-[140px]">
                     Attendance
                   </TableHead>
-                  <TableHead className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground py-3 text-center w-[80px]">
-                    CES
+                  <TableHead className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground py-3 text-center w-[100px]">
+                    Efficiency
                   </TableHead>
                   <TableHead className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground py-3 w-[120px]">
                     Category
@@ -329,17 +367,6 @@ export function EmployeesPage({ onSelectEmployee }: EmployeesPageProps) {
                 {filtered.map((employee, i) => {
                   const totalSales =
                     salesByEmployee.get(employee.id.toString()) ?? 0;
-                  // CES is a simple composite score proxy based on category
-                  const cesScore =
-                    employee.fseCategory === "Star"
-                      ? 88
-                      : employee.fseCategory === "Cash Cow"
-                        ? 75
-                        : employee.fseCategory === "Question Mark"
-                          ? 58
-                          : employee.fseCategory === "Dog"
-                            ? 35
-                            : 60;
                   // Attendance proxy: 95% for stars/cash cows, lower otherwise
                   const attendancePct =
                     employee.status === Status.inactive
@@ -418,16 +445,9 @@ export function EmployeesPage({ onSelectEmployee }: EmployeesPageProps) {
                         </div>
                       </TableCell>
 
-                      {/* CES Score */}
+                      {/* Efficiency Score */}
                       <TableCell className="py-3 text-center">
-                        <span
-                          className={cn(
-                            "text-sm font-mono-data font-bold",
-                            getCesColor(cesScore),
-                          )}
-                        >
-                          {cesScore}
-                        </span>
+                        <EfficiencyCell employeeId={employee.id} />
                       </TableCell>
 
                       {/* Category badge */}

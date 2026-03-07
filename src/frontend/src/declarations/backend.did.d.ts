@@ -25,6 +25,44 @@ export interface AttendanceRecordInput {
   'reason' : string,
   'daysOff' : bigint,
 }
+export interface CallingRecord {
+  'id' : bigint,
+  'customerName' : string,
+  'date' : bigint,
+  'createdAt' : bigint,
+  'callDuration' : string,
+  'notes' : string,
+  'outcome' : string,
+  'fseName' : string,
+  'fiplCode' : string,
+}
+export interface CallingRecordInput {
+  'customerName' : string,
+  'date' : bigint,
+  'callDuration' : string,
+  'notes' : string,
+  'outcome' : string,
+  'fseName' : string,
+  'fiplCode' : string,
+}
+export interface CustomerReview {
+  'id' : bigint,
+  'date' : bigint,
+  'createdAt' : bigint,
+  'reviewText' : string,
+  'reviewerName' : string,
+  'rating' : bigint,
+  'fseName' : string,
+  'fiplCode' : string,
+}
+export interface CustomerReviewInput {
+  'date' : bigint,
+  'reviewText' : string,
+  'reviewerName' : string,
+  'rating' : bigint,
+  'fseName' : string,
+  'fiplCode' : string,
+}
 export interface Employee {
   'id' : EmployeeId,
   'region' : string,
@@ -185,6 +223,12 @@ export interface _SERVICE {
     [Array<AttendanceRecordInput>],
     Array<bigint>
   >,
+  'addCallingRecord' : ActorMethod<[CallingRecordInput], bigint>,
+  'addCallingRecordsBatch' : ActorMethod<
+    [Array<CallingRecordInput>],
+    Array<bigint>
+  >,
+  'addCustomerReview' : ActorMethod<[CustomerReviewInput], bigint>,
   'addEmployee' : ActorMethod<[EmployeeFullInput], EmployeeId>,
   'addFeedback' : ActorMethod<[FeedbackInput], bigint>,
   'addIssueSuggestion' : ActorMethod<[IssueSuggestionInput], bigint>,
@@ -197,15 +241,20 @@ export interface _SERVICE {
   'addTrait' : ActorMethod<[EmployeeId, string], boolean>,
   'bulkAddEmployees' : ActorMethod<[Array<EmployeeInput>], Array<EmployeeId>>,
   'clearAllAttendance' : ActorMethod<[], boolean>,
+  'clearAllCallingRecords' : ActorMethod<[], boolean>,
+  'clearAllCustomerReviews' : ActorMethod<[], boolean>,
   'clearAllData' : ActorMethod<[], boolean>,
   'clearAllEmployees' : ActorMethod<[], boolean>,
   'clearAllFeedback' : ActorMethod<[], boolean>,
   'clearAllIssues' : ActorMethod<[], boolean>,
   'clearAllSalesRecords' : ActorMethod<[], boolean>,
   'clearAllTopPerformers' : ActorMethod<[], boolean>,
+  'deleteCustomerReview' : ActorMethod<[bigint], boolean>,
   'deleteEmployee' : ActorMethod<[EmployeeId], boolean>,
   'deleteIssueSuggestion' : ActorMethod<[bigint], boolean>,
   'getActiveEmployeeCount' : ActorMethod<[], bigint>,
+  'getAllCallingRecords' : ActorMethod<[], Array<CallingRecord>>,
+  'getAllCustomerReviews' : ActorMethod<[], Array<CustomerReview>>,
   'getAllEmployees' : ActorMethod<[], Array<Employee>>,
   'getAllFeedback' : ActorMethod<[], Array<Feedback>>,
   'getAllIssues' : ActorMethod<[], Array<IssueSuggestion>>,
