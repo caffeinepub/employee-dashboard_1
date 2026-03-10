@@ -1,11 +1,11 @@
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  Activity,
   AlertCircle,
   Lightbulb,
   PauseCircle,
   Plus,
+  UserMinus,
   Users,
 } from "lucide-react";
 import { type Variants, motion } from "motion/react";
@@ -55,12 +55,15 @@ export function OverviewPage({ onSelectEmployee }: OverviewPageProps) {
   const { data: topPerformers = [], isLoading: topPerformersLoading } =
     useTopPerformers();
 
-  // Derive counts directly from the employee list for consistency
+  // Derive counts directly from the employee list — filtered by status
   const activeCount = employees.filter(
     (e) => e.status === Status.active,
   ).length;
   const onHoldCount = employees.filter(
     (e) => e.status === Status.onHold,
+  ).length;
+  const inactiveCount = employees.filter(
+    (e) => e.status === Status.inactive,
   ).length;
 
   const issueCount = issues.filter((i) => i.category !== "Suggestion").length;
@@ -173,23 +176,23 @@ export function OverviewPage({ onSelectEmployee }: OverviewPageProps) {
           </div>
         </motion.div>
 
-        {/* Total Employees */}
+        {/* Inactive Employees */}
         <motion.div variants={itemVariants}>
           <div className="glass-card rounded-xl p-5">
             <div className="flex items-start justify-between mb-3">
-              <div className="w-9 h-9 rounded-lg bg-accent border border-border flex items-center justify-center">
-                <Activity className="w-4.5 h-4.5 text-foreground/70" />
+              <div className="w-9 h-9 rounded-lg bg-[oklch(0.96_0.03_25_/_0.5)] border border-[oklch(0.7_0.1_25_/_0.3)] flex items-center justify-center">
+                <UserMinus className="w-4.5 h-4.5 text-[oklch(0.45_0.15_25)]" />
               </div>
             </div>
             {employeesLoading ? (
               <Skeleton className="h-9 w-16 mb-1 bg-muted/50" />
             ) : (
-              <p className="text-4xl font-mono-data font-bold text-foreground">
-                {employees.length}
+              <p className="text-4xl font-mono-data font-bold text-[oklch(0.45_0.15_25)]">
+                {inactiveCount}
               </p>
             )}
             <p className="text-xs text-muted-foreground mt-1">
-              {labels.overviewTotalEmployeesLabel}
+              Inactive Employees
             </p>
           </div>
         </motion.div>

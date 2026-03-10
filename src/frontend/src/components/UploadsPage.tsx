@@ -234,7 +234,14 @@ function parseEmployeeSheetStandalone(
       "pastExperience",
       "Past Work Experience",
     );
-    const statusRaw = pick(norm, "Status", "status");
+    const statusRaw = pick(
+      norm,
+      "Status",
+      "status",
+      "statusactiveinactiveonhold",
+      "statusactiveinactive",
+      "employeestatus",
+    );
     const row: ParsedEmployeeRow = {
       fiplCode: pick(
         norm,
