@@ -116,8 +116,8 @@ export interface AttendanceRecord {
     lapseType: string;
     date: bigint;
     employeeId: EmployeeId;
-    reason: string;
-    daysOff: bigint;
+    remarks: string;
+    fiplCode: string;
 }
 export interface Performance {
     operationalDiscipline: bigint;
@@ -178,8 +178,8 @@ export interface AttendanceRecordInput {
     lapseType: string;
     date: bigint;
     employeeId: EmployeeId;
-    reason: string;
-    daysOff: bigint;
+    remarks: string;
+    fiplCode: string;
 }
 export interface TopPerformer {
     accessories: bigint;
@@ -263,6 +263,7 @@ export interface backendInterface {
     deleteEmployee(id: EmployeeId): Promise<boolean>;
     deleteIssueSuggestion(id: bigint): Promise<boolean>;
     getActiveEmployeeCount(): Promise<bigint>;
+    getAllAttendance(): Promise<Array<AttendanceRecord>>;
     getAllCallingRecords(): Promise<Array<CallingRecord>>;
     getAllCustomerReviews(): Promise<Array<CustomerReview>>;
     getAllEmployees(): Promise<Array<Employee>>;

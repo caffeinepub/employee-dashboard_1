@@ -14,7 +14,6 @@ import { Status } from "../backend";
 import type { Employee } from "../backend.d.ts";
 import { useAppSettings } from "../context/AppSettingsContext";
 import {
-  useActiveEmployeeCount,
   useAllEmployees,
   useAllIssues,
   useTopPerformers,
@@ -50,14 +49,16 @@ export function OverviewPage({ onSelectEmployee }: OverviewPageProps) {
   const { settings } = useAppSettings();
   const { labels } = settings;
 
-  const { data: activeCount, isLoading: countLoading } =
-    useActiveEmployeeCount();
   const { data: employees = [], isLoading: employeesLoading } =
     useAllEmployees();
   const { data: issues = [], isLoading: issuesLoading } = useAllIssues();
   const { data: topPerformers = [], isLoading: topPerformersLoading } =
     useTopPerformers();
 
+  // Derive counts directly from the employee list for consistency
+  const activeCount = employees.filter(
+    (e) => e.status === Status.active,
+  ).length;
   const onHoldCount = employees.filter(
     (e) => e.status === Status.onHold,
   ).length;
@@ -67,10 +68,12 @@ export function OverviewPage({ onSelectEmployee }: OverviewPageProps) {
     (i) => i.category === "Suggestion",
   ).length;
 
-  // Build directory from top performers only (match fiplCode), capped at 10
+  // Build directory from top performers only (match fiplCode) — active employees only, capped at 10
   const topPerformerCodes = new Set(topPerformers.map((tp) => tp.fiplCode));
   const directoryEmployees = employees
-    .filter((e) => topPerformerCodes.has(e.fiplCode))
+    .filter(
+      (e) => topPerformerCodes.has(e.fiplCode) && e.status === Status.active,
+    )
     .slice(0, 10);
 
   const containerVariants: Variants = {
@@ -136,11 +139,11 @@ export function OverviewPage({ onSelectEmployee }: OverviewPageProps) {
                 Live
               </span>
             </div>
-            {countLoading ? (
+            {employeesLoading ? (
               <Skeleton className="h-9 w-16 mb-1 bg-muted/50" />
             ) : (
               <p className="text-4xl font-mono-data font-bold text-primary">
-                {Number(activeCount ?? 0)}
+                {activeCount}
               </p>
             )}
             <p className="text-xs text-muted-foreground mt-1">
@@ -260,7 +263,7 @@ export function OverviewPage({ onSelectEmployee }: OverviewPageProps) {
         <TopPerformersSection />
       </motion.div>
 
-      {/* Employee Directory — top performers only */}
+      {/* Employee Directory — active top performers only */}
       <motion.div
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
@@ -274,7 +277,7 @@ export function OverviewPage({ onSelectEmployee }: OverviewPageProps) {
               </h2>
               <p className="text-[10px] text-muted-foreground">
                 {topPerformers.length > 0
-                  ? "Showing top performers this month"
+                  ? "Showing active top performers this month"
                   : labels.overviewDirectorySubtitle}
               </p>
             </div>
@@ -309,10 +312,10 @@ export function OverviewPage({ onSelectEmployee }: OverviewPageProps) {
               >
                 <Users className="w-8 h-8 mb-3 opacity-30" />
                 <p className="text-sm font-semibold">
-                  No matching employees found
+                  No active employees found
                 </p>
                 <p className="text-xs mt-0.5">
-                  Make sure top performer FIPL codes match employee records
+                  Only active top performers appear in the directory
                 </p>
               </div>
             ) : (

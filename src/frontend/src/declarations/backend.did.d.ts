@@ -15,15 +15,15 @@ export interface AttendanceRecord {
   'lapseType' : string,
   'date' : bigint,
   'employeeId' : EmployeeId,
-  'reason' : string,
-  'daysOff' : bigint,
+  'remarks' : string,
+  'fiplCode' : string,
 }
 export interface AttendanceRecordInput {
   'lapseType' : string,
   'date' : bigint,
   'employeeId' : EmployeeId,
-  'reason' : string,
-  'daysOff' : bigint,
+  'remarks' : string,
+  'fiplCode' : string,
 }
 export interface CallingRecord {
   'id' : bigint,
@@ -267,6 +267,7 @@ export interface _SERVICE {
   'deleteEmployee' : ActorMethod<[EmployeeId], boolean>,
   'deleteIssueSuggestion' : ActorMethod<[bigint], boolean>,
   'getActiveEmployeeCount' : ActorMethod<[], bigint>,
+  'getAllAttendance' : ActorMethod<[], Array<AttendanceRecord>>,
   'getAllCallingRecords' : ActorMethod<[], Array<CallingRecord>>,
   'getAllCustomerReviews' : ActorMethod<[], Array<CustomerReview>>,
   'getAllEmployees' : ActorMethod<[], Array<Employee>>,

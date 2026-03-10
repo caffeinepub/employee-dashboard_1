@@ -15,6 +15,13 @@ import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Table,
   TableBody,
   TableCell,
@@ -32,21 +39,14 @@ import type { Employee } from "../backend.d.ts";
 import {
   useAllEmployees,
   useDeleteEmployee,
+  useEmployeeDetails,
   useSalesRecords,
 } from "../hooks/useQueries";
-import { useEmployeeDetails } from "../hooks/useQueries";
 import { EditEmployeeModal } from "./EditEmployeeModal";
 import { getStatusClassName, getStatusLabel } from "./EmployeeCard";
 
 type CategoryFilter = "All" | "Cash Cow" | "Star" | "Question Mark" | "Dog";
-
-const CATEGORY_FILTERS: CategoryFilter[] = [
-  "All",
-  "Cash Cow",
-  "Star",
-  "Question Mark",
-  "Dog",
-];
+type JoinDateSort = "All" | "Newest First" | "Oldest First";
 
 const CATEGORY_BADGE_STYLES: Record<string, string> = {
   "Cash Cow":
@@ -55,16 +55,6 @@ const CATEGORY_BADGE_STYLES: Record<string, string> = {
   "Question Mark":
     "bg-[oklch(0.93_0.04_240_/_0.5)] text-[oklch(0.35_0.14_240)] border-[oklch(0.65_0.12_240_/_0.4)]",
   Dog: "bg-[oklch(0.95_0.04_25_/_0.5)] text-[oklch(0.40_0.18_25)] border-[oklch(0.65_0.14_25_/_0.4)]",
-};
-
-const FILTER_ACTIVE_STYLES: Record<CategoryFilter, string> = {
-  All: "bg-primary text-primary-foreground border-primary shadow-sm",
-  "Cash Cow":
-    "bg-[oklch(0.35_0.15_165)] text-white border-[oklch(0.35_0.15_165)] shadow-sm",
-  Star: "bg-[oklch(0.38_0.14_85)] text-white border-[oklch(0.38_0.14_85)] shadow-sm",
-  "Question Mark":
-    "bg-[oklch(0.38_0.14_240)] text-white border-[oklch(0.38_0.14_240)] shadow-sm",
-  Dog: "bg-[oklch(0.42_0.18_25)] text-white border-[oklch(0.42_0.18_25)] shadow-sm",
 };
 
 function getInitials(name: string): string {
@@ -177,7 +167,8 @@ interface EmployeesPageProps {
 }
 
 export function EmployeesPage({ onSelectEmployee }: EmployeesPageProps) {
-  const [activeFilter, setActiveFilter] = useState<CategoryFilter>("All");
+  const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("All");
+  const [joinDateSort, setJoinDateSort] = useState<JoinDateSort>("All");
   const [searchQuery, setSearchQuery] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<Employee | null>(null);
 
@@ -195,14 +186,28 @@ export function EmployeesPage({ onSelectEmployee }: EmployeesPageProps) {
     return map;
   }, [allSales]);
 
-  const filtered = employees
-    .filter((e) => activeFilter === "All" || e.fseCategory === activeFilter)
-    .filter((e) =>
-      searchQuery.trim() === ""
-        ? true
-        : e.name.toLowerCase().includes(searchQuery.trim().toLowerCase()) ||
-          e.fiplCode?.toLowerCase().includes(searchQuery.trim().toLowerCase()),
-    );
+  const filtered = useMemo(() => {
+    let list = employees
+      .filter(
+        (e) => categoryFilter === "All" || e.fseCategory === categoryFilter,
+      )
+      .filter((e) =>
+        searchQuery.trim() === ""
+          ? true
+          : e.name.toLowerCase().includes(searchQuery.trim().toLowerCase()) ||
+            e.fiplCode
+              ?.toLowerCase()
+              .includes(searchQuery.trim().toLowerCase()),
+      );
+
+    if (joinDateSort === "Newest First") {
+      list = [...list].sort((a, b) => Number(b.joinDate) - Number(a.joinDate));
+    } else if (joinDateSort === "Oldest First") {
+      list = [...list].sort((a, b) => Number(a.joinDate) - Number(b.joinDate));
+    }
+
+    return list;
+  }, [employees, categoryFilter, joinDateSort, searchQuery]);
 
   const handleDelete = () => {
     if (!deleteTarget) return;
@@ -245,13 +250,14 @@ export function EmployeesPage({ onSelectEmployee }: EmployeesPageProps) {
         </div>
       </motion.div>
 
-      {/* Search + Category Filter Row */}
+      {/* Search + Filter Bar */}
       <motion.div
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, delay: 0.06 }}
         className="flex flex-col sm:flex-row gap-3 mb-4"
       >
+        {/* Search */}
         <div className="relative flex-1 max-w-xs">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
           <Input
@@ -264,37 +270,43 @@ export function EmployeesPage({ onSelectEmployee }: EmployeesPageProps) {
           />
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          {CATEGORY_FILTERS.map((cat) => {
-            const isActive = activeFilter === cat;
-            return (
-              <button
-                key={cat}
-                type="button"
-                onClick={() => setActiveFilter(cat)}
-                className={cn(
-                  "text-xs font-semibold px-3 py-1.5 rounded-full border transition-all duration-150",
-                  isActive
-                    ? FILTER_ACTIVE_STYLES[cat]
-                    : "text-muted-foreground border-border/50 hover:text-foreground hover:border-border bg-background/50",
-                )}
-                data-ocid="employees_page.tab"
-              >
-                {cat}
-                {cat !== "All" && (
-                  <span
-                    className={cn(
-                      "ml-1.5 text-[10px] font-bold",
-                      isActive ? "opacity-80" : "opacity-50",
-                    )}
-                  >
-                    {employees.filter((e) => e.fseCategory === cat).length}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
+        {/* Category Filter */}
+        <Select
+          value={categoryFilter}
+          onValueChange={(v) => setCategoryFilter(v as CategoryFilter)}
+        >
+          <SelectTrigger
+            className="h-9 w-[180px] text-sm bg-background/70 border-border/60"
+            data-ocid="employees_page.select"
+          >
+            <SelectValue placeholder="All Categories" />
+          </SelectTrigger>
+          <SelectContent className="max-h-64 overflow-y-auto">
+            <SelectItem value="All">All Categories</SelectItem>
+            <SelectItem value="Cash Cow">Cash Cow</SelectItem>
+            <SelectItem value="Star">Star</SelectItem>
+            <SelectItem value="Question Mark">Question Mark</SelectItem>
+            <SelectItem value="Dog">Dog</SelectItem>
+          </SelectContent>
+        </Select>
+
+        {/* Join Date Sort */}
+        <Select
+          value={joinDateSort}
+          onValueChange={(v) => setJoinDateSort(v as JoinDateSort)}
+        >
+          <SelectTrigger
+            className="h-9 w-[180px] text-sm bg-background/70 border-border/60"
+            data-ocid="employees_page.select"
+          >
+            <SelectValue placeholder="Sort by Join Date" />
+          </SelectTrigger>
+          <SelectContent className="max-h-64 overflow-y-auto">
+            <SelectItem value="All">All (No Sort)</SelectItem>
+            <SelectItem value="Newest First">Newest First</SelectItem>
+            <SelectItem value="Oldest First">Oldest First</SelectItem>
+          </SelectContent>
+        </Select>
       </motion.div>
 
       {/* Table */}
@@ -324,7 +336,7 @@ export function EmployeesPage({ onSelectEmployee }: EmployeesPageProps) {
                 ? "No employees yet"
                 : searchQuery.trim() !== ""
                   ? `No employees match "${searchQuery}"`
-                  : `No employees in "${activeFilter}" category`}
+                  : `No employees in "${categoryFilter}" category`}
             </p>
             <p className="text-xs mt-1 opacity-70">
               {employees.length === 0

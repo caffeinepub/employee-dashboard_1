@@ -146,9 +146,8 @@ export function EmployeeDetailPage({
   // Add Attendance form state
   const [attendanceForm, setAttendanceForm] = useState({
     date: new Date().toISOString().split("T")[0],
-    lapseType: "Late Attendance",
-    reason: "",
-    daysOff: "0",
+    lapseType: "Attendance Lapses",
+    remarks: "",
   });
 
   const { settings } = useAppSettings();
@@ -313,7 +312,6 @@ export function EmployeeDetailPage({
     type AttMonth = {
       month: string;
       lapses: number;
-      daysOff: number;
       sortKey: number;
     };
     const map = new Map<string, AttMonth>();
@@ -324,14 +322,9 @@ export function EmployeeDetailPage({
       const existing = map.get(key) ?? {
         month: `${monthNames[d.getMonth()]} ${d.getFullYear()}`,
         lapses: 0,
-        daysOff: 0,
         sortKey: d.getFullYear() * 100 + d.getMonth(),
       };
-      if (rec.lapseType === "Day Off") {
-        existing.daysOff += Number(rec.daysOff) || 1;
-      } else {
-        existing.lapses += 1;
-      }
+      existing.lapses += 1;
       map.set(key, existing);
     }
 
@@ -392,19 +385,18 @@ export function EmployeeDetailPage({
     addAttendanceRecord.mutate(
       {
         employeeId: employee.id,
+        fiplCode: employee.fiplCode ?? "",
         lapseType: attendanceForm.lapseType,
         date: dateNs,
-        reason: attendanceForm.reason,
-        daysOff: BigInt(Number(attendanceForm.daysOff) || 0),
+        remarks: attendanceForm.remarks,
       },
       {
         onSuccess: () => {
           toast.success("Attendance record added");
           setAttendanceForm({
             date: new Date().toISOString().split("T")[0],
-            lapseType: "Late Attendance",
-            reason: "",
-            daysOff: "0",
+            lapseType: "Attendance Lapses",
+            remarks: "",
           });
           setAddAttendanceOpen(false);
         },
@@ -1412,7 +1404,7 @@ export function EmployeeDetailPage({
           <motion.div variants={sectionVariants}>
             <h2 className="text-xs uppercase tracking-widest text-muted-foreground font-semibold mb-3 flex items-center gap-2">
               <ClipboardList className="w-3.5 h-3.5" />
-              Attendance Overview — Lapses &amp; Days Off
+              Attendance Overview — Monthly Lapses
             </h2>
             <div className="glass-card rounded-xl p-5">
               {attendanceLoading ? (
@@ -1472,14 +1464,7 @@ export function EmployeeDetailPage({
                       name="Lapses"
                       fill="oklch(0.55 0.2 25)"
                       radius={[3, 3, 0, 0]}
-                      maxBarSize={32}
-                    />
-                    <Bar
-                      dataKey="daysOff"
-                      name="Days Off"
-                      fill="oklch(0.52 0.14 240)"
-                      radius={[3, 3, 0, 0]}
-                      maxBarSize={32}
+                      maxBarSize={40}
                     />
                   </BarChart>
                 </ResponsiveContainer>
@@ -1565,13 +1550,10 @@ export function EmployeeDetailPage({
                               Date
                             </TableHead>
                             <TableHead className="text-[10px] font-bold uppercase py-2">
-                              Type
+                              Lapses Type
                             </TableHead>
                             <TableHead className="text-[10px] font-bold uppercase py-2">
-                              Reason
-                            </TableHead>
-                            <TableHead className="text-[10px] font-bold uppercase py-2 text-right">
-                              Days Off
+                              Remarks
                             </TableHead>
                           </TableRow>
                         </TableHeader>
@@ -1588,21 +1570,18 @@ export function EmployeeDetailPage({
                                 <span
                                   className={cn(
                                     "text-[10px] font-semibold px-2 py-0.5 rounded-full border",
-                                    record.lapseType === "Day Off"
+                                    record.lapseType === "EOD Picture Lapses"
                                       ? "bg-[oklch(0.93_0.04_240_/_0.5)] text-[oklch(0.38_0.14_240)] border-[oklch(0.65_0.12_240_/_0.3)]"
-                                      : "bg-[oklch(0.95_0.04_25_/_0.5)] text-[oklch(0.42_0.18_25)] border-[oklch(0.65_0.14_25_/_0.3)]",
+                                      : record.lapseType === "Days Brief Lapses"
+                                        ? "bg-[oklch(0.93_0.04_75_/_0.5)] text-[oklch(0.38_0.14_75)] border-[oklch(0.65_0.12_75_/_0.3)]"
+                                        : "bg-[oklch(0.95_0.04_25_/_0.5)] text-[oklch(0.42_0.18_25)] border-[oklch(0.65_0.14_25_/_0.3)]",
                                   )}
                                 >
                                   {record.lapseType}
                                 </span>
                               </TableCell>
                               <TableCell className="text-xs py-2 text-muted-foreground/80">
-                                {record.reason || "—"}
-                              </TableCell>
-                              <TableCell className="text-xs py-2 text-right font-mono-data">
-                                {Number(record.daysOff) > 0
-                                  ? Number(record.daysOff)
-                                  : "—"}
+                                {record.remarks || "—"}
                               </TableCell>
                             </TableRow>
                           ))}
@@ -1800,7 +1779,7 @@ export function EmployeeDetailPage({
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold text-foreground/80">
-                Type
+                Lapses Type
               </Label>
               <Select
                 value={attendanceForm.lapseType}
@@ -1815,47 +1794,30 @@ export function EmployeeDetailPage({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Late Attendance" className="text-xs">
-                    Late Attendance
+                  <SelectItem value="Attendance Lapses" className="text-xs">
+                    Attendance Lapses
                   </SelectItem>
-                  <SelectItem value="Missing" className="text-xs">
-                    Missing Attendance
+                  <SelectItem value="EOD Picture Lapses" className="text-xs">
+                    EOD Picture Lapses
                   </SelectItem>
-                  <SelectItem value="Day Off" className="text-xs">
-                    Day Off
-                  </SelectItem>
-                  <SelectItem value="Other" className="text-xs">
-                    Other
+                  <SelectItem value="Days Brief Lapses" className="text-xs">
+                    Days Brief Lapses
                   </SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold text-foreground/80">
-                Reason
+                Remarks
               </Label>
               <Textarea
-                placeholder="Reason for lapse or day off..."
-                value={attendanceForm.reason}
+                placeholder="Any remarks about this lapse..."
+                value={attendanceForm.remarks}
                 onChange={(e) =>
-                  setAttendanceForm((f) => ({ ...f, reason: e.target.value }))
+                  setAttendanceForm((f) => ({ ...f, remarks: e.target.value }))
                 }
                 className="text-sm resize-none min-h-[60px]"
                 data-ocid="attendance.textarea"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-foreground/80">
-                Days Off (0 for lapse, 1+ for absent)
-              </Label>
-              <Input
-                type="number"
-                min={0}
-                value={attendanceForm.daysOff}
-                onChange={(e) =>
-                  setAttendanceForm((f) => ({ ...f, daysOff: e.target.value }))
-                }
-                className="text-sm"
               />
             </div>
           </div>

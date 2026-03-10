@@ -198,8 +198,8 @@ export interface AttendanceRecord {
     lapseType: string;
     date: bigint;
     employeeId: EmployeeId;
-    reason: string;
-    daysOff: bigint;
+    remarks: string;
+    fiplCode: string;
 }
 export interface Performance {
     operationalDiscipline: bigint;
@@ -260,8 +260,8 @@ export interface AttendanceRecordInput {
     lapseType: string;
     date: bigint;
     employeeId: EmployeeId;
-    reason: string;
-    daysOff: bigint;
+    remarks: string;
+    fiplCode: string;
 }
 export interface TopPerformer {
     accessories: bigint;
@@ -345,6 +345,7 @@ export interface backendInterface {
     deleteEmployee(id: EmployeeId): Promise<boolean>;
     deleteIssueSuggestion(id: bigint): Promise<boolean>;
     getActiveEmployeeCount(): Promise<bigint>;
+    getAllAttendance(): Promise<Array<AttendanceRecord>>;
     getAllCallingRecords(): Promise<Array<CallingRecord>>;
     getAllCustomerReviews(): Promise<Array<CustomerReview>>;
     getAllEmployees(): Promise<Array<Employee>>;
@@ -733,6 +734,20 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.getActiveEmployeeCount();
+            return result;
+        }
+    }
+    async getAllAttendance(): Promise<Array<AttendanceRecord>> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getAllAttendance();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getAllAttendance();
             return result;
         }
     }

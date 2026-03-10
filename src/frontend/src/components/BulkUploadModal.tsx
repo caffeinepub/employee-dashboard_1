@@ -1069,10 +1069,10 @@ export function BulkUploadModal({ open, onOpenChange }: BulkUploadModalProps) {
             addAttendanceRecord
               .mutateAsync({
                 employeeId,
-                lapseType: lapse.lapseType,
+                fiplCode: row.fiplCode,
+                lapseType: lapse.lapseType || "Attendance Lapses",
                 date: dateNs,
-                reason: lapse.reason,
-                daysOff: 0n,
+                remarks: lapse.reason,
               })
               .catch(() => null),
           );
@@ -1088,10 +1088,10 @@ export function BulkUploadModal({ open, onOpenChange }: BulkUploadModalProps) {
             addAttendanceRecord
               .mutateAsync({
                 employeeId,
-                lapseType: "Day Off",
+                fiplCode: row.fiplCode,
+                lapseType: "Days Brief Lapses",
                 date: dateNs,
-                reason: dayOff.reason,
-                daysOff: 1n,
+                remarks: dayOff.reason,
               })
               .catch(() => null),
           );

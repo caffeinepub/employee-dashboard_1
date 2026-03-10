@@ -60,6 +60,11 @@ export function Sidebar({
       .toUpperCase()
       .slice(0, 2);
 
+  // Only active employees count for the badge
+  const activeEmployeeCount = employees.filter(
+    (e) => e.status === Status.active,
+  ).length;
+
   const navItems = [
     {
       icon: <LayoutDashboard className="w-4 h-4 shrink-0" />,
@@ -95,7 +100,7 @@ export function Sidebar({
       view: "employees" as View,
       onClick: onEmployeesClick,
       ocid: "nav.link",
-      badge: employees.length,
+      badge: activeEmployeeCount,
     },
   ];
 
@@ -193,51 +198,44 @@ export function Sidebar({
           })}
         </nav>
 
-        {/* Employee List (quick nav to individual profiles) */}
+        {/* Employee List (quick nav) — active employees only */}
         {!collapsed && (
           <ScrollArea className="flex-1 min-h-0 px-3 pb-4">
             <div className="space-y-0.5">
-              {employees.map((employee) => (
-                <button
-                  type="button"
-                  key={employee.id.toString()}
-                  onClick={() => onSelectEmployee(employee)}
-                  className={cn(
-                    "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-all duration-150 group",
-                    selectedEmployee?.id === employee.id &&
-                      currentView === "employee"
-                      ? "bg-primary/15 text-primary border border-primary/25"
-                      : "text-muted-foreground hover:text-foreground hover:bg-accent",
-                  )}
-                  data-ocid="nav.link"
-                >
-                  <div className="relative shrink-0">
-                    <Avatar className="w-7 h-7">
-                      <AvatarFallback className="text-[10px] font-bold bg-accent text-accent-foreground">
-                        {getInitials(employee.name)}
-                      </AvatarFallback>
-                    </Avatar>
-                    <span
-                      className={cn(
-                        "absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-sidebar",
-                        employee.status === Status.active
-                          ? "bg-[oklch(0.52_0.18_145)]"
-                          : employee.status === Status.onHold
-                            ? "bg-[oklch(0.62_0.16_75)]"
-                            : "bg-muted-foreground/40",
-                      )}
-                    />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-semibold truncate">
-                      {employee.name}
-                    </p>
-                    <p className="text-[10px] truncate opacity-70">
-                      {employee.role}
-                    </p>
-                  </div>
-                </button>
-              ))}
+              {employees
+                .filter((e) => e.status === Status.active)
+                .map((employee) => (
+                  <button
+                    type="button"
+                    key={employee.id.toString()}
+                    onClick={() => onSelectEmployee(employee)}
+                    className={cn(
+                      "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-all duration-150 group",
+                      selectedEmployee?.id === employee.id &&
+                        currentView === "employee"
+                        ? "bg-primary/15 text-primary border border-primary/25"
+                        : "text-muted-foreground hover:text-foreground hover:bg-accent",
+                    )}
+                    data-ocid="nav.link"
+                  >
+                    <div className="relative shrink-0">
+                      <Avatar className="w-7 h-7">
+                        <AvatarFallback className="text-[10px] font-bold bg-accent text-accent-foreground">
+                          {getInitials(employee.name)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-sidebar bg-[oklch(0.52_0.18_145)]" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-semibold truncate">
+                        {employee.name}
+                      </p>
+                      <p className="text-[10px] truncate opacity-70">
+                        {employee.role}
+                      </p>
+                    </div>
+                  </button>
+                ))}
             </div>
           </ScrollArea>
         )}

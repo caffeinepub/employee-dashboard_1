@@ -6,7 +6,7 @@ import Text "mo:core/Text";
 import Int "mo:core/Int";
 import Order "mo:core/Order";
 import Time "mo:core/Time";
-
+ // separate migration module
 
 
 actor {
@@ -74,10 +74,10 @@ actor {
   public type AttendanceRecord = {
     id : Nat;
     employeeId : EmployeeId;
+    fiplCode : Text;
     date : Int;
     lapseType : Text;
-    reason : Text;
-    daysOff : Nat;
+    remarks : Text;
   };
 
   public type IssueSuggestion = {
@@ -146,13 +146,7 @@ actor {
     saleDate : Int;
   };
 
-  public type AttendanceRecordInput = {
-    employeeId : EmployeeId;
-    date : Int;
-    lapseType : Text;
-    reason : Text;
-    daysOff : Nat;
-  };
+  public type AttendanceRecordInput = { employeeId : EmployeeId; fiplCode : Text; date : Int; lapseType : Text; remarks : Text };
 
   public type IssueSuggestionInput = {
     title : Text;
@@ -349,6 +343,10 @@ actor {
         rec.employeeId == employeeId;
       }
     );
+  };
+
+  public query ({ caller }) func getAllAttendance() : async [AttendanceRecord] {
+    attendanceRecords.values().toArray();
   };
 
   public query ({ caller }) func getAllIssues() : async [IssueSuggestion] {
@@ -852,10 +850,10 @@ actor {
     let record : AttendanceRecord = {
       id = newId;
       employeeId = input.employeeId;
+      fiplCode = input.fiplCode;
       date = input.date;
       lapseType = input.lapseType;
-      reason = input.reason;
-      daysOff = input.daysOff;
+      remarks = input.remarks;
     };
 
     attendanceRecords.add(newId, record);
@@ -1089,10 +1087,10 @@ actor {
         let record : AttendanceRecord = {
           id = newId;
           employeeId = input.employeeId;
+          fiplCode = input.fiplCode;
           date = input.date;
           lapseType = input.lapseType;
-          reason = input.reason;
-          daysOff = input.daysOff;
+          remarks = input.remarks;
         };
 
         attendanceRecords.add(newId, record);
@@ -1315,4 +1313,3 @@ actor {
     null;
   };
 };
-

@@ -70,12 +70,10 @@ interface ParsedParamsRow {
 
 interface ParsedAttendanceRow {
   fiplCode: string;
-  fseName: string;
-  lapseDate: string;
-  labType: string;
-  daysOff: number;
-  dayOffReason: string;
-  dayOffDate: string;
+  name: string; // auto-filled from employee
+  date: string; // DD-MM-YYYY or YYYY-MM-DD (normalised to YYYY-MM-DD)
+  lapseType: string; // Attendance Lapses / EOD Picture Lapses / Days Brief Lapses
+  remarks: string;
   error?: string;
 }
 
@@ -424,87 +422,46 @@ function parseAttendanceSheetStandalone(
       fiplCode: pick(
         norm,
         "FIPL Code",
+        "FIPL Code (Primary Key - FK)*",
         "FIPL Code (Primary Key)*",
         "fiplCode",
         "FIPLCode",
+        "FIPL",
       ),
-      fseName: pick(
+      name: pick(
         norm,
-        "FSE Name",
-        "FSA Name",
         "Name (auto-filled)",
         "Name",
+        "FSE Name",
         "fseName",
-        "fsaname",
+        "name",
       ),
-      lapseDate: parseXlsxDate(
+      date: parseXlsxDate(
         pick(
           norm,
-          "Lapse Date (DD-MM-YYYY)",
-          "Lapse Date",
-          "lapseDate",
-          "lapsedate",
-        ),
-        xlsx,
-      ),
-      labType: pick(
-        norm,
-        "Type of Lapses",
-        "Type of Lapses (Attendance Lapses / EOD Picture Lapses / Days Brief Lapses)",
-        "Type of Lab",
-        "Type of Lab (Attendance Lab / EOD Picture Lab / Days Brief Lab)",
-        "Lapse Type",
-        "lapseType",
-        "labType",
-        "labtype",
-      ),
-      daysOff:
-        Number(
-          pick(
-            norm,
-            "Days Taken Off",
-            "Days Taken Off (0 or 1)",
-            "Days Off",
-            "daysOff",
-            "daysoff",
-            "numberofdays",
-          ),
-        ) || 0,
-      dayOffReason: pick(
-        norm,
-        "Reason for Day Off",
-        "Days Off Reason",
-        "Reason",
-        "dayOffReason",
-        "daysOffReason",
-        "reason",
-      ),
-      dayOffDate: parseXlsxDate(
-        pick(
-          norm,
-          "Day Off Date (DD-MM-YYYY)",
-          "Day Off Date",
-          "dayOffDate",
-          "dayoffdate",
-          // fallback: old single-date templates
           "Date (DD-MM-YYYY)*",
-          "Date (YYYY-MM-DD)*",
-          "Date (YYYY-MM-DD)",
           "Date (DD-MM-YYYY)",
+          "Date (YYYY-MM-DD)",
           "Date",
           "date",
         ),
         xlsx,
       ),
+      lapseType: pick(
+        norm,
+        "Lapses Type (Attendance Lapses / EOD Picture Lapses / Days Brief Lapses)*",
+        "Lapses Type",
+        "Type of Lapses",
+        "Lapse Type",
+        "lapseType",
+        "lapses type",
+        "lapsestype",
+      ),
+      remarks: pick(norm, "Remarks", "remarks", "Reason", "reason", "note"),
     };
     if (!row.fiplCode) row.error = "FIPL Code is required";
-    else if (!row.labType && row.daysOff === 0) {
-      row.error = "Either Type of Lapses or Days Taken Off must be filled in";
-    } else if (row.labType && !row.lapseDate) {
-      row.error = "Lapse Date is required when Type of Lapses is filled";
-    } else if (row.daysOff > 0 && !row.dayOffDate) {
-      row.error = "Day Off Date is required when Days Taken Off is filled";
-    }
+    else if (!row.date) row.error = "Date is required";
+    else if (!row.lapseType) row.error = "Lapses Type is required";
     return row;
   });
 }
@@ -754,32 +711,43 @@ async function downloadAttendanceTemplate() {
   const XLSX = await loadXlsx();
   const wb = XLSX.utils.book_new();
   const headers = [
-    "FIPL Code (Primary Key)*",
-    "FSE Name (auto-filled)",
-    "Lapse Date (DD-MM-YYYY)",
-    "Type of Lapses (Attendance Lapses / EOD Picture Lapses / Days Brief Lapses)",
-    "Days Taken Off",
-    "Reason for Day Off",
-    "Day Off Date (DD-MM-YYYY)",
+    "FIPL Code (Primary Key - FK)*",
+    "Name (auto-filled)",
+    "Date (DD-MM-YYYY)*",
+    "Lapses Type (Attendance Lapses / EOD Picture Lapses / Days Brief Lapses)*",
+    "Remarks",
   ];
   const ws = XLSX.utils.aoa_to_sheet([
     headers,
-    ["FIPL-001", "Priya Sharma", "10-01-2026", "Attendance Lapses", 0, "", ""],
-    ["FIPL-001", "Priya Sharma", "05-02-2026", "EOD Picture Lapses", 0, "", ""],
-    ["FIPL-001", "Priya Sharma", "12-02-2026", "Days Brief Lapses", 0, "", ""],
-    ["FIPL-001", "Priya Sharma", "", "", 1, "Sick Leave", "01-03-2026"],
-    ["FIPL-002", "Raj Mehta", "15-01-2026", "Attendance Lapses", 0, "", ""],
-    ["FIPL-002", "Raj Mehta", "20-01-2026", "EOD Picture Lapses", 0, "", ""],
-    ["FIPL-002", "Raj Mehta", "", "", 1, "Personal emergency", "22-01-2026"],
+    [
+      "FIPL-001",
+      "Priya Sharma",
+      "10-01-2026",
+      "Attendance Lapses",
+      "Late login to attendance system",
+    ],
+    [
+      "FIPL-001",
+      "Priya Sharma",
+      "05-02-2026",
+      "EOD Picture Lapses",
+      "Did not upload EOD photo",
+    ],
+    [
+      "FIPL-002",
+      "Raj Mehta",
+      "15-01-2026",
+      "Days Brief Lapses",
+      "Missing daily brief report",
+    ],
+    ["FIPL-002", "Raj Mehta", "20-01-2026", "Attendance Lapses", ""],
   ]);
   ws["!cols"] = [
-    { wch: 22 },
-    { wch: 28 },
     { wch: 26 },
-    { wch: 52 },
-    { wch: 18 },
-    { wch: 32 },
     { wch: 26 },
+    { wch: 26 },
+    { wch: 60 },
+    { wch: 40 },
   ];
   XLSX.utils.book_append_sheet(wb, ws, "Attendance");
   XLSX.writeFile(wb, "FSE-attendance-template.xlsx");
@@ -1348,17 +1316,17 @@ export function UploadsPage() {
       }
       const enriched = rows.map((r) => {
         if (r.error) return r;
-        if (!freshMap.has(r.fiplCode.toUpperCase())) {
+        const emp = freshMap.get(r.fiplCode.toUpperCase());
+        if (!emp) {
           return {
             ...r,
             error: `FIPL Code "${r.fiplCode}" not found in system -- upload Employee Data first`,
           };
         }
-        // Auto-fill FSE name from employee record if not provided
-        const emp = freshMap.get(r.fiplCode.toUpperCase());
+        // Auto-fill name from employee record if not provided
         return {
           ...r,
-          fseName: r.fseName || emp?.name || "",
+          name: r.name || emp.name || "",
         };
       });
       setAttRows(enriched);
@@ -1667,7 +1635,7 @@ export function UploadsPage() {
         freshEmployees.map((e) => [e.fiplCode.toUpperCase(), e]),
       );
 
-      // Build full batch payload
+      // Build full batch payload — one record per row
       let skipped = 0;
       const batchInputs: AttendanceRecordInput[] = [];
       for (const row of valid) {
@@ -1676,38 +1644,16 @@ export function UploadsPage() {
           skipped++;
           continue;
         }
-        // If a lapse type is specified, use the lapse date
-        if (row.labType) {
-          const lapseDateMs = row.lapseDate
-            ? new Date(row.lapseDate).getTime()
-            : Date.now();
-          const lapseDateNs =
-            BigInt(Number.isNaN(lapseDateMs) ? Date.now() : lapseDateMs) *
-            1_000_000n;
-          batchInputs.push({
-            employeeId: emp.id,
-            lapseType: row.labType,
-            date: lapseDateNs,
-            reason: "",
-            daysOff: 0n,
-          });
-        }
-        // If days off are specified, use the day off date
-        if (row.daysOff > 0) {
-          const dayOffDateMs = row.dayOffDate
-            ? new Date(row.dayOffDate).getTime()
-            : Date.now();
-          const dayOffDateNs =
-            BigInt(Number.isNaN(dayOffDateMs) ? Date.now() : dayOffDateMs) *
-            1_000_000n;
-          batchInputs.push({
-            employeeId: emp.id,
-            lapseType: "Days Off",
-            date: dayOffDateNs,
-            reason: row.dayOffReason,
-            daysOff: BigInt(row.daysOff),
-          });
-        }
+        const dateMs = row.date ? new Date(row.date).getTime() : Date.now();
+        const dateNs =
+          BigInt(Number.isNaN(dateMs) ? Date.now() : dateMs) * 1_000_000n;
+        batchInputs.push({
+          employeeId: emp.id,
+          fiplCode: row.fiplCode,
+          lapseType: row.lapseType,
+          date: dateNs,
+          remarks: row.remarks,
+        });
       }
 
       if (batchInputs.length === 0) {
@@ -1970,21 +1916,13 @@ export function UploadsPage() {
   const renderAttRow = (row: ParsedAttendanceRow) => (
     <>
       <TableCell className="font-mono text-[10px]">{row.fiplCode}</TableCell>
-      <TableCell>{row.fseName || "—"}</TableCell>
+      <TableCell>{row.name || "—"}</TableCell>
+      <TableCell className="text-muted-foreground">{row.date || "—"}</TableCell>
       <TableCell className="text-muted-foreground">
-        {row.lapseDate || "—"}
+        {row.lapseType || "—"}
       </TableCell>
-      <TableCell className="text-muted-foreground">
-        {row.labType || "—"}
-      </TableCell>
-      <TableCell className="text-muted-foreground">
-        {row.daysOff > 0 ? `${row.daysOff} day(s)` : "—"}
-      </TableCell>
-      <TableCell className="text-muted-foreground max-w-[100px] truncate">
-        {row.dayOffReason || "—"}
-      </TableCell>
-      <TableCell className="text-muted-foreground">
-        {row.dayOffDate || "—"}
+      <TableCell className="text-muted-foreground max-w-[120px] truncate">
+        {row.remarks || "—"}
       </TableCell>
     </>
   );
@@ -2184,16 +2122,8 @@ export function UploadsPage() {
             <UploadTabPanel
               tabId="attendance"
               title="Attendance Records"
-              description="Upload attendance data linked by FIPL Code. Three lapse types: Attendance Lapses, EOD Picture Lapses, Days Brief Lapses. Include Days Taken Off and Reason for Day Off."
-              columns={[
-                "FIPL Code",
-                "FSE Name",
-                "Lapse Date",
-                "Type of Lapses",
-                "Days Off",
-                "Reason",
-                "Day Off Date",
-              ]}
+              description="Upload attendance data linked by FIPL Code (FK). Each row is one lapse event. Lapses Type must be one of: Attendance Lapses, EOD Picture Lapses, Days Brief Lapses. Primary key = FIPL Code + Date + Lapses Type."
+              columns={["FIPL Code", "Name", "Date", "Lapses Type", "Remarks"]}
               rows={attRows}
               renderRow={renderAttRow}
               step={attStep}
@@ -2210,12 +2140,14 @@ export function UploadsPage() {
             {attStep === "idle" && (
               <div className="mt-5 p-4 rounded-lg bg-[oklch(0.97_0.02_240_/_0.4)] border border-[oklch(0.75_0.1_240_/_0.3)]">
                 <p className="text-xs font-semibold text-[oklch(0.35_0.14_240)] mb-1">
-                  One row per event
+                  One row = one lapse
                 </p>
                 <p className="text-[11px] text-muted-foreground">
-                  Each row represents one attendance event (a lapse or a day
-                  off). Multiple rows can reference the same FIPL Code and date.
-                  Employees must exist before uploading attendance.
+                  Each row records one lapse event for an FSE. The primary key
+                  is the combination of FIPL Code + Date + Lapses Type — so the
+                  same employee can have multiple lapses on different dates.
+                  Employees must exist in the system before uploading
+                  attendance.
                 </p>
               </div>
             )}
