@@ -1,23 +1,24 @@
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   AlertCircle,
   Lightbulb,
   PauseCircle,
   Plus,
+  RefreshCw,
   UserMinus,
   Users,
 } from "lucide-react";
 import { type Variants, motion } from "motion/react";
 import { useState } from "react";
+import { toast } from "sonner";
 import { Status } from "../backend";
 import type { Employee } from "../backend.d.ts";
 import { useAppSettings } from "../context/AppSettingsContext";
-import {
-  useAllEmployees,
-  useAllIssues,
-  useTopPerformers,
-} from "../hooks/useQueries";
+import { useGoogleSheetEmployees } from "../hooks/useGoogleSheetData";
+import { useAllIssues, useTopPerformers } from "../hooks/useQueries";
 import { AddEmployeeModal } from "./AddEmployeeModal";
 import { EmployeeCard } from "./EmployeeCard";
 import { IssuesDialog } from "./IssuesDialog";
@@ -43,6 +44,15 @@ interface OverviewPageProps {
 
 export function OverviewPage({ onSelectEmployee }: OverviewPageProps) {
   const [addEmployeeOpen, setAddEmployeeOpen] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const queryClient = useQueryClient();
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await queryClient.invalidateQueries();
+    toast.success("Data refreshed from Google Sheets");
+    setIsRefreshing(false);
+  };
   const [issuesDialogOpen, setIssuesDialogOpen] = useState(false);
   const [suggestionsDialogOpen, setSuggestionsDialogOpen] = useState(false);
 
@@ -50,7 +60,7 @@ export function OverviewPage({ onSelectEmployee }: OverviewPageProps) {
   const { labels } = settings;
 
   const { data: employees = [], isLoading: employeesLoading } =
-    useAllEmployees();
+    useGoogleSheetEmployees();
   const { data: issues = [], isLoading: issuesLoading } = useAllIssues();
   const { data: topPerformers = [], isLoading: topPerformersLoading } =
     useTopPerformers();
@@ -111,6 +121,19 @@ export function OverviewPage({ onSelectEmployee }: OverviewPageProps) {
             </p>
           </div>
           <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+              className="gap-2 text-xs"
+              data-ocid="overview.refresh_button"
+            >
+              <RefreshCw
+                className={cn("w-3.5 h-3.5", isRefreshing && "animate-spin")}
+              />
+              Refresh Data
+            </Button>
             <Button
               size="sm"
               onClick={() => setAddEmployeeOpen(true)}

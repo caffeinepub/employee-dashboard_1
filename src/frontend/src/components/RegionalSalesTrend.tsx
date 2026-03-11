@@ -42,8 +42,9 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import type { Employee, SalesRecord } from "../backend.d.ts";
-import { useAllEmployees, useSalesRecords } from "../hooks/useQueries";
+import type { Employee } from "../backend.d.ts";
+import { useGoogleSheetEmployees } from "../hooks/useGoogleSheetData";
+import { useGoogleSheetSales } from "../hooks/useGoogleSheetData";
 
 const MONTH_NAMES = [
   "January",
@@ -124,8 +125,10 @@ export function RegionalSalesTrend({ className }: RegionalSalesTrendProps) {
   const [filterSaleType, setFilterSaleType] = useState<string>("all");
   const [fsePopoverOpen, setFsePopoverOpen] = useState(false);
 
-  const { data: employees = [] } = useAllEmployees();
-  const { data: salesRecords = [], isLoading } = useSalesRecords();
+  const { data: employees = [] } = useGoogleSheetEmployees();
+  const { data: salesRecordsRaw = [], isLoading } = useGoogleSheetSales();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const salesRecords = salesRecordsRaw as any[];
 
   // Build lookup maps
   const fiplToEmployee = useMemo<Map<string, Employee>>(

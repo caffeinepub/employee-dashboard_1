@@ -8,14 +8,17 @@ import {
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import {
+  Check,
   ChevronLeft,
   ChevronRight,
   LayoutDashboard,
   MessageSquare,
+  Pencil,
   Settings,
   TrendingUp,
   Upload,
   Users,
+  X,
 } from "lucide-react";
 import { useState } from "react";
 import { Status } from "../backend";
@@ -51,6 +54,12 @@ export function Sidebar({
   const { settings } = useAppSettings();
   const { labels } = settings;
   const [collapsed, setCollapsed] = useState(false);
+  const [logoUrl, setLogoUrl] = useState(
+    () => localStorage.getItem("dashboardLogoUrl") || "",
+  );
+  const [logoEditMode, setLogoEditMode] = useState(false);
+  const [logoInputVal, setLogoInputVal] = useState("");
+  const [logoHover, setLogoHover] = useState(false);
 
   const getInitials = (name: string) =>
     name
@@ -120,21 +129,88 @@ export function Sidebar({
           )}
         >
           {collapsed ? (
-            <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-white border border-border/30 shadow-sm">
-              <span className="text-xs font-bold text-primary leading-none">
-                FI
-              </span>
+            <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-white border border-border/30 shadow-sm overflow-hidden">
+              {logoUrl ? (
+                <img
+                  src={logoUrl}
+                  alt="Logo"
+                  className="w-full h-full object-contain"
+                />
+              ) : (
+                <span className="text-xs font-bold text-primary leading-none">
+                  FI
+                </span>
+              )}
             </div>
           ) : (
             <div className="w-full">
-              <div className="rounded-lg bg-white border border-border/30 px-3 py-2 flex items-center justify-center shadow-sm w-full">
-                <img
-                  src="/assets/uploads/image-1-1.png"
-                  alt="Frootle India"
-                  className="h-10 w-auto object-contain"
-                  style={{ maxWidth: "160px" }}
-                />
+              <div
+                className="relative rounded-lg bg-white border border-border/30 px-3 py-2 flex items-center justify-center shadow-sm w-full cursor-pointer group"
+                onMouseEnter={() => setLogoHover(true)}
+                onMouseLeave={() => setLogoHover(false)}
+              >
+                {logoUrl ? (
+                  <img
+                    src={logoUrl}
+                    alt="Company Logo"
+                    className="h-10 w-auto object-contain"
+                    style={{ maxWidth: "160px" }}
+                  />
+                ) : (
+                  <span className="text-sm font-bold text-foreground py-1">
+                    Frootle India Pvt.Ltd
+                  </span>
+                )}
+                {logoHover && !logoEditMode && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setLogoInputVal(logoUrl);
+                      setLogoEditMode(true);
+                    }}
+                    className="absolute top-1 right-1 w-5 h-5 rounded bg-primary/90 text-white flex items-center justify-center shadow hover:bg-primary transition-colors"
+                    title="Edit logo"
+                  >
+                    <Pencil className="w-3 h-3" />
+                  </button>
+                )}
               </div>
+              {logoEditMode && (
+                <div className="mt-2 flex flex-col gap-1.5">
+                  <input
+                    type="text"
+                    value={logoInputVal}
+                    onChange={(e) => setLogoInputVal(e.target.value)}
+                    placeholder="Paste image URL..."
+                    className="w-full text-xs rounded-md border border-border/50 bg-background px-2 py-1.5 outline-none focus:ring-1 focus:ring-primary/50"
+                  />
+                  <div className="flex gap-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        localStorage.setItem("dashboardLogoUrl", logoInputVal);
+                        setLogoUrl(logoInputVal);
+                        setLogoEditMode(false);
+                      }}
+                      className="flex-1 flex items-center justify-center gap-1 text-xs rounded-md bg-primary text-primary-foreground py-1 hover:bg-primary/90 transition-colors"
+                    >
+                      <Check className="w-3 h-3" /> Save
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        localStorage.removeItem("dashboardLogoUrl");
+                        setLogoUrl("");
+                        setLogoEditMode(false);
+                      }}
+                      className="flex-1 flex items-center justify-center gap-1 text-xs rounded-md bg-muted text-muted-foreground py-1 hover:bg-muted/70 transition-colors"
+                    >
+                      <X className="w-3 h-3" /> Remove
+                    </button>
+                  </div>
+                </div>
+              )}
               <p className="text-muted-foreground text-[10px] tracking-wider uppercase mt-2 ml-0.5">
                 {labels.sidebarTagline}
               </p>

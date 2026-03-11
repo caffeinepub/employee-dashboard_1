@@ -36,8 +36,8 @@ import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Status } from "../backend";
 import type { Employee } from "../backend.d.ts";
+import { useGoogleSheetEmployees } from "../hooks/useGoogleSheetData";
 import {
-  useAllEmployees,
   useDeleteEmployee,
   useEmployeeDetails,
   useSalesRecords,
@@ -172,7 +172,7 @@ export function EmployeesPage({ onSelectEmployee }: EmployeesPageProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<Employee | null>(null);
 
-  const { data: employees = [], isLoading } = useAllEmployees();
+  const { data: employees = [], isLoading } = useGoogleSheetEmployees();
   const { data: allSales = [] } = useSalesRecords();
   const deleteEmployee = useDeleteEmployee();
 
@@ -188,6 +188,7 @@ export function EmployeesPage({ onSelectEmployee }: EmployeesPageProps) {
 
   const filtered = useMemo(() => {
     let list = employees
+      .filter((e) => e.status === Status.active)
       .filter(
         (e) => categoryFilter === "All" || e.fseCategory === categoryFilter,
       )
@@ -244,9 +245,15 @@ export function EmployeesPage({ onSelectEmployee }: EmployeesPageProps) {
               All FSEs in the organization
             </p>
           </div>
-          <span className="text-sm font-mono-data font-bold text-primary/70 bg-primary/10 px-3 py-1 rounded-full border border-primary/20">
-            {employees.length} total
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="flex items-center gap-1.5 text-xs font-medium text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse inline-block" />
+              Live · Google Sheets
+            </span>
+            <span className="text-sm font-mono-data font-bold text-primary/70 bg-primary/10 px-3 py-1 rounded-full border border-primary/20">
+              {employees.length} total
+            </span>
+          </div>
         </div>
       </motion.div>
 

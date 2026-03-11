@@ -79,16 +79,19 @@ import {
 } from "recharts";
 import { toast } from "sonner";
 import { SaleType, SalesBrand, Status } from "../backend";
-import type { Employee } from "../backend.d.ts";
+import type { AttendanceRecord, Employee, SalesRecord } from "../backend.d.ts";
 import { useAppSettings } from "../context/AppSettingsContext";
+import {
+  useGoogleSheetAttendanceByFiplCode,
+  useGoogleSheetParametersByFiplCode,
+  useGoogleSheetSWOTByFiplCode,
+  useGoogleSheetSalesByFiplCode,
+} from "../hooks/useGoogleSheetData";
 import {
   useAddAttendanceRecord,
   useAddSalesRecord,
-  useAttendanceByEmployee,
   useDeleteEmployee,
-  useEmployeeDetails,
   useFeedbackByEmployee,
-  useSalesRecordsByEmployee,
   useUpdateEmployeeStatus,
 } from "../hooks/useQueries";
 import { AddFeedbackModal } from "./AddFeedbackModal";
@@ -127,6 +130,9 @@ export function EmployeeDetailPage({
   onDeleted,
 }: EmployeeDetailPageProps) {
   const [addFeedbackOpen, setAddFeedbackOpen] = useState(false);
+  const [selectedChartYear, setSelectedChartYear] = useState<number | null>(
+    null,
+  );
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [addSalesOpen, setAddSalesOpen] = useState(false);
@@ -153,15 +159,61 @@ export function EmployeeDetailPage({
   const { settings } = useAppSettings();
   const { labels } = settings;
 
-  const { data: details, isLoading: detailsLoading } = useEmployeeDetails(
-    employee.id,
-  );
+  const { data: sheetSwot, isLoading: swotLoading } =
+    useGoogleSheetSWOTByFiplCode(employee.fiplCode);
+  const { data: sheetParams, isLoading: paramsLoading } =
+    useGoogleSheetParametersByFiplCode(employee.fiplCode);
+  const { data: sheetAttendanceRaw = [], isLoading: attendanceLoading } =
+    useGoogleSheetAttendanceByFiplCode(employee.fiplCode);
+  const { data: sheetSalesRaw = [], isLoading: salesLoading } =
+    useGoogleSheetSalesByFiplCode(employee.fiplCode);
+
+  const detailsLoading = swotLoading || paramsLoading;
+
+  // Adapter: map sheet data to the shape the component already uses
+  const details = useMemo(() => {
+    if (!sheetSwot && !sheetParams) return null;
+    const p = sheetParams;
+    return {
+      info: employee,
+      performance: p
+        ? {
+            salesInfluenceIndex: BigInt(p.salesInfluenceIndex),
+            reviewCount: BigInt(p.reviewCount),
+            operationalDiscipline: BigInt(p.operationalDiscipline),
+            productKnowledgeScore: BigInt(p.productKnowledgeScore),
+            softSkillsScore: BigInt(p.softSkillsScore),
+          }
+        : null,
+      swot: {
+        cesScore: BigInt(
+          Math.round(
+            ((p?.salesInfluenceIndex ?? 0) +
+              (p?.reviewCount ?? 0) +
+              (p?.operationalDiscipline ?? 0) +
+              (p?.productKnowledgeScore ?? 0) +
+              (p?.softSkillsScore ?? 0)) /
+              5,
+          ),
+        ),
+        strengths: sheetSwot?.strengths ?? [],
+        weaknesses: sheetSwot?.weaknesses ?? [],
+        opportunities: sheetSwot?.opportunities ?? [],
+        threats: sheetSwot?.threats ?? [],
+      },
+      traits: sheetSwot?.traits ?? [],
+      problems: sheetSwot?.problems ?? [],
+    };
+  }, [sheetSwot, sheetParams, employee]) as
+    | import("../backend.d.ts").EmployeeDetails
+    | null;
+
+  // Cast sheet records to the shape already used in the component
+  const attendanceRecords = sheetAttendanceRaw as unknown as AttendanceRecord[];
+  const salesRecords = sheetSalesRaw as unknown as SalesRecord[];
+
   const { data: feedbackItems = [], isLoading: feedbackLoading } =
     useFeedbackByEmployee(employee.id);
-  const { data: salesRecords = [], isLoading: salesLoading } =
-    useSalesRecordsByEmployee(employee.id);
-  const { data: attendanceRecords = [], isLoading: attendanceLoading } =
-    useAttendanceByEmployee(employee.id);
 
   const updateStatus = useUpdateEmployeeStatus();
   const deleteEmployee = useDeleteEmployee();
@@ -235,7 +287,15 @@ export function EmployeeDetailPage({
     }
   };
 
-  const formatCurrency = (amount: bigint) =>
+  const formatCurrency = (amount: bigint) => {
+    const n = Number(amount);
+    if (n >= 10_000_000) return `₹${(n / 10_000_000).toFixed(2)} Cr`;
+    if (n >= 100_000) return `₹${(n / 100_000).toFixed(2)} L`;
+    if (n >= 1_000) return `₹${(n / 1_000).toFixed(1)} K`;
+    return `₹${n.toLocaleString("en-IN")}`;
+  };
+
+  const formatCurrencyFull = (amount: bigint) =>
     new Intl.NumberFormat("en-IN", {
       style: "currency",
       currency: "INR",
@@ -290,6 +350,75 @@ export function EmployeeDetailPage({
 
     return { monthlyData, years };
   }, [salesRecords]);
+
+  // ── Last Month Stats ────────────────────────────────────────────────────────
+  const lastMonthStats = useMemo(() => {
+    let latestDate: Date | null = null;
+    for (const rec of salesRecords) {
+      const d = new Date(Number(rec.saleDate) / 1_000_000);
+      if (!latestDate || d > latestDate) latestDate = d;
+    }
+
+    let latestAttDate: Date | null = null;
+    for (const rec of attendanceRecords) {
+      const d = new Date(Number(rec.date) / 1_000_000);
+      if (!latestAttDate || d > latestAttDate) latestAttDate = d;
+    }
+
+    const salesMonth = latestDate
+      ? { year: latestDate.getFullYear(), month: latestDate.getMonth() }
+      : null;
+    const attMonth = latestAttDate
+      ? { year: latestAttDate.getFullYear(), month: latestAttDate.getMonth() }
+      : null;
+
+    const monthSales = salesMonth
+      ? salesRecords
+          .filter((r) => {
+            const d = new Date(Number(r.saleDate) / 1_000_000);
+            return (
+              d.getFullYear() === salesMonth.year &&
+              d.getMonth() === salesMonth.month
+            );
+          })
+          .reduce((sum, r) => sum + Number(r.amount), 0)
+      : 0;
+
+    const monthAttLapses = attMonth
+      ? attendanceRecords.filter((r) => {
+          const d = new Date(Number(r.date) / 1_000_000);
+          return (
+            d.getFullYear() === attMonth.year && d.getMonth() === attMonth.month
+          );
+        }).length
+      : 0;
+
+    const monthNames = [
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec",
+    ];
+
+    return {
+      salesLabel: salesMonth
+        ? `${monthNames[salesMonth.month]} ${salesMonth.year}`
+        : null,
+      attLabel: attMonth
+        ? `${monthNames[attMonth.month]} ${attMonth.year}`
+        : null,
+      monthSales,
+      monthAttLapses,
+    };
+  }, [salesRecords, attendanceRecords]);
 
   // ── Attendance Chart Data ───────────────────────────────────────────────────
   const attendanceChartData = useMemo(() => {
@@ -736,6 +865,54 @@ export function EmployeeDetailPage({
             )}
           </motion.div>
 
+          {/* Last Month Summary */}
+          <motion.div variants={sectionVariants}>
+            <h2 className="text-xs uppercase tracking-widest text-muted-foreground font-semibold mb-3 flex items-center gap-2">
+              <BarChart2 className="w-3.5 h-3.5" />
+              Last Month Summary
+            </h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-2">
+              <div className="glass-card rounded-xl p-4">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-1">
+                  Sales{" "}
+                  {lastMonthStats.salesLabel
+                    ? `(${lastMonthStats.salesLabel})`
+                    : ""}
+                </p>
+                <p className="text-2xl font-mono-data font-bold text-primary">
+                  {lastMonthStats.salesLabel
+                    ? formatCurrency(
+                        BigInt(Math.round(lastMonthStats.monthSales)),
+                      )
+                    : "—"}
+                </p>
+                {lastMonthStats.salesLabel && (
+                  <p className="text-[10px] text-muted-foreground mt-1">
+                    Most recent month with data
+                  </p>
+                )}
+              </div>
+              <div className="glass-card rounded-xl p-4">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-1">
+                  Attendance Lapses{" "}
+                  {lastMonthStats.attLabel
+                    ? `(${lastMonthStats.attLabel})`
+                    : ""}
+                </p>
+                <p className="text-2xl font-mono-data font-bold text-[oklch(0.45_0.2_25)]">
+                  {lastMonthStats.attLabel
+                    ? lastMonthStats.monthAttLapses
+                    : "—"}
+                </p>
+                {lastMonthStats.attLabel && (
+                  <p className="text-[10px] text-muted-foreground mt-1">
+                    Lapses recorded this month
+                  </p>
+                )}
+              </div>
+            </div>
+          </motion.div>
+
           {/* Performance Metrics */}
           <motion.div variants={sectionVariants}>
             <h2 className="text-xs uppercase tracking-widest text-muted-foreground font-semibold mb-3 flex items-center gap-2">
@@ -1179,10 +1356,39 @@ export function EmployeeDetailPage({
 
           {/* Sales Trend Chart — always visible */}
           <motion.div variants={sectionVariants}>
-            <h2 className="text-xs uppercase tracking-widest text-muted-foreground font-semibold mb-3 flex items-center gap-2">
-              <BarChart2 className="w-3.5 h-3.5" />
-              Sales Trend — Year-wise Monthly Performance
-            </h2>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-xs uppercase tracking-widest text-muted-foreground font-semibold flex items-center gap-2">
+                <BarChart2 className="w-3.5 h-3.5" />
+                Sales Trend — Year-wise Monthly Performance
+              </h2>
+              <Select
+                value={selectedChartYear?.toString() ?? "all"}
+                onValueChange={(v) =>
+                  setSelectedChartYear(v === "all" ? null : Number(v))
+                }
+              >
+                <SelectTrigger
+                  className="h-7 w-28 text-xs"
+                  data-ocid="sales_chart.select"
+                >
+                  <SelectValue placeholder="All Years" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all" className="text-xs">
+                    All Years
+                  </SelectItem>
+                  {salesChartData.years.map((yr) => (
+                    <SelectItem
+                      key={yr}
+                      value={yr.toString()}
+                      className="text-xs"
+                    >
+                      {yr}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             <div className="glass-card rounded-xl p-5">
               {salesLoading ? (
                 <div className="h-64 flex items-center justify-center">
@@ -1246,23 +1452,29 @@ export function EmployeeDetailPage({
                     <Legend
                       wrapperStyle={{ fontSize: "11px", paddingTop: "8px" }}
                     />
-                    {salesChartData.years.map((yr, idx) => (
-                      <Line
-                        key={yr}
-                        type="monotone"
-                        dataKey={yr.toString()}
-                        name={yr.toString()}
-                        stroke={LINE_COLORS[idx % LINE_COLORS.length]}
-                        strokeWidth={2.5}
-                        dot={{
-                          r: 3.5,
-                          fill: LINE_COLORS[idx % LINE_COLORS.length],
-                          strokeWidth: 0,
-                        }}
-                        activeDot={{ r: 5, strokeWidth: 0 }}
-                        connectNulls={false}
-                      />
-                    ))}
+                    {salesChartData.years
+                      .filter(
+                        (yr) =>
+                          selectedChartYear === null ||
+                          yr === selectedChartYear,
+                      )
+                      .map((yr, idx) => (
+                        <Line
+                          key={yr}
+                          type="monotone"
+                          dataKey={yr.toString()}
+                          name={yr.toString()}
+                          stroke={LINE_COLORS[idx % LINE_COLORS.length]}
+                          strokeWidth={2.5}
+                          dot={{
+                            r: 3.5,
+                            fill: LINE_COLORS[idx % LINE_COLORS.length],
+                            strokeWidth: 0,
+                          }}
+                          activeDot={{ r: 5, strokeWidth: 0 }}
+                          connectNulls={false}
+                        />
+                      ))}
                   </LineChart>
                 </ResponsiveContainer>
               )}
@@ -1387,7 +1599,7 @@ export function EmployeeDetailPage({
                                 {Number(record.quantity)}
                               </TableCell>
                               <TableCell className="text-xs py-2 text-right font-mono-data font-bold text-primary">
-                                {formatCurrency(record.amount)}
+                                {formatCurrencyFull(record.amount)}
                               </TableCell>
                             </TableRow>
                           ))}
