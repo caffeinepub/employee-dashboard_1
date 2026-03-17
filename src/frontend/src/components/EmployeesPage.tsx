@@ -12,7 +12,6 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Select,
@@ -36,17 +35,19 @@ import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Status } from "../backend";
 import type { Employee } from "../backend.d.ts";
-import { useGoogleSheetEmployees } from "../hooks/useGoogleSheetData";
 import {
-  useDeleteEmployee,
-  useEmployeeDetails,
-  useSalesRecords,
-} from "../hooks/useQueries";
+  useGoogleSheetAttendance,
+  useGoogleSheetEmployees,
+  useGoogleSheetSales,
+} from "../hooks/useGoogleSheetData";
+import { useDeleteEmployee, useEmployeeDetails } from "../hooks/useQueries";
 import { EditEmployeeModal } from "./EditEmployeeModal";
 import { getStatusClassName, getStatusLabel } from "./EmployeeCard";
+import { PasswordGateDialog } from "./PasswordGateDialog";
 
 type CategoryFilter = "All" | "Cash Cow" | "Star" | "Question Mark" | "Dog";
 type JoinDateSort = "All" | "Newest First" | "Oldest First";
+type StatusFilter = "All" | "Active" | "Inactive" | "Hold" | "Others";
 
 const CATEGORY_BADGE_STYLES: Record<string, string> = {
   "Cash Cow":
@@ -55,6 +56,17 @@ const CATEGORY_BADGE_STYLES: Record<string, string> = {
   "Question Mark":
     "bg-[oklch(0.93_0.04_240_/_0.5)] text-[oklch(0.35_0.14_240)] border-[oklch(0.65_0.12_240_/_0.4)]",
   Dog: "bg-[oklch(0.95_0.04_25_/_0.5)] text-[oklch(0.40_0.18_25)] border-[oklch(0.65_0.14_25_/_0.4)]",
+};
+
+const STATUS_BADGE_STYLES: Record<StatusFilter, string> = {
+  All: "bg-muted/30 text-muted-foreground border-border/40",
+  Active:
+    "bg-[oklch(0.93_0.05_165_/_0.5)] text-[oklch(0.32_0.15_165)] border-[oklch(0.65_0.12_165_/_0.4)]",
+  Inactive:
+    "bg-[oklch(0.95_0.04_25_/_0.5)] text-[oklch(0.40_0.18_25)] border-[oklch(0.65_0.14_25_/_0.4)]",
+  Hold: "bg-[oklch(0.95_0.05_85_/_0.5)] text-[oklch(0.38_0.14_85)] border-[oklch(0.65_0.12_85_/_0.4)]",
+  Others:
+    "bg-[oklch(0.93_0.04_240_/_0.5)] text-[oklch(0.35_0.14_240)] border-[oklch(0.65_0.12_240_/_0.4)]",
 };
 
 function getInitials(name: string): string {
@@ -70,26 +82,38 @@ function formatJoinDate(ts: bigint): string {
   try {
     const ms = Number(ts) / 1_000_000;
     const date = new Date(ms);
-    if (Number.isNaN(date.getTime())) return "—";
+    if (Number.isNaN(date.getTime())) return "\u2014";
     const dd = String(date.getDate()).padStart(2, "0");
     const mm = String(date.getMonth() + 1).padStart(2, "0");
     const yyyy = date.getFullYear();
     return `${dd}-${mm}-${yyyy}`;
   } catch {
-    return "—";
+    return "\u2014";
   }
 }
 
-function getAttendanceColor(pct: number): string {
-  if (pct >= 90) return "bg-[oklch(0.52_0.16_145)]";
-  if (pct >= 70) return "bg-[oklch(0.62_0.16_75)]";
-  return "bg-[oklch(0.55_0.22_25)]";
+function formatINR(amount: number): string {
+  if (amount <= 0) return "\u2014";
+  return new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    maximumFractionDigits: 0,
+  }).format(amount);
 }
 
-function getEfficiencyColor(score: number): string {
-  if (score >= 75) return "text-[oklch(0.42_0.16_145)]";
-  if (score >= 50) return "text-[oklch(0.48_0.16_75)]";
-  return "text-[oklch(0.42_0.2_25)]";
+/** Determine the last month present in a set of nanosecond timestamps */
+function getLastMonthKey(
+  timestamps: bigint[],
+): { year: number; month: number } | null {
+  if (timestamps.length === 0) return null;
+  let maxMs = 0;
+  for (const ts of timestamps) {
+    const ms = Number(ts) / 1_000_000;
+    if (ms > maxMs) maxMs = ms;
+  }
+  if (maxMs <= 0) return null;
+  const d = new Date(maxMs);
+  return { year: d.getFullYear(), month: d.getMonth() };
 }
 
 // Per-row efficiency score: fetches performance data and computes the average of 5 params
@@ -98,13 +122,17 @@ function EfficiencyCell({ employeeId }: { employeeId: bigint }) {
 
   if (isLoading) {
     return (
-      <span className="text-sm font-mono-data text-muted-foreground/40">—</span>
+      <span className="text-sm font-mono-data text-muted-foreground/40">
+        \u2014
+      </span>
     );
   }
 
   if (!details?.performance) {
     return (
-      <span className="text-sm font-mono-data text-muted-foreground/40">—</span>
+      <span className="text-sm font-mono-data text-muted-foreground/40">
+        \u2014
+      </span>
     );
   }
 
@@ -118,13 +146,15 @@ function EfficiencyCell({ employeeId }: { employeeId: bigint }) {
       5,
   );
 
+  const color =
+    efficiencyScore >= 75
+      ? "text-[oklch(0.42_0.16_145)]"
+      : efficiencyScore >= 50
+        ? "text-[oklch(0.48_0.16_75)]"
+        : "text-[oklch(0.42_0.2_25)]";
+
   return (
-    <span
-      className={cn(
-        "text-sm font-mono-data font-bold",
-        getEfficiencyColor(efficiencyScore),
-      )}
-    >
+    <span className={cn("text-sm font-mono-data font-bold", color)}>
       {efficiencyScore}
     </span>
   );
@@ -137,19 +167,17 @@ function EditRowButton({ employee }: { employee: Employee }) {
 
   return (
     <>
-      <Button
-        variant="ghost"
-        size="icon"
-        className="h-7 w-7 text-primary/70 hover:text-primary hover:bg-primary/10"
-        onClick={(e) => {
-          e.stopPropagation();
-          setEditOpen(true);
-        }}
-        data-ocid="employees_page.edit_button"
-        title="Edit employee"
-      >
-        <Pencil className="w-3.5 h-3.5" />
-      </Button>
+      <PasswordGateDialog onSuccess={() => setEditOpen(true)}>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7 text-primary/70 hover:text-primary hover:bg-primary/10"
+          data-ocid="employees_page.edit_button"
+          title="Edit employee"
+        >
+          <Pencil className="w-3.5 h-3.5" />
+        </Button>
+      </PasswordGateDialog>
       {details && (
         <EditEmployeeModal
           open={editOpen}
@@ -168,30 +196,88 @@ interface EmployeesPageProps {
 
 export function EmployeesPage({ onSelectEmployee }: EmployeesPageProps) {
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("All");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("Active");
   const [joinDateSort, setJoinDateSort] = useState<JoinDateSort>("All");
+  const [regionFilter, setRegionFilter] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<Employee | null>(null);
 
   const { data: employees = [], isLoading } = useGoogleSheetEmployees();
-  const { data: allSales = [] } = useSalesRecords();
+  const regions = useMemo(
+    () =>
+      Array.from(
+        new Set(employees.map((e) => e.region).filter(Boolean)),
+      ).sort() as string[],
+    [employees],
+  );
+  const { data: allSales = [] } = useGoogleSheetSales();
+  const { data: allAttendance = [] } = useGoogleSheetAttendance();
   const deleteEmployee = useDeleteEmployee();
 
-  // Build per-employee total sales map
+  // Find the last month present across all sales records
+  const lastSalesMonthKey = useMemo(() => {
+    return getLastMonthKey(allSales.map((r) => r.saleDate));
+  }, [allSales]);
+
+  // Find the last month present across all attendance records
+  const lastAttendanceMonthKey = useMemo(() => {
+    return getLastMonthKey(allAttendance.map((r) => r.date));
+  }, [allAttendance]);
+
+  // Build per-employee last-month sales amount map
   const salesByEmployee = useMemo(() => {
     const map = new Map<string, number>();
     for (const rec of allSales) {
-      const key = rec.employeeId.toString();
-      map.set(key, (map.get(key) ?? 0) + Number(rec.amount));
+      if (!lastSalesMonthKey) break;
+      const ms = Number(rec.saleDate) / 1_000_000;
+      const d = new Date(ms);
+      if (
+        d.getFullYear() === lastSalesMonthKey.year &&
+        d.getMonth() === lastSalesMonthKey.month
+      ) {
+        const key = rec.fiplCode.toUpperCase();
+        map.set(key, (map.get(key) ?? 0) + Number(rec.amount));
+      }
     }
     return map;
-  }, [allSales]);
+  }, [allSales, lastSalesMonthKey]);
+
+  // Build per-employee last-month attendance lapses count
+  const lapsesByEmployee = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const rec of allAttendance) {
+      if (!lastAttendanceMonthKey) break;
+      const ms = Number(rec.date) / 1_000_000;
+      const d = new Date(ms);
+      if (
+        d.getFullYear() === lastAttendanceMonthKey.year &&
+        d.getMonth() === lastAttendanceMonthKey.month
+      ) {
+        const key = rec.fiplCode.toUpperCase();
+        map.set(key, (map.get(key) ?? 0) + 1);
+      }
+    }
+    return map;
+  }, [allAttendance, lastAttendanceMonthKey]);
 
   const filtered = useMemo(() => {
     let list = employees
-      .filter((e) => e.status === Status.active)
+      .filter((e) => {
+        if (statusFilter === "All") return true;
+        if (statusFilter === "Active") return e.status === Status.active;
+        if (statusFilter === "Inactive") return e.status === Status.inactive;
+        if (statusFilter === "Hold") return e.status === Status.onHold;
+        // "Others" = any status not Active/Inactive/OnHold
+        return (
+          e.status !== Status.active &&
+          e.status !== Status.inactive &&
+          e.status !== Status.onHold
+        );
+      })
       .filter(
         (e) => categoryFilter === "All" || e.fseCategory === categoryFilter,
       )
+      .filter((e) => regionFilter === "All" || e.region === regionFilter)
       .filter((e) =>
         searchQuery.trim() === ""
           ? true
@@ -208,7 +294,26 @@ export function EmployeesPage({ onSelectEmployee }: EmployeesPageProps) {
     }
 
     return list;
-  }, [employees, categoryFilter, joinDateSort, searchQuery]);
+  }, [
+    employees,
+    categoryFilter,
+    statusFilter,
+    joinDateSort,
+    searchQuery,
+    regionFilter,
+  ]);
+
+  // Count per status for badge display
+  const statusCounts = useMemo(() => {
+    const counts = { Active: 0, Inactive: 0, Hold: 0, Others: 0 };
+    for (const e of employees) {
+      if (e.status === Status.active) counts.Active++;
+      else if (e.status === Status.inactive) counts.Inactive++;
+      else if (e.status === Status.onHold) counts.Hold++;
+      else counts.Others++;
+    }
+    return counts;
+  }, [employees]);
 
   const handleDelete = () => {
     if (!deleteTarget) return;
@@ -223,6 +328,25 @@ export function EmployeesPage({ onSelectEmployee }: EmployeesPageProps) {
       },
     });
   };
+
+  const lastSalesLabel = lastSalesMonthKey
+    ? new Date(
+        lastSalesMonthKey.year,
+        lastSalesMonthKey.month,
+        1,
+      ).toLocaleString("en-IN", {
+        month: "short",
+        year: "numeric",
+      })
+    : null;
+
+  const lastAttendanceLabel = lastAttendanceMonthKey
+    ? new Date(
+        lastAttendanceMonthKey.year,
+        lastAttendanceMonthKey.month,
+        1,
+      ).toLocaleString("en-IN", { month: "short", year: "numeric" })
+    : null;
 
   return (
     <div className="p-6 max-w-7xl mx-auto" data-ocid="employees_page.page">
@@ -245,16 +369,57 @@ export function EmployeesPage({ onSelectEmployee }: EmployeesPageProps) {
               All FSEs in the organization
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap justify-end">
             <span className="flex items-center gap-1.5 text-xs font-medium text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse inline-block" />
-              Live · Google Sheets
+              Live &middot; Google Sheets
             </span>
             <span className="text-sm font-mono-data font-bold text-primary/70 bg-primary/10 px-3 py-1 rounded-full border border-primary/20">
-              {employees.length} total
+              {statusCounts.Active} active
             </span>
           </div>
         </div>
+      </motion.div>
+
+      {/* Status Filter Tabs */}
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.03 }}
+        className="flex gap-2 mb-3 flex-wrap"
+      >
+        {(
+          ["All", "Active", "Inactive", "Hold", "Others"] as StatusFilter[]
+        ).map((s) => {
+          const count =
+            s === "All"
+              ? employees.length
+              : statusCounts[s as keyof typeof statusCounts];
+          return (
+            <button
+              key={s}
+              type="button"
+              onClick={() => setStatusFilter(s)}
+              data-ocid="employees_page.tab"
+              className={cn(
+                "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border transition-all",
+                statusFilter === s
+                  ? STATUS_BADGE_STYLES[s]
+                  : "bg-transparent text-muted-foreground border-border/40 hover:bg-muted/30",
+              )}
+            >
+              {s}
+              <span
+                className={cn(
+                  "text-[10px] font-mono-data px-1 rounded",
+                  statusFilter === s ? "opacity-80" : "opacity-50",
+                )}
+              >
+                {count}
+              </span>
+            </button>
+          );
+        })}
       </motion.div>
 
       {/* Search + Filter Bar */}
@@ -314,6 +479,24 @@ export function EmployeesPage({ onSelectEmployee }: EmployeesPageProps) {
             <SelectItem value="Oldest First">Oldest First</SelectItem>
           </SelectContent>
         </Select>
+
+        {/* Region Filter */}
+        <Select value={regionFilter} onValueChange={setRegionFilter}>
+          <SelectTrigger
+            className="h-9 w-[180px] text-sm bg-background/70 border-border/60"
+            data-ocid="employees.region_filter.select"
+          >
+            <SelectValue placeholder="All Regions" />
+          </SelectTrigger>
+          <SelectContent className="max-h-64 overflow-y-auto">
+            <SelectItem value="All">All Regions</SelectItem>
+            {regions.map((r) => (
+              <SelectItem key={r} value={r}>
+                {r}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </motion.div>
 
       {/* Table */}
@@ -343,7 +526,7 @@ export function EmployeesPage({ onSelectEmployee }: EmployeesPageProps) {
                 ? "No employees yet"
                 : searchQuery.trim() !== ""
                   ? `No employees match "${searchQuery}"`
-                  : `No employees in "${categoryFilter}" category`}
+                  : `No ${statusFilter === "All" ? "" : `${statusFilter} `}employees in "${categoryFilter}" category`}
             </p>
             <p className="text-xs mt-1 opacity-70">
               {employees.length === 0
@@ -365,17 +548,21 @@ export function EmployeesPage({ onSelectEmployee }: EmployeesPageProps) {
                   <TableHead className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground py-3 w-[120px]">
                     Joining Date
                   </TableHead>
-                  <TableHead className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground py-3 text-right w-[120px]">
-                    Sales (₹)
+                  <TableHead className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground py-3 text-right w-[130px]">
+                    Sales{lastSalesLabel ? ` (${lastSalesLabel})` : " (\u20B9)"}
                   </TableHead>
-                  <TableHead className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground py-3 w-[140px]">
-                    Attendance
+                  <TableHead className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground py-3 w-[150px]">
+                    Lapses
+                    {lastAttendanceLabel ? ` (${lastAttendanceLabel})` : ""}
                   </TableHead>
                   <TableHead className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground py-3 text-center w-[100px]">
                     Efficiency
                   </TableHead>
                   <TableHead className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground py-3 w-[120px]">
                     Category
+                  </TableHead>
+                  <TableHead className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground py-3 w-[80px]">
+                    Status
                   </TableHead>
                   <TableHead className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground py-3 text-center w-[90px]">
                     Action
@@ -384,18 +571,9 @@ export function EmployeesPage({ onSelectEmployee }: EmployeesPageProps) {
               </TableHeader>
               <TableBody>
                 {filtered.map((employee, i) => {
-                  const totalSales =
-                    salesByEmployee.get(employee.id.toString()) ?? 0;
-                  // Attendance proxy: 95% for stars/cash cows, lower otherwise
-                  const attendancePct =
-                    employee.status === Status.inactive
-                      ? 45
-                      : employee.fseCategory === "Star" ||
-                          employee.fseCategory === "Cash Cow"
-                        ? 94
-                        : employee.fseCategory === "Question Mark"
-                          ? 78
-                          : 55;
+                  const fiplKey = employee.fiplCode?.toUpperCase() ?? "";
+                  const lastMonthSales = salesByEmployee.get(fiplKey) ?? 0;
+                  const lastMonthLapses = lapsesByEmployee.get(fiplKey) ?? 0;
 
                   return (
                     <TableRow
@@ -417,7 +595,7 @@ export function EmployeesPage({ onSelectEmployee }: EmployeesPageProps) {
                               {employee.name}
                             </p>
                             <p className="text-[10px] text-muted-foreground/70 font-mono-data mt-0.5">
-                              {employee.fiplCode || "—"}
+                              {employee.fiplCode || "\u2014"}
                             </p>
                           </div>
                         </div>
@@ -425,7 +603,7 @@ export function EmployeesPage({ onSelectEmployee }: EmployeesPageProps) {
 
                       {/* Region */}
                       <TableCell className="py-3 text-xs text-muted-foreground">
-                        {employee.region || "—"}
+                        {employee.region || "\u2014"}
                       </TableCell>
 
                       {/* Joining Date */}
@@ -433,33 +611,29 @@ export function EmployeesPage({ onSelectEmployee }: EmployeesPageProps) {
                         {formatJoinDate(employee.joinDate)}
                       </TableCell>
 
-                      {/* Sales */}
+                      {/* Last Month Sales */}
                       <TableCell className="py-3 text-right">
                         <span className="text-xs font-mono-data font-bold text-foreground">
-                          {totalSales > 0
-                            ? new Intl.NumberFormat("en-IN", {
-                                style: "currency",
-                                currency: "INR",
-                                maximumFractionDigits: 0,
-                              }).format(totalSales)
-                            : "—"}
+                          {formatINR(lastMonthSales)}
                         </span>
                       </TableCell>
 
-                      {/* Attendance bar */}
+                      {/* Last Month Attendance Lapses */}
                       <TableCell className="py-3">
                         <div className="flex items-center gap-2">
-                          <div className="flex-1 h-1.5 rounded-full bg-muted/50 overflow-hidden min-w-[60px]">
-                            <div
-                              className={cn(
-                                "h-full rounded-full transition-all duration-700",
-                                getAttendanceColor(attendancePct),
-                              )}
-                              style={{ width: `${attendancePct}%` }}
-                            />
-                          </div>
-                          <span className="text-[10px] font-mono-data font-semibold text-muted-foreground shrink-0">
-                            {attendancePct}%
+                          <span
+                            className={cn(
+                              "text-xs font-mono-data font-bold px-2 py-0.5 rounded",
+                              lastMonthLapses === 0
+                                ? "bg-emerald-50 text-emerald-700"
+                                : lastMonthLapses <= 2
+                                  ? "bg-yellow-50 text-yellow-700"
+                                  : "bg-red-50 text-red-700",
+                            )}
+                          >
+                            {lastMonthLapses === 0
+                              ? "0 lapses"
+                              : `${lastMonthLapses} lapse${lastMonthLapses > 1 ? "s" : ""}`}
                           </span>
                         </div>
                       </TableCell>
@@ -479,8 +653,20 @@ export function EmployeesPage({ onSelectEmployee }: EmployeesPageProps) {
                               "bg-muted/30 text-muted-foreground border-border/40",
                           )}
                         >
-                          {employee.fseCategory || "—"}
+                          {employee.fseCategory || "\u2014"}
                         </Badge>
+                      </TableCell>
+
+                      {/* Status badge */}
+                      <TableCell className="py-3">
+                        <span
+                          className={cn(
+                            "text-[10px] font-semibold px-2 py-0.5 rounded border",
+                            getStatusClassName(employee.status),
+                          )}
+                        >
+                          {getStatusLabel(employee.status)}
+                        </span>
                       </TableCell>
 
                       {/* Actions */}
@@ -548,7 +734,7 @@ export function EmployeesPage({ onSelectEmployee }: EmployeesPageProps) {
               {deleteEmployee.isPending ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Deleting…
+                  Deleting\u2026
                 </>
               ) : (
                 "Delete"

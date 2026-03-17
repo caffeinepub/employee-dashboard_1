@@ -1,3 +1,4 @@
+import { PasswordGateDialog } from "@/components/PasswordGateDialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -20,6 +21,7 @@ import {
   Download,
   FileSpreadsheet,
   Loader2,
+  Lock as LockIcon,
   Upload,
   UploadCloud,
   UserCheck,
@@ -1142,7 +1144,7 @@ function UploadTabPanel<T extends { error?: string }>({
 
 // ── Main UploadsPage ─────────────────────────────────────────────────────────
 
-export function UploadsPage() {
+function UploadsPageInner() {
   // ── Employee Data Tab ────────────────────────────────────────────────────
   const [empStep, setEmpStep] = useState<UploadStep>("idle");
   const [empRows, setEmpRows] = useState<ParsedEmployeeRow[]>([]);
@@ -2251,4 +2253,43 @@ export function UploadsPage() {
       </Tabs>
     </div>
   );
+}
+
+// ── Password-Gated wrapper ────────────────────────────────────────────────────
+export function UploadsPage() {
+  const [unlocked, setUnlocked] = useState(false);
+
+  if (!unlocked) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-6">
+        <div className="glass-card rounded-2xl p-8 max-w-sm w-full text-center space-y-4">
+          <div className="w-14 h-14 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center mx-auto">
+            <LockIcon className="w-7 h-7 text-primary" />
+          </div>
+          <div>
+            <h2 className="text-lg font-display font-bold text-foreground">
+              Bulk Upload Access
+            </h2>
+            <p className="text-sm text-muted-foreground mt-1">
+              This section is password protected.
+            </p>
+          </div>
+          <PasswordGateDialog
+            onSuccess={() => setUnlocked(true)}
+            title="Unlock Bulk Upload"
+          >
+            <button
+              type="button"
+              className="w-full py-2.5 px-4 rounded-lg bg-primary text-primary-foreground font-semibold text-sm hover:bg-primary/90 transition-colors"
+              data-ocid="uploads.open_modal_button"
+            >
+              Enter Password
+            </button>
+          </PasswordGateDialog>
+        </div>
+      </div>
+    );
+  }
+
+  return <UploadsPageInner />;
 }

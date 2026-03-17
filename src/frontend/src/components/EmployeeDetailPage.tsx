@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -83,6 +84,7 @@ import type { AttendanceRecord, Employee, SalesRecord } from "../backend.d.ts";
 import { useAppSettings } from "../context/AppSettingsContext";
 import {
   useGoogleSheetAttendanceByFiplCode,
+  useGoogleSheetCallRecords,
   useGoogleSheetParametersByFiplCode,
   useGoogleSheetSWOTByFiplCode,
   useGoogleSheetSalesByFiplCode,
@@ -98,6 +100,7 @@ import { AddFeedbackModal } from "./AddFeedbackModal";
 import { EditEmployeeModal } from "./EditEmployeeModal";
 import { getStatusClassName, getStatusLabel } from "./EmployeeCard";
 import { FeedbackCard } from "./FeedbackCard";
+import { PasswordGateDialog } from "./PasswordGateDialog";
 
 interface EmployeeDetailPageProps {
   employee: Employee;
@@ -212,7 +215,73 @@ export function EmployeeDetailPage({
   const attendanceRecords = sheetAttendanceRaw as unknown as AttendanceRecord[];
   const salesRecords = sheetSalesRaw as unknown as SalesRecord[];
 
-  const { data: feedbackItems = [], isLoading: feedbackLoading } =
+  const { data: allCallRecords = [], isLoading: callRecordsLoading } =
+    useGoogleSheetCallRecords();
+  const employeeCallRecords = allCallRecords.filter(
+    (r) => r.fiplCode === employee.fiplCode,
+  );
+  const [cesFilter, setCesFilter] = useState<"all" | "positive" | "negative">(
+    "all",
+  );
+  const [feedbackMonthFilter, setFeedbackMonthFilter] = useState("all");
+  const [feedbackYearFilter, setFeedbackYearFilter] = useState("all");
+  const [selectedRemark, setSelectedRemark] = useState<{
+    remark: string;
+    customerName?: string;
+    fseName?: string;
+    cesScore?: number;
+    dateOfCall?: string;
+  } | null>(null);
+  const [remarkOpen, setRemarkOpen] = useState(false);
+
+  function parseFeedbackMY(
+    dateStr: string,
+  ): { month: number; year: number } | null {
+    if (!dateStr) return null;
+    const ddmm = dateStr.match(/^(\d{1,2})[\-\/](\d{1,2})[\-\/](\d{4})$/);
+    if (ddmm)
+      return {
+        month: Number.parseInt(ddmm[2]),
+        year: Number.parseInt(ddmm[3]),
+      };
+    const yyyymm = dateStr.match(/^(\d{4})[\-\/](\d{1,2})[\-\/](\d{1,2})$/);
+    if (yyyymm)
+      return {
+        month: Number.parseInt(yyyymm[2]),
+        year: Number.parseInt(yyyymm[1]),
+      };
+    const d = new Date(dateStr);
+    if (!Number.isNaN(d.getTime()))
+      return { month: d.getMonth() + 1, year: d.getFullYear() };
+    return null;
+  }
+
+  const feedbackAvailableYears = Array.from(
+    new Set(
+      employeeCallRecords
+        .map((r) => parseFeedbackMY(r.dateOfCall)?.year)
+        .filter(Boolean),
+    ),
+  ).sort() as number[];
+
+  const filteredCallRecords = employeeCallRecords.filter((r) => {
+    if (cesFilter === "positive" && Number(r.cesScore) < 30) return false;
+    if (cesFilter === "negative" && Number(r.cesScore) >= 30) return false;
+    const my = parseFeedbackMY(r.dateOfCall);
+    if (
+      feedbackMonthFilter !== "all" &&
+      my?.month !== Number.parseInt(feedbackMonthFilter)
+    )
+      return false;
+    if (
+      feedbackYearFilter !== "all" &&
+      my?.year !== Number.parseInt(feedbackYearFilter)
+    )
+      return false;
+    return true;
+  });
+  // Keep legacy feedback items for customer reviews masonry (canister-based)
+  const { data: feedbackItems = [], isLoading: _feedbackLoading } =
     useFeedbackByEmployee(employee.id);
 
   const updateStatus = useUpdateEmployeeStatus();
@@ -302,10 +371,18 @@ export function EmployeeDetailPage({
       maximumFractionDigits: 0,
     }).format(Number(amount));
 
+  // Filter out invalid/1970 sales records
+  const validSalesRecords = salesRecords.filter((rec) => {
+    if (!rec.saleDate || rec.saleDate === 0n) return false;
+    const ms = Number(rec.saleDate) / 1_000_000;
+    const yr = new Date(ms).getFullYear();
+    return yr > 1971;
+  });
+
   // ── Sales Trend Chart Data ──────────────────────────────────────────────────
   // Build month-over-month line data per year (last 2 years shown as separate lines)
   const salesChartData = useMemo(() => {
-    if (salesRecords.length === 0) return { monthlyData: [], years: [] };
+    if (validSalesRecords.length === 0) return { monthlyData: [], years: [] };
 
     type MonthEntry = {
       monthKey: string; // "Jan", "Feb", ...
@@ -329,7 +406,7 @@ export function EmployeeDetailPage({
     ];
     const yearMap = new Map<number, Map<number, number>>();
 
-    for (const rec of salesRecords) {
+    for (const rec of validSalesRecords) {
       const d = new Date(Number(rec.saleDate) / 1_000_000);
       const year = d.getFullYear();
       const month = d.getMonth();
@@ -349,12 +426,12 @@ export function EmployeeDetailPage({
     });
 
     return { monthlyData, years };
-  }, [salesRecords]);
+  }, [validSalesRecords]);
 
   // ── Last Month Stats ────────────────────────────────────────────────────────
   const lastMonthStats = useMemo(() => {
     let latestDate: Date | null = null;
-    for (const rec of salesRecords) {
+    for (const rec of validSalesRecords) {
       const d = new Date(Number(rec.saleDate) / 1_000_000);
       if (!latestDate || d > latestDate) latestDate = d;
     }
@@ -373,7 +450,7 @@ export function EmployeeDetailPage({
       : null;
 
     const monthSales = salesMonth
-      ? salesRecords
+      ? validSalesRecords
           .filter((r) => {
             const d = new Date(Number(r.saleDate) / 1_000_000);
             return (
@@ -418,7 +495,7 @@ export function EmployeeDetailPage({
       monthSales,
       monthAttLapses,
     };
-  }, [salesRecords, attendanceRecords]);
+  }, [validSalesRecords, attendanceRecords]);
 
   // ── Attendance Chart Data ───────────────────────────────────────────────────
   const attendanceChartData = useMemo(() => {
@@ -568,16 +645,17 @@ export function EmployeeDetailPage({
 
           {/* Action buttons */}
           <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setEditOpen(true)}
-              className="gap-2 text-xs"
-              disabled={detailsLoading || !details}
-            >
-              <Pencil className="w-3.5 h-3.5" />
-              Edit Employee
-            </Button>
+            <PasswordGateDialog onSuccess={() => setEditOpen(true)}>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2 text-xs"
+                disabled={detailsLoading || !details}
+              >
+                <Pencil className="w-3.5 h-3.5" />
+                Edit Employee
+              </Button>
+            </PasswordGateDialog>
 
             <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
               <AlertDialogTrigger asChild>
@@ -1305,54 +1383,328 @@ export function EmployeeDetailPage({
             </div>
           </motion.div>
 
-          {/* Employee Feedback */}
+          {/* Employee Feedback / Call Records from Sheet 7 */}
           <motion.div variants={sectionVariants}>
-            <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
               <h2 className="text-xs uppercase tracking-widest text-muted-foreground font-semibold flex items-center gap-2">
                 <MessageSquare className="w-3.5 h-3.5" />
-                {labels.detailFeedbackSectionTitle}
-                {!feedbackLoading && (
+                Feedback / Call Records
+                {!callRecordsLoading && (
                   <span className="font-mono-data text-[10px] text-primary/60 bg-primary/10 px-2 py-0.5 rounded-full">
-                    {feedbackItems.length}
+                    {filteredCallRecords.length}
                   </span>
                 )}
               </h2>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setAddFeedbackOpen(true)}
-                className="gap-1.5 text-xs h-7 px-3"
-              >
-                <MessageSquarePlus className="w-3 h-3" />
-                Add Feedback
-              </Button>
+              <div className="flex items-center gap-2 flex-wrap">
+                <Select
+                  value={cesFilter}
+                  onValueChange={(v) =>
+                    setCesFilter(v as "all" | "positive" | "negative")
+                  }
+                >
+                  <SelectTrigger
+                    className="h-7 text-xs w-36"
+                    data-ocid="feedback.ces.select"
+                  >
+                    <SelectValue placeholder="CES Filter" />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-48 overflow-y-auto">
+                    <SelectItem value="all">All Feedback</SelectItem>
+                    <SelectItem value="positive">Positive (≥ 30)</SelectItem>
+                    <SelectItem value="negative">Negative (&lt; 30)</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select
+                  value={feedbackMonthFilter}
+                  onValueChange={setFeedbackMonthFilter}
+                >
+                  <SelectTrigger
+                    className="h-7 text-xs w-32"
+                    data-ocid="emp_feedback.month.select"
+                  >
+                    <SelectValue placeholder="All Months" />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-60 overflow-y-auto">
+                    <SelectItem value="all">All Months</SelectItem>
+                    {[
+                      "January",
+                      "February",
+                      "March",
+                      "April",
+                      "May",
+                      "June",
+                      "July",
+                      "August",
+                      "September",
+                      "October",
+                      "November",
+                      "December",
+                    ].map((m, idx) => (
+                      <SelectItem key={m} value={String(idx + 1)}>
+                        {m}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select
+                  value={feedbackYearFilter}
+                  onValueChange={setFeedbackYearFilter}
+                >
+                  <SelectTrigger
+                    className="h-7 text-xs w-24"
+                    data-ocid="emp_feedback.year.select"
+                  >
+                    <SelectValue placeholder="All Years" />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-60 overflow-y-auto">
+                    <SelectItem value="all">All Years</SelectItem>
+                    {feedbackAvailableYears.map((y) => (
+                      <SelectItem key={y} value={String(y)}>
+                        {y}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
             <div className="glass-card rounded-xl overflow-hidden">
-              {feedbackLoading ? (
+              {callRecordsLoading ? (
                 <div className="p-4 space-y-3">
                   {SKELETON_KEYS_3.map((k) => (
                     <Skeleton key={k} className="h-16 rounded-lg bg-muted/50" />
                   ))}
                 </div>
-              ) : feedbackItems.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-10 text-muted-foreground/50">
+              ) : filteredCallRecords.length === 0 ? (
+                <div
+                  className="flex flex-col items-center justify-center py-10 text-muted-foreground/50"
+                  data-ocid="feedback.empty_state"
+                >
                   <MessageSquare className="w-7 h-7 mb-3 opacity-40" />
-                  <p className="text-sm">No feedback for this employee</p>
+                  <p className="text-sm">
+                    No call records found for this employee.
+                  </p>
                 </div>
               ) : (
-                <div className="divide-y divide-border/30">
-                  {feedbackItems.map((item) => (
-                    <FeedbackCard
-                      key={item.id.toString()}
-                      feedback={item}
-                      employeeName={employee.name}
-                    />
-                  ))}
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="border-b border-border/40 bg-muted/30">
+                        <th className="text-left px-3 py-2 font-semibold text-muted-foreground">
+                          FSE Name
+                        </th>
+                        <th className="text-left px-3 py-2 font-semibold text-muted-foreground">
+                          Customer
+                        </th>
+                        <th className="text-left px-3 py-2 font-semibold text-muted-foreground">
+                          Brand
+                        </th>
+                        <th className="text-left px-3 py-2 font-semibold text-muted-foreground">
+                          Product
+                        </th>
+                        <th className="text-left px-3 py-2 font-semibold text-muted-foreground">
+                          CES Score
+                        </th>
+                        <th className="text-left px-3 py-2 font-semibold text-muted-foreground">
+                          Priority
+                        </th>
+                        <th className="text-left px-3 py-2 font-semibold text-muted-foreground">
+                          Remark
+                        </th>
+                        <th className="text-left px-3 py-2 font-semibold text-muted-foreground">
+                          Date
+                        </th>
+                        <th className="text-left px-3 py-2 font-semibold text-muted-foreground">
+                          Agent
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredCallRecords.map((r, idx) => {
+                        const isNegative = Number(r.cesScore) < 30;
+                        return (
+                          <tr
+                            key={r.id}
+                            data-ocid={`feedback.row.${idx + 1}`}
+                            className={
+                              isNegative
+                                ? "border-b border-red-200 bg-red-50 dark:bg-red-950/20 dark:border-red-900/40"
+                                : "border-b border-border/20 hover:bg-muted/20"
+                            }
+                          >
+                            <td
+                              className={`px-3 py-2 ${isNegative ? "text-red-700 dark:text-red-400" : ""}`}
+                            >
+                              {r.fseName}
+                            </td>
+                            <td
+                              className={`px-3 py-2 ${isNegative ? "text-red-700 dark:text-red-400" : ""}`}
+                            >
+                              {r.customerName}
+                            </td>
+                            <td
+                              className={`px-3 py-2 ${isNegative ? "text-red-700 dark:text-red-400" : ""}`}
+                            >
+                              {r.brand}
+                            </td>
+                            <td
+                              className={`px-3 py-2 ${isNegative ? "text-red-700 dark:text-red-400" : ""}`}
+                            >
+                              {r.product}
+                            </td>
+                            <td
+                              className={`px-3 py-2 font-semibold ${isNegative ? "text-red-700 dark:text-red-400" : "text-green-600 dark:text-green-400"}`}
+                            >
+                              {r.cesScore}
+                            </td>
+                            <td
+                              className={`px-3 py-2 ${isNegative ? "text-red-700 dark:text-red-400" : ""}`}
+                            >
+                              {r.priority || "—"}
+                            </td>
+                            <td
+                              className={`px-3 py-2 max-w-[160px] truncate cursor-pointer hover:underline transition-colors ${isNegative ? "text-red-700 dark:text-red-400" : ""}`}
+                              onClick={() => {
+                                if (r.remark) {
+                                  setSelectedRemark({
+                                    remark: r.remark,
+                                    customerName: r.customerName,
+                                    fseName: r.fseName,
+                                    cesScore: Number(r.cesScore),
+                                    dateOfCall: r.dateOfCall,
+                                  });
+                                  setRemarkOpen(true);
+                                }
+                              }}
+                              onKeyDown={(e) => {
+                                if (
+                                  (e.key === "Enter" || e.key === " ") &&
+                                  r.remark
+                                ) {
+                                  setSelectedRemark({
+                                    remark: r.remark,
+                                    customerName: r.customerName,
+                                    fseName: r.fseName,
+                                    cesScore: Number(r.cesScore),
+                                    dateOfCall: r.dateOfCall,
+                                  });
+                                  setRemarkOpen(true);
+                                }
+                              }}
+                              tabIndex={r.remark ? 0 : undefined}
+                              title={
+                                r.remark
+                                  ? "Click to view full remark"
+                                  : undefined
+                              }
+                            >
+                              {r.remark}
+                            </td>
+                            <td
+                              className={`px-3 py-2 whitespace-nowrap ${isNegative ? "text-red-700 dark:text-red-400" : ""}`}
+                            >
+                              {r.dateOfCall}
+                            </td>
+                            <td
+                              className={`px-3 py-2 ${isNegative ? "text-red-700 dark:text-red-400" : ""}`}
+                            >
+                              {r.agent}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
                 </div>
               )}
             </div>
           </motion.div>
+
+          {/* Remark View Dialog */}
+          <Dialog open={remarkOpen} onOpenChange={setRemarkOpen}>
+            <DialogContent
+              className="max-w-md"
+              data-ocid="feedback.remark.modal"
+            >
+              <DialogHeader>
+                <DialogTitle className="font-display text-base font-bold">
+                  Remark
+                </DialogTitle>
+                <DialogDescription asChild>
+                  <div className="flex flex-wrap gap-3 pt-1">
+                    {selectedRemark?.customerName && (
+                      <span className="text-xs text-muted-foreground">
+                        <span className="font-semibold text-foreground/80">
+                          Customer:
+                        </span>{" "}
+                        {selectedRemark.customerName}
+                      </span>
+                    )}
+                    {selectedRemark?.fseName && (
+                      <span className="text-xs text-muted-foreground">
+                        <span className="font-semibold text-foreground/80">
+                          FSE:
+                        </span>{" "}
+                        {selectedRemark.fseName}
+                      </span>
+                    )}
+                    {selectedRemark?.cesScore !== undefined && (
+                      <span
+                        className={`text-xs font-bold px-2 py-0.5 rounded-full ${selectedRemark.cesScore < 30 ? "bg-red-500/20 text-red-600" : "bg-emerald-500/20 text-emerald-600"}`}
+                      >
+                        CES {selectedRemark.cesScore}
+                      </span>
+                    )}
+                    {selectedRemark?.dateOfCall && (
+                      <span className="text-xs text-muted-foreground">
+                        <span className="font-semibold text-foreground/80">
+                          Date:
+                        </span>{" "}
+                        {selectedRemark.dateOfCall}
+                      </span>
+                    )}
+                  </div>
+                </DialogDescription>
+              </DialogHeader>
+              <div className="mt-2 rounded-lg bg-muted/30 border border-border/40 p-4 text-sm leading-relaxed text-foreground/90 whitespace-pre-wrap">
+                {selectedRemark?.remark || "—"}
+              </div>
+              <div className="flex justify-end mt-2">
+                <button
+                  type="button"
+                  className="inline-flex items-center justify-center rounded-md border border-input bg-background px-3 py-1.5 text-sm font-medium hover:bg-accent hover:text-accent-foreground transition-colors"
+                  onClick={() => setRemarkOpen(false)}
+                  data-ocid="feedback.remark.close_button"
+                >
+                  Close
+                </button>
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          {/* Customer Reviews (canister-based masonry) */}
+          {feedbackItems.length > 0 && (
+            <motion.div variants={sectionVariants}>
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-xs uppercase tracking-widest text-muted-foreground font-semibold flex items-center gap-2">
+                  <MessageSquare className="w-3.5 h-3.5" />
+                  Customer Reviews
+                  <span className="font-mono-data text-[10px] text-primary/60 bg-primary/10 px-2 py-0.5 rounded-full">
+                    {feedbackItems.length}
+                  </span>
+                </h2>
+              </div>
+              <div className="glass-card rounded-xl overflow-hidden divide-y divide-border/30">
+                {feedbackItems.map((item) => (
+                  <FeedbackCard
+                    key={item.id.toString()}
+                    feedback={item}
+                    employeeName={employee.name}
+                  />
+                ))}
+              </div>
+            </motion.div>
+          )}
 
           {/* Sales Trend Chart — always visible */}
           <motion.div variants={sectionVariants}>

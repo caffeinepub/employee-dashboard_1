@@ -169,26 +169,23 @@ export function RegionalSalesTrend({ className }: RegionalSalesTrendProps) {
   );
 
   const allFses = useMemo(() => {
-    const seen = new Map<
-      string,
-      { fiplCode: string; name: string; region: string }
-    >();
-    for (const r of enrichedRecords) {
-      if (!seen.has(r.fiplCode)) {
-        seen.set(r.fiplCode, {
-          fiplCode: r.fiplCode,
-          name: r.employeeName,
-          region: r.region,
-        });
-      }
-    }
-    return Array.from(seen.values()).sort((a, b) =>
-      a.name.localeCompare(b.name),
+    const codesWithSales = new Set(
+      salesRecords.map((r) => r.fiplCode.toUpperCase()),
     );
-  }, [enrichedRecords]);
+    return employees
+      .filter((e) => codesWithSales.has(e.fiplCode.toUpperCase()))
+      .map((e) => ({
+        name: e.name,
+        fiplCode: e.fiplCode,
+        region: e.region ?? "",
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [employees, salesRecords]);
 
   const yearOptions = useMemo(() => {
-    const years = new Set(enrichedRecords.map((r) => r.year));
+    const years = new Set(
+      enrichedRecords.map((r) => r.year).filter((y) => y > 2000),
+    );
     years.add(currentYear);
     return Array.from(years).sort((a, b) => b - a);
   }, [enrichedRecords, currentYear]);
@@ -881,11 +878,7 @@ export function RegionalSalesTrend({ className }: RegionalSalesTrendProps) {
                   }}
                   labelStyle={{ fontWeight: 700, marginBottom: 4 }}
                 />
-                <Legend
-                  iconType="circle"
-                  iconSize={8}
-                  wrapperStyle={{ fontSize: 11, paddingTop: 8 }}
-                />
+                <Legend content={() => null} />
                 {seriesKeys.map((key, i) => (
                   <Bar
                     key={key}
@@ -945,11 +938,7 @@ export function RegionalSalesTrend({ className }: RegionalSalesTrendProps) {
                   }}
                   labelStyle={{ fontWeight: 700, marginBottom: 4 }}
                 />
-                <Legend
-                  iconType="circle"
-                  iconSize={8}
-                  wrapperStyle={{ fontSize: 11, paddingTop: 8 }}
-                />
+                <Legend content={() => null} />
                 {seriesKeys.map((key, i) => (
                   <Line
                     key={key}
@@ -968,36 +957,44 @@ export function RegionalSalesTrend({ className }: RegionalSalesTrendProps) {
           </ResponsiveContainer>
 
           {/* Series summary chips */}
-          {viewMode === "region" && (
-            <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-border/30">
-              {seriesKeys.map((region, i) => {
-                const empCount = employees.filter(
-                  (e) => e.region === region,
-                ).length;
-                return (
-                  <div
-                    key={region}
-                    className="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border bg-muted/20"
-                    style={{
-                      borderColor: `${colors[i % colors.length]}40`,
-                      color: colors[i % colors.length],
-                    }}
-                  >
-                    <span
-                      className="w-2 h-2 rounded-full shrink-0"
-                      style={{ background: colors[i % colors.length] }}
-                    />
-                    <span className="font-semibold text-foreground">
-                      {region}
-                    </span>
+          <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-border/30">
+            {seriesKeys.slice(0, 20).map((key, i) => (
+              <div
+                key={key}
+                className="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border bg-muted/20"
+                style={{
+                  borderColor: `${colors[i % colors.length]}40`,
+                  color: colors[i % colors.length],
+                }}
+              >
+                <span
+                  className="w-2 h-2 rounded-full shrink-0"
+                  style={{ background: colors[i % colors.length] }}
+                />
+                {viewMode === "region" ? (
+                  <>
+                    <span className="font-semibold text-foreground">{key}</span>
                     <span className="text-muted-foreground">
-                      · {empCount} FSE{empCount !== 1 ? "s" : ""}
+                      {" "}
+                      · {employees.filter((e) => e.region === key).length} FSE
+                      {employees.filter((e) => e.region === key).length !== 1
+                        ? "s"
+                        : ""}
                     </span>
-                  </div>
-                );
-              })}
-            </div>
-          )}
+                  </>
+                ) : (
+                  <span className="font-semibold text-foreground">
+                    {allFses.find((f) => f.fiplCode === key)?.name ?? key}
+                  </span>
+                )}
+              </div>
+            ))}
+            {seriesKeys.length > 20 && (
+              <div className="flex items-center text-xs text-muted-foreground italic px-2.5 py-1">
+                +{seriesKeys.length - 20} more…
+              </div>
+            )}
+          </div>
         </div>
       )}
 

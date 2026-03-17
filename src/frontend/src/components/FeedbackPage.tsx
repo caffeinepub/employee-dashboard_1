@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -29,6 +30,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import {
+  ChevronRight,
   Download,
   FileUp,
   Loader2,
@@ -39,12 +41,17 @@ import {
   Trash2,
   UploadCloud,
   Users,
+  Wifi,
   X,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 import type { CallingRecord, CustomerReview } from "../backend.d.ts";
+import {
+  type SheetCallRecord,
+  useGoogleSheetCallRecords,
+} from "../hooks/useGoogleSheetData";
 import { useAllEmployees } from "../hooks/useQueries";
 import {
   useAddCallingRecord,
@@ -199,6 +206,86 @@ function ReviewCard({
         </div>
       </motion.div>
     </div>
+  );
+}
+
+// ─── Remark View Dialog ───────────────────────────────────────────────────────
+
+type RemarkRecord = {
+  remark: string;
+  customerName?: string;
+  fseName?: string;
+  cesScore?: number;
+  dateOfCall?: string;
+};
+
+function RemarkViewDialog({
+  record,
+  open,
+  onOpenChange,
+}: {
+  record: RemarkRecord | null;
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+}) {
+  if (!record) return null;
+  const isNegative = record.cesScore !== undefined && record.cesScore < 30;
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md" data-ocid="feedback.remark.modal">
+        <DialogHeader>
+          <DialogTitle className="font-display text-base font-bold">
+            Remark
+          </DialogTitle>
+          <DialogDescription asChild>
+            <div className="flex flex-wrap gap-3 pt-1">
+              {record.customerName && (
+                <span className="text-xs text-muted-foreground">
+                  <span className="font-semibold text-foreground/80">
+                    Customer:
+                  </span>{" "}
+                  {record.customerName}
+                </span>
+              )}
+              {record.fseName && (
+                <span className="text-xs text-muted-foreground">
+                  <span className="font-semibold text-foreground/80">FSE:</span>{" "}
+                  {record.fseName}
+                </span>
+              )}
+              {record.cesScore !== undefined && (
+                <span
+                  className={`text-xs font-bold px-2 py-0.5 rounded-full ${isNegative ? "bg-red-500/20 text-red-600" : "bg-emerald-500/20 text-emerald-600"}`}
+                >
+                  CES {record.cesScore}
+                </span>
+              )}
+              {record.dateOfCall && (
+                <span className="text-xs text-muted-foreground">
+                  <span className="font-semibold text-foreground/80">
+                    Date:
+                  </span>{" "}
+                  {record.dateOfCall}
+                </span>
+              )}
+            </div>
+          </DialogDescription>
+        </DialogHeader>
+        <div className="mt-2 rounded-lg bg-muted/30 border border-border/40 p-4 text-sm leading-relaxed text-foreground/90 whitespace-pre-wrap">
+          {record.remark || "—"}
+        </div>
+        <div className="flex justify-end mt-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onOpenChange(false)}
+            data-ocid="feedback.remark.close_button"
+          >
+            Close
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -365,15 +452,100 @@ function AddReviewDialog({
 
 // ─── Customer Reviews Tab ─────────────────────────────────────────────────────
 
+function SheetCallRecordCard({ record }: { record: SheetCallRecord }) {
+  const isNegative = record.cesScore < 30;
+  const [remarkOpen, setRemarkOpen] = useState(false);
+  return (
+    <div className="break-inside-avoid mb-4">
+      <motion.div
+        layout
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95 }}
+        transition={{ duration: 0.3 }}
+        className={`relative rounded-xl p-5 border ${isNegative ? "border-red-400/50 border-l-4 border-l-red-500 bg-red-50/10" : "border-border/50 glass-card"}`}
+      >
+        {/* CES Score badge */}
+        <div className="flex items-start justify-between gap-2 mb-3">
+          <p className="font-semibold text-sm text-foreground leading-tight pr-2">
+            {record.customerName || "Unknown Customer"}
+          </p>
+          <span
+            className={`shrink-0 text-[11px] font-bold px-2 py-0.5 rounded-full ${isNegative ? "bg-red-500/20 text-red-600" : "bg-emerald-500/20 text-emerald-600"}`}
+          >
+            CES {record.cesScore}
+          </span>
+        </div>
+
+        {/* Remark */}
+        {record.remark && (
+          <button
+            type="button"
+            className="text-sm text-foreground/80 leading-relaxed line-clamp-3 cursor-pointer hover:underline hover:text-foreground transition-colors text-left w-full bg-transparent border-0 p-0"
+            onClick={() => setRemarkOpen(true)}
+            title="Click to view full remark"
+          >
+            {record.remark}
+          </button>
+        )}
+        <RemarkViewDialog
+          record={{
+            remark: record.remark,
+            customerName: record.customerName,
+            fseName: record.fseName,
+            cesScore: record.cesScore,
+            dateOfCall: record.dateOfCall,
+          }}
+          open={remarkOpen}
+          onOpenChange={setRemarkOpen}
+        />
+
+        {/* Footer */}
+        <div className="mt-4 pt-3 border-t border-border/30 flex items-end justify-between gap-2">
+          <div>
+            {record.fseName && (
+              <p className="text-[11px] text-muted-foreground/80 font-medium">
+                FSE: {record.fseName}
+              </p>
+            )}
+            {record.priority && (
+              <p className="text-[10px] text-muted-foreground/60 mt-0.5">
+                Priority: {record.priority}
+              </p>
+            )}
+          </div>
+          <div className="flex flex-col items-end gap-1">
+            <p className="text-[10px] text-muted-foreground/60 shrink-0">
+              {record.dateOfCall}
+            </p>
+            <span className="text-[9px] bg-primary/10 text-primary/70 rounded px-1.5 py-0.5 font-medium">
+              Live Sheet
+            </span>
+          </div>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
+type ReviewFilter = "all" | "positive" | "negative";
+
 function CustomerReviewsTab() {
   const [addOpen, setAddOpen] = useState(false);
+  const [filter, setFilter] = useState<ReviewFilter>("all");
+  const [reviewEmpFilter, setReviewEmpFilter] = useState("all");
   const { data: reviews = [], isLoading } = useCustomerReviews();
+  const { data: sheetCallRecords = [], isLoading: sheetLoading } =
+    useGoogleSheetCallRecords();
   const deleteReview = useDeleteCustomerReview();
   const [deletingId, setDeletingId] = useState<bigint | null>(null);
 
-  const sorted = [...reviews].sort(
-    (a, b) => Number(b.createdAt) - Number(a.createdAt),
-  );
+  // Unique FSE names for employee filter
+  const reviewFseNames = Array.from(
+    new Set(
+      sheetCallRecords.map((r: SheetCallRecord) => r.fseName).filter(Boolean),
+    ),
+  ).sort() as string[];
 
   const handleDelete = (id: bigint) => {
     setDeletingId(id);
@@ -389,16 +561,54 @@ function CustomerReviewsTab() {
     });
   };
 
+  // Filter sheet records by CES score and employee
+  const filteredSheetRecords = sheetCallRecords.filter((r: SheetCallRecord) => {
+    if (filter === "positive" && r.cesScore < 30) return false;
+    if (filter === "negative" && r.cesScore >= 30) return false;
+    if (reviewEmpFilter !== "all" && r.fseName !== reviewEmpFilter)
+      return false;
+    return true;
+  });
+
+  // Sort sheet records by date desc
+  const sortedSheetRecords = [...filteredSheetRecords].sort(
+    (a: SheetCallRecord, b: SheetCallRecord) => {
+      return (b.dateOfCall || "").localeCompare(a.dateOfCall || "");
+    },
+  );
+
+  // Filter manual reviews (canister) - treat rating as CES proxy if needed, or show all
+  const filteredReviews = reviews.filter((r) => {
+    const ces = Number(r.rating) * 20; // map 1-5 stars to 0-100 scale
+    if (filter === "positive") return ces >= 30;
+    if (filter === "negative") return ces < 30;
+    return true;
+  });
+
+  const sortedReviews = [...filteredReviews].sort(
+    (a, b) => Number(b.createdAt) - Number(a.createdAt),
+  );
+
+  const isLoadingAll = isLoading || sheetLoading;
+  const hasAny = sortedSheetRecords.length > 0 || sortedReviews.length > 0;
+
   return (
     <div>
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-4">
         <div>
-          <h2 className="text-xl font-display font-bold text-foreground">
-            Customer Reviews
-          </h2>
+          <div className="flex items-center gap-2">
+            <h2 className="text-xl font-display font-bold text-foreground">
+              Customer Reviews & Feedback
+            </h2>
+            {sheetCallRecords.length > 0 && (
+              <span className="text-[10px] font-semibold bg-emerald-500/15 text-emerald-600 border border-emerald-500/30 rounded-full px-2 py-0.5">
+                Live · Google Sheets
+              </span>
+            )}
+          </div>
           <p className="text-sm text-muted-foreground mt-0.5">
-            Masonry board of customer reviews for your FSEs
+            Call records from Sheet 7 and manually added reviews
           </p>
         </div>
         <Button
@@ -412,7 +622,56 @@ function CustomerReviewsTab() {
         </Button>
       </div>
 
-      {isLoading ? (
+      {/* Filter bar */}
+      <div
+        className="flex flex-wrap items-center gap-2 mb-6"
+        data-ocid="feedback.review.tab"
+      >
+        {(["all", "positive", "negative"] as ReviewFilter[]).map((f) => (
+          <button
+            key={f}
+            type="button"
+            onClick={() => setFilter(f)}
+            className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all border ${
+              filter === f
+                ? f === "negative"
+                  ? "bg-red-500 text-white border-red-500"
+                  : f === "positive"
+                    ? "bg-emerald-500 text-white border-emerald-500"
+                    : "bg-primary text-primary-foreground border-primary"
+                : "bg-muted/50 text-muted-foreground border-border/50 hover:bg-muted"
+            }`}
+          >
+            {f === "all"
+              ? "All"
+              : f === "positive"
+                ? "✓ Positive (CES ≥ 30)"
+                : "✗ Negative (CES < 30)"}
+          </button>
+        ))}
+        <Select value={reviewEmpFilter} onValueChange={setReviewEmpFilter}>
+          <SelectTrigger
+            className="h-7 text-xs w-40"
+            data-ocid="feedback.review_employee.select"
+          >
+            <SelectValue placeholder="All Employees" />
+          </SelectTrigger>
+          <SelectContent className="max-h-60 overflow-y-auto">
+            <SelectItem value="all">All Employees</SelectItem>
+            {reviewFseNames.map((name) => (
+              <SelectItem key={name} value={name}>
+                {name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <span className="ml-auto text-xs text-muted-foreground/60">
+          {sortedSheetRecords.length} call records · {sortedReviews.length}{" "}
+          manual reviews
+        </span>
+      </div>
+
+      {isLoadingAll ? (
         <div className="columns-1 sm:columns-2 lg:columns-3 gap-4">
           {Array.from({ length: 6 }).map((_, i) => (
             <div
@@ -429,7 +688,7 @@ function CustomerReviewsTab() {
             </div>
           ))}
         </div>
-      ) : sorted.length === 0 ? (
+      ) : !hasAny ? (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -437,21 +696,39 @@ function CustomerReviewsTab() {
           data-ocid="feedback.review.empty_state"
         >
           <MessageSquare className="w-10 h-10 mb-3 opacity-25" />
-          <p className="text-sm font-semibold">No reviews yet</p>
+          <p className="text-sm font-semibold">No reviews found</p>
           <p className="text-xs mt-1 opacity-70">
-            Add the first customer review to get started
+            {filter !== "all"
+              ? "Try changing the filter or add"
+              : "Add the first"}{" "}
+            customer review to get started
           </p>
         </motion.div>
       ) : (
         <div className="columns-1 sm:columns-2 lg:columns-3 gap-4">
           <AnimatePresence>
-            {sorted.map((review) => (
-              <ReviewCard
-                key={review.id.toString()}
-                review={review}
-                onDelete={() => handleDelete(review.id)}
-                isDeleting={deletingId === review.id}
+            {/* Sheet 7 call records first */}
+            {sortedSheetRecords.map((record: SheetCallRecord, idx: number) => (
+              <SheetCallRecordCard
+                key={`sheet-${record.id || idx}`}
+                record={record}
               />
+            ))}
+            {/* Manual canister reviews with "Manual" badge */}
+            {sortedReviews.map((review) => (
+              <div
+                key={review.id.toString()}
+                className="break-inside-avoid mb-4 relative"
+              >
+                <span className="absolute top-3 left-3 z-10 text-[9px] font-semibold bg-muted/70 text-muted-foreground rounded px-1.5 py-0.5">
+                  Manual
+                </span>
+                <ReviewCard
+                  review={review}
+                  onDelete={() => handleDelete(review.id)}
+                  isDeleting={deletingId === review.id}
+                />
+              </div>
             ))}
           </AnimatePresence>
         </div>
@@ -774,7 +1051,6 @@ function downloadCallingTemplate() {
     "FIPL Code",
     "FSE Name",
     "Customer Name",
-    "Customer Contact",
     "Brand",
     "Product",
     "CES Score",
@@ -786,7 +1062,6 @@ function downloadCallingTemplate() {
     "FIPL001",
     "Arjun Singh",
     "Priya Sharma",
-    "9876543210",
     "Ecovacs",
     "Ecovacs X2 PRO",
     "8",
@@ -829,7 +1104,7 @@ function parseCallingCsv(text: string): ParsedCallingRow[] {
   const fiplIdx = colIdx(["fiplcode", "fipl"]);
   const nameIdx = colIdx(["fsename", "fsename"]);
   const custIdx = colIdx(["customername", "customer"]);
-  const contactIdx = colIdx(["customercontact", "contact"]);
+  const _contactIdx = colIdx(["customercontact", "contact"]); // kept for backwards-compat, not used
   const brandIdx = colIdx(["brand"]);
   const productIdx = colIdx(["product"]);
   const cesIdx = colIdx(["cesscore", "ces"]);
@@ -853,7 +1128,7 @@ function parseCallingCsv(text: string): ParsedCallingRow[] {
       fiplCode: get(fiplIdx),
       fseName: get(nameIdx),
       customerName,
-      customerContact: get(contactIdx),
+      customerContact: "", // column removed from template
       brand: get(brandIdx),
       product: get(productIdx),
       cesScore: Number(get(cesIdx)) || 0,
@@ -1047,9 +1322,6 @@ function BulkUploadDialog({
                       <TableHead className="text-[10px] py-2">
                         Customer
                       </TableHead>
-                      <TableHead className="text-[10px] py-2">
-                        Contact
-                      </TableHead>
                       <TableHead className="text-[10px] py-2">Brand</TableHead>
                       <TableHead className="text-[10px] py-2">
                         Product
@@ -1098,9 +1370,6 @@ function BulkUploadDialog({
                         </TableCell>
                         <TableCell className="text-xs py-1.5">
                           {row.customerName}
-                        </TableCell>
-                        <TableCell className="text-xs py-1.5 text-muted-foreground">
-                          {row.customerContact || "—"}
                         </TableCell>
                         <TableCell className="text-xs py-1.5 text-muted-foreground">
                           {row.brand || "—"}
@@ -1167,27 +1436,116 @@ function BulkUploadDialog({
 
 // ─── Calling Records Tab ──────────────────────────────────────────────────────
 
+type DisplayRecord = {
+  key: string;
+  fiplCode: string;
+  fseName: string;
+  customerName: string;
+  brand: string;
+  product: string;
+  cesScore: number;
+  remark: string;
+  dateDisplay: string;
+  agent: string;
+  priority: string;
+  isFromSheet: boolean;
+};
+
 function CallingRecordsTab() {
   const [addOpen, setAddOpen] = useState(false);
   const [bulkOpen, setBulkOpen] = useState(false);
-  const { data: records = [], isLoading } = useCallingRecords();
+  const [selectedRecord, setSelectedRecord] = useState<DisplayRecord | null>(
+    null,
+  );
+  const [recordDetailOpen, setRecordDetailOpen] = useState(false);
+  const { data: canisterRecords = [], isLoading: canisterLoading } =
+    useCallingRecords();
+  const { data: sheetRecords = [], isLoading: sheetLoading } =
+    useGoogleSheetCallRecords();
 
-  const sorted = [...records].sort((a, b) => Number(b.date) - Number(a.date));
+  const isLive = sheetRecords.length > 0;
+  const isLoading = sheetLoading || canisterLoading;
 
-  const getOutcomeBadgeStyle = (outcome: string) => {
-    switch (outcome) {
-      case "Completed":
-      case "Resolved":
-        return "bg-[oklch(0.93_0.05_165_/_0.5)] text-[oklch(0.32_0.15_165)] border-[oklch(0.65_0.12_165_/_0.4)]";
-      case "Follow-up Required":
-      case "Callback Requested":
-        return "bg-[oklch(0.95_0.05_85_/_0.5)] text-[oklch(0.38_0.14_85)] border-[oklch(0.65_0.12_85_/_0.4)]";
-      case "No Answer":
-        return "bg-[oklch(0.93_0.04_25_/_0.5)] text-[oklch(0.42_0.18_25)] border-[oklch(0.65_0.14_25_/_0.4)]";
-      default:
-        return "bg-muted/30 text-muted-foreground border-border/40";
-    }
-  };
+  const displayRecords: DisplayRecord[] = isLive
+    ? sheetRecords.map((r: SheetCallRecord, i: number) => ({
+        key: `sheet-${i}`,
+        fiplCode: r.fiplCode,
+        fseName: r.fseName,
+        customerName: r.customerName,
+        brand: r.brand,
+        product: r.product,
+        cesScore: r.cesScore,
+        remark: r.remark,
+        dateDisplay: r.dateOfCall,
+        agent: r.agent,
+        priority: r.priority,
+        isFromSheet: true,
+      }))
+    : [...canisterRecords]
+        .sort((a, b) => Number(b.date) - Number(a.date))
+        .map((r) => ({
+          key: r.id.toString(),
+          fiplCode: r.fiplCode || "",
+          fseName: r.fseName || "",
+          customerName: r.customerName,
+          brand: r.brand || "",
+          product: r.product || "",
+          cesScore: Number(r.cesScore),
+          remark: r.remark || "",
+          dateDisplay: formatDate(r.date),
+          agent: r.agent || "",
+          priority: "",
+          isFromSheet: false,
+        }));
+
+  const [filterMonth, setFilterMonth] = useState("all");
+  const [filterYear, setFilterYear] = useState("all");
+  const [empFilter, setEmpFilter] = useState("all");
+
+  // Unique FSE names for employee filter
+  const fseNames = Array.from(
+    new Set(displayRecords.map((r) => r.fseName).filter(Boolean)),
+  ).sort();
+
+  // Helper: parse month/year from dateOfCall string
+  function parseMY(dateStr: string): { month: number; year: number } | null {
+    if (!dateStr) return null;
+    // Try DD-MM-YYYY
+    const ddmm = dateStr.match(/^(\d{1,2})[\-\/](\d{1,2})[\-\/](\d{4})$/);
+    if (ddmm)
+      return {
+        month: Number.parseInt(ddmm[2]),
+        year: Number.parseInt(ddmm[3]),
+      };
+    // Try YYYY-MM-DD
+    const yyyymm = dateStr.match(/^(\d{4})[\-\/](\d{1,2})[\-\/](\d{1,2})$/);
+    if (yyyymm)
+      return {
+        month: Number.parseInt(yyyymm[2]),
+        year: Number.parseInt(yyyymm[1]),
+      };
+    const d = new Date(dateStr);
+    if (!Number.isNaN(d.getTime()))
+      return { month: d.getMonth() + 1, year: d.getFullYear() };
+    return null;
+  }
+
+  const availableYears = Array.from(
+    new Set(
+      displayRecords.map((r) => parseMY(r.dateDisplay)?.year).filter(Boolean),
+    ),
+  ).sort() as number[];
+
+  // Keep sorted for any legacy references — now filtered
+  const sorted = displayRecords.filter((r) => {
+    const my = parseMY(r.dateDisplay);
+    if (filterMonth !== "all" && my?.month !== Number.parseInt(filterMonth))
+      return false;
+    if (filterYear !== "all" && my?.year !== Number.parseInt(filterYear))
+      return false;
+    if (empFilter !== "all" && r.fseName !== empFilter) return false;
+    return true;
+  });
 
   return (
     <div>
@@ -1200,6 +1558,12 @@ function CallingRecordsTab() {
           <p className="text-sm text-muted-foreground mt-0.5">
             Track all feedback and follow-up calls made by FSEs
           </p>
+          {isLive && (
+            <span className="flex items-center gap-1 text-[10px] text-emerald-600 font-medium bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200 mt-1.5">
+              <Wifi className="w-2.5 h-2.5" />
+              Live · Google Sheets
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <Button
@@ -1222,6 +1586,71 @@ function CallingRecordsTab() {
             Add Record
           </Button>
         </div>
+      </div>
+
+      {/* Filters */}
+      <div className="flex items-center gap-2 mb-4 flex-wrap">
+        <Select value={filterMonth} onValueChange={setFilterMonth}>
+          <SelectTrigger
+            className="h-7 text-xs w-32"
+            data-ocid="feedback.month.select"
+          >
+            <SelectValue placeholder="All Months" />
+          </SelectTrigger>
+          <SelectContent className="max-h-60 overflow-y-auto">
+            <SelectItem value="all">All Months</SelectItem>
+            {[
+              "January",
+              "February",
+              "March",
+              "April",
+              "May",
+              "June",
+              "July",
+              "August",
+              "September",
+              "October",
+              "November",
+              "December",
+            ].map((m, idx) => (
+              <SelectItem key={m} value={String(idx + 1)}>
+                {m}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={filterYear} onValueChange={setFilterYear}>
+          <SelectTrigger
+            className="h-7 text-xs w-24"
+            data-ocid="feedback.year.select"
+          >
+            <SelectValue placeholder="All Years" />
+          </SelectTrigger>
+          <SelectContent className="max-h-60 overflow-y-auto">
+            <SelectItem value="all">All Years</SelectItem>
+            {availableYears.map((y) => (
+              <SelectItem key={y} value={String(y)}>
+                {y}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={empFilter} onValueChange={setEmpFilter}>
+          <SelectTrigger
+            className="h-7 text-xs w-40"
+            data-ocid="feedback.employee.select"
+          >
+            <SelectValue placeholder="All Employees" />
+          </SelectTrigger>
+          <SelectContent className="max-h-60 overflow-y-auto">
+            <SelectItem value="all">All Employees</SelectItem>
+            {fseNames.map((name) => (
+              <SelectItem key={name} value={name}>
+                {name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Table */}
@@ -1250,104 +1679,55 @@ function CallingRecordsTab() {
             </p>
           </div>
         ) : (
-          <ScrollArea className="w-full">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-muted/20 hover:bg-muted/20">
-                  <TableHead className="text-[10px] font-bold uppercase tracking-wider py-3 pl-4">
-                    FSE Name
-                  </TableHead>
-                  <TableHead className="text-[10px] font-bold uppercase tracking-wider py-3">
-                    FIPL Code
-                  </TableHead>
-                  <TableHead className="text-[10px] font-bold uppercase tracking-wider py-3">
-                    Customer Name
-                  </TableHead>
-                  <TableHead className="text-[10px] font-bold uppercase tracking-wider py-3">
-                    Contact
-                  </TableHead>
-                  <TableHead className="text-[10px] font-bold uppercase tracking-wider py-3">
-                    Brand
-                  </TableHead>
-                  <TableHead className="text-[10px] font-bold uppercase tracking-wider py-3">
-                    Product
-                  </TableHead>
-                  <TableHead className="text-[10px] font-bold uppercase tracking-wider py-3">
-                    CES
-                  </TableHead>
-                  <TableHead className="text-[10px] font-bold uppercase tracking-wider py-3">
-                    Remark
-                  </TableHead>
-                  <TableHead className="text-[10px] font-bold uppercase tracking-wider py-3">
-                    Date
-                  </TableHead>
-                  <TableHead className="text-[10px] font-bold uppercase tracking-wider py-3">
-                    Agent
-                  </TableHead>
-                  <TableHead className="text-[10px] font-bold uppercase tracking-wider py-3">
-                    Outcome
-                  </TableHead>
-                  <TableHead className="text-[10px] font-bold uppercase tracking-wider py-3">
-                    Notes
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {sorted.map((record: CallingRecord, i: number) => (
-                  <TableRow
-                    key={record.id.toString()}
-                    className="border-border/40 hover:bg-primary/5 transition-colors"
-                    data-ocid={`feedback.calling.item.${i + 1}`}
+          <div className="divide-y divide-border/40">
+            {sorted.map((record: DisplayRecord, i: number) => {
+              const isNeg = record.cesScore < 30;
+              return (
+                <button
+                  key={record.key}
+                  type="button"
+                  className={cn(
+                    "w-full text-left px-4 py-3.5 flex items-center gap-4 cursor-pointer transition-colors hover:bg-primary/5",
+                    isNeg &&
+                      "border-l-[3px] border-l-red-500 bg-red-50/30 hover:bg-red-50/50",
+                    !isNeg && "border-l-[3px] border-l-transparent",
+                  )}
+                  onClick={() => {
+                    setSelectedRecord(record);
+                    setRecordDetailOpen(true);
+                  }}
+                  data-ocid={`feedback.calling.item.${i + 1}`}
+                >
+                  {/* CES badge */}
+                  <span
+                    className={cn(
+                      "shrink-0 inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full",
+                      isNeg
+                        ? "bg-red-100 text-red-700 border border-red-300"
+                        : "bg-emerald-100 text-emerald-700 border border-emerald-300",
+                    )}
                   >
-                    <TableCell className="py-3 pl-4 font-semibold text-sm">
+                    {isNeg ? "⚠" : "✓"} CES: {record.cesScore}
+                  </span>
+                  {/* FSE Name */}
+                  <span className="flex-1 min-w-0">
+                    <span className="block font-semibold text-sm text-foreground truncate">
                       {record.fseName || "—"}
-                    </TableCell>
-                    <TableCell className="py-3 text-xs font-mono-data text-primary/80">
+                    </span>
+                    <span className="block text-[10px] font-mono text-muted-foreground/70 mt-0.5">
                       {record.fiplCode || "—"}
-                    </TableCell>
-                    <TableCell className="py-3 text-sm">
-                      {record.customerName}
-                    </TableCell>
-                    <TableCell className="py-3 text-xs text-muted-foreground">
-                      {record.customerContact || "—"}
-                    </TableCell>
-                    <TableCell className="py-3 text-xs text-muted-foreground">
-                      {record.brand || "—"}
-                    </TableCell>
-                    <TableCell className="py-3 text-xs text-muted-foreground max-w-[120px] truncate">
-                      {record.product || "—"}
-                    </TableCell>
-                    <TableCell className="py-3 text-xs font-mono-data">
-                      {Number(record.cesScore)}
-                    </TableCell>
-                    <TableCell className="py-3 text-xs text-muted-foreground max-w-[150px] truncate">
-                      {record.remark || "—"}
-                    </TableCell>
-                    <TableCell className="py-3 text-xs text-muted-foreground">
-                      {formatDate(record.date)}
-                    </TableCell>
-                    <TableCell className="py-3 text-xs text-muted-foreground">
-                      {record.agent || "—"}
-                    </TableCell>
-                    <TableCell className="py-3">
-                      <Badge
-                        variant="outline"
-                        className={cn(
-                          "text-[10px] font-semibold px-2 py-0.5 border",
-                          getOutcomeBadgeStyle(record.outcome),
-                        )}
-                      >
-                        {record.outcome}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="py-3 text-xs text-muted-foreground max-w-[180px] truncate">
-                      {record.notes || "—"}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </ScrollArea>
+                    </span>
+                  </span>
+                  {/* Date */}
+                  <span className="shrink-0 text-xs text-muted-foreground hidden sm:block">
+                    {record.dateDisplay || "—"}
+                  </span>
+                  {/* Chevron hint */}
+                  <ChevronRight className="shrink-0 w-3.5 h-3.5 text-muted-foreground/40" />
+                </button>
+              );
+            })}
+          </div>
         )}
       </div>
 
@@ -1359,6 +1739,149 @@ function CallingRecordsTab() {
 
       <AddCallingRecordDialog open={addOpen} onOpenChange={setAddOpen} />
       <BulkUploadDialog open={bulkOpen} onOpenChange={setBulkOpen} />
+
+      {/* Call Record Detail Dialog */}
+      <Dialog open={recordDetailOpen} onOpenChange={setRecordDetailOpen}>
+        <DialogContent className="max-w-lg" data-ocid="feedback.calling.dialog">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold">
+              Call Record Details
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">
+              Full details for this feedback call record
+            </DialogDescription>
+          </DialogHeader>
+          {selectedRecord && (
+            <div className="mt-2 space-y-4">
+              {/* CES Score banner */}
+              <div
+                className={cn(
+                  "flex items-center gap-2 rounded-lg px-4 py-2.5",
+                  selectedRecord.cesScore < 30
+                    ? "bg-red-50 border border-red-200"
+                    : "bg-emerald-50 border border-emerald-200",
+                )}
+              >
+                <span
+                  className={cn(
+                    "text-2xl font-bold",
+                    selectedRecord.cesScore < 30
+                      ? "text-red-600"
+                      : "text-emerald-600",
+                  )}
+                >
+                  {selectedRecord.cesScore}
+                </span>
+                <div>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                    CES Score
+                  </p>
+                  <p
+                    className={cn(
+                      "text-xs font-medium",
+                      selectedRecord.cesScore < 30
+                        ? "text-red-600"
+                        : "text-emerald-600",
+                    )}
+                  >
+                    {selectedRecord.cesScore < 30
+                      ? "⚠ Negative Feedback"
+                      : "✓ Positive Feedback"}
+                  </p>
+                </div>
+              </div>
+              {/* 2-column grid fields */}
+              <div className="grid grid-cols-2 gap-x-6 gap-y-3">
+                <div>
+                  <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold mb-0.5">
+                    FIPL Code
+                  </p>
+                  <p className="text-sm font-mono text-foreground">
+                    {selectedRecord.fiplCode || "—"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold mb-0.5">
+                    FSE Name
+                  </p>
+                  <p className="text-sm font-semibold text-foreground">
+                    {selectedRecord.fseName || "—"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold mb-0.5">
+                    Customer Name
+                  </p>
+                  <p className="text-sm text-foreground">
+                    {selectedRecord.customerName || "—"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold mb-0.5">
+                    Brand
+                  </p>
+                  <p className="text-sm text-foreground">
+                    {selectedRecord.brand || "—"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold mb-0.5">
+                    Product
+                  </p>
+                  <p className="text-sm text-foreground">
+                    {selectedRecord.product || "—"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold mb-0.5">
+                    Agent
+                  </p>
+                  <p className="text-sm text-foreground">
+                    {selectedRecord.agent || "—"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold mb-0.5">
+                    Date of Call
+                  </p>
+                  <p className="text-sm text-foreground">
+                    {selectedRecord.dateDisplay || "—"}
+                  </p>
+                </div>
+                {selectedRecord.priority && (
+                  <div>
+                    <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold mb-0.5">
+                      Priority
+                    </p>
+                    <p className="text-sm text-foreground">
+                      {selectedRecord.priority}
+                    </p>
+                  </div>
+                )}
+              </div>
+              {/* Remark full-width */}
+              <div>
+                <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold mb-1">
+                  Remark
+                </p>
+                <p className="text-sm text-foreground bg-muted/30 rounded-lg px-3 py-2.5 leading-relaxed">
+                  {selectedRecord.remark || "No remark provided."}
+                </p>
+              </div>
+            </div>
+          )}
+          <DialogFooter className="mt-4">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setRecordDetailOpen(false)}
+              data-ocid="feedback.calling.close_button"
+            >
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

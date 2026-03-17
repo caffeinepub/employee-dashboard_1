@@ -4,24 +4,27 @@ import { cn } from "@/lib/utils";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   AlertCircle,
+  Check,
   Lightbulb,
   PauseCircle,
+  Pencil,
   Plus,
   RefreshCw,
   UserMinus,
   Users,
+  X,
 } from "lucide-react";
 import { type Variants, motion } from "motion/react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Status } from "../backend";
 import type { Employee } from "../backend.d.ts";
 import { useAppSettings } from "../context/AppSettingsContext";
 import { useGoogleSheetEmployees } from "../hooks/useGoogleSheetData";
-import { useAllIssues, useTopPerformers } from "../hooks/useQueries";
+import { useAllIssues } from "../hooks/useQueries";
 import { AddEmployeeModal } from "./AddEmployeeModal";
-import { EmployeeCard } from "./EmployeeCard";
 import { IssuesDialog } from "./IssuesDialog";
+import { PasswordGateDialog } from "./PasswordGateDialog";
 import { SuggestionsDialog } from "./SuggestionsDialog";
 import { TopPerformersSection } from "./TopPerformersSection";
 
@@ -38,6 +41,33 @@ const SKELETON_KEYS_10 = [
   "sk-j",
 ];
 
+function formatTimeAgo(date: Date): string {
+  const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
+  if (seconds < 10) return "Just now";
+  if (seconds < 60) return `${seconds}s ago`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes} min ago`;
+  const hours = Math.floor(minutes / 60);
+  return `${hours}h ago`;
+}
+
+function formatJoinDateFromBigInt(val: unknown): string {
+  if (!val) return "—";
+  try {
+    const ns = BigInt(String(val));
+    if (ns === 0n) return "—";
+    const ms = Number(ns) / 1_000_000;
+    const d = new Date(ms);
+    if (Number.isNaN(d.getTime()) || d.getFullYear() < 1980) return String(val);
+    const dd = String(d.getDate()).padStart(2, "0");
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const yyyy = d.getFullYear();
+    return `${dd}-${mm}-${yyyy}`;
+  } catch {
+    return String(val) ?? "—";
+  }
+}
+
 interface OverviewPageProps {
   onSelectEmployee: (employee: Employee) => void;
 }
@@ -45,25 +75,62 @@ interface OverviewPageProps {
 export function OverviewPage({ onSelectEmployee }: OverviewPageProps) {
   const [addEmployeeOpen, setAddEmployeeOpen] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastRefreshed, setLastRefreshed] = useState<Date>(new Date());
+  const [timeAgoText, setTimeAgoText] = useState("Just now");
   const queryClient = useQueryClient();
+
+  // Update the "X min ago" text every 30 seconds
+  useEffect(() => {
+    setTimeAgoText(formatTimeAgo(lastRefreshed));
+    const interval = setInterval(() => {
+      setTimeAgoText(formatTimeAgo(lastRefreshed));
+    }, 30_000);
+    return () => clearInterval(interval);
+  }, [lastRefreshed]);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
     await queryClient.invalidateQueries();
+    const now = new Date();
+    setLastRefreshed(now);
+    setTimeAgoText("Just now");
     toast.success("Data refreshed from Google Sheets");
     setIsRefreshing(false);
   };
+
   const [issuesDialogOpen, setIssuesDialogOpen] = useState(false);
   const [suggestionsDialogOpen, setSuggestionsDialogOpen] = useState(false);
 
-  const { settings } = useAppSettings();
+  const { settings, updateLabel } = useAppSettings();
   const { labels } = settings;
+
+  // ── Inline editing for company branding ─────────────────────────────────
+  const [brandingHover, setBrandingHover] = useState(false);
+  const [editingBranding, setEditingBranding] = useState(false);
+  const [draftName, setDraftName] = useState(labels.companyName);
+  const [draftTagline, setDraftTagline] = useState(labels.companyTagline);
+  const nameRef = useRef<HTMLInputElement>(null);
+
+  const startEditBranding = () => {
+    setDraftName(labels.companyName);
+    setDraftTagline(labels.companyTagline);
+    setEditingBranding(true);
+    setTimeout(() => nameRef.current?.focus(), 50);
+  };
+
+  const saveBranding = () => {
+    if (draftName.trim()) updateLabel("companyName", draftName.trim());
+    if (draftTagline.trim()) updateLabel("companyTagline", draftTagline.trim());
+    setEditingBranding(false);
+  };
+
+  const cancelBranding = () => {
+    setEditingBranding(false);
+  };
 
   const { data: employees = [], isLoading: employeesLoading } =
     useGoogleSheetEmployees();
   const { data: issues = [], isLoading: issuesLoading } = useAllIssues();
-  const { data: topPerformers = [], isLoading: topPerformersLoading } =
-    useTopPerformers();
 
   // Derive counts directly from the employee list — filtered by status
   const activeCount = employees.filter(
@@ -81,12 +148,8 @@ export function OverviewPage({ onSelectEmployee }: OverviewPageProps) {
     (i) => i.category === "Suggestion",
   ).length;
 
-  // Build directory from top performers only (match fiplCode) — active employees only, capped at 10
-  const topPerformerCodes = new Set(topPerformers.map((tp) => tp.fiplCode));
-  const directoryEmployees = employees
-    .filter(
-      (e) => topPerformerCodes.has(e.fiplCode) && e.status === Status.active,
-    )
+  const recentEmployees = employees
+    .filter((e) => e.status === Status.active)
     .slice(0, 10);
 
   const containerVariants: Variants = {
@@ -108,41 +171,110 @@ export function OverviewPage({ onSelectEmployee }: OverviewPageProps) {
         transition={{ duration: 0.2 }}
         className="mb-8"
       >
-        <div className="flex items-start justify-between">
-          <div>
-            <p className="text-xs uppercase tracking-widest text-primary/70 font-semibold mb-1">
-              {labels.overviewBadgeLabel}
-            </p>
-            <h1 className="text-3xl font-display font-bold text-foreground">
-              {labels.overviewPageTitle}
-            </h1>
-            <p className="text-muted-foreground mt-1 text-sm">
-              {labels.overviewPageSubtitle}
-            </p>
+        <div className="flex items-start justify-between gap-4">
+          {/* Company Branding — editable */}
+          <div
+            className="relative group flex-1 min-w-0"
+            onMouseEnter={() => setBrandingHover(true)}
+            onMouseLeave={() => setBrandingHover(false)}
+          >
+            {editingBranding ? (
+              <div className="flex flex-col gap-1.5 max-w-sm">
+                <input
+                  ref={nameRef}
+                  type="text"
+                  value={draftName}
+                  onChange={(e) => setDraftName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") saveBranding();
+                    if (e.key === "Escape") cancelBranding();
+                  }}
+                  placeholder="Company name"
+                  className="text-2xl font-display font-bold bg-transparent border-b-2 border-primary/50 outline-none text-foreground w-full pb-0.5"
+                />
+                <input
+                  type="text"
+                  value={draftTagline}
+                  onChange={(e) => setDraftTagline(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") saveBranding();
+                    if (e.key === "Escape") cancelBranding();
+                  }}
+                  placeholder="Tagline"
+                  className="text-sm bg-transparent border-b border-primary/30 outline-none text-muted-foreground w-full pb-0.5"
+                />
+                <div className="flex items-center gap-1.5 mt-1">
+                  <button
+                    type="button"
+                    onClick={saveBranding}
+                    className="flex items-center gap-1 text-xs bg-primary text-primary-foreground px-2.5 py-1 rounded-md hover:bg-primary/90 transition-colors"
+                  >
+                    <Check className="w-3 h-3" /> Save
+                  </button>
+                  <button
+                    type="button"
+                    onClick={cancelBranding}
+                    className="flex items-center gap-1 text-xs bg-muted text-muted-foreground px-2.5 py-1 rounded-md hover:bg-muted/80 transition-colors"
+                  >
+                    <X className="w-3 h-3" /> Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-start gap-2">
+                <div>
+                  <h1 className="text-3xl font-display font-bold text-foreground leading-tight">
+                    {labels.companyName}
+                  </h1>
+                  <p className="text-sm text-muted-foreground mt-0.5 italic">
+                    {labels.companyTagline}
+                  </p>
+                </div>
+                {brandingHover && (
+                  <button
+                    type="button"
+                    onClick={startEditBranding}
+                    className="mt-1 w-6 h-6 rounded-md bg-primary/10 border border-primary/20 flex items-center justify-center text-primary/70 hover:bg-primary/20 transition-colors"
+                    title="Edit company name and tagline"
+                  >
+                    <Pencil className="w-3 h-3" />
+                  </button>
+                )}
+              </div>
+            )}
           </div>
-          <div className="flex items-center gap-2">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={handleRefresh}
-              disabled={isRefreshing}
-              className="gap-2 text-xs"
-              data-ocid="overview.refresh_button"
-            >
-              <RefreshCw
-                className={cn("w-3.5 h-3.5", isRefreshing && "animate-spin")}
-              />
-              Refresh Data
-            </Button>
-            <Button
-              size="sm"
-              onClick={() => setAddEmployeeOpen(true)}
-              className="gap-2 text-xs"
-              data-ocid="overview.open_modal_button"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              Add Employee
-            </Button>
+
+          {/* Right side controls */}
+          <div className="flex flex-col items-end gap-1 shrink-0">
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleRefresh}
+                disabled={isRefreshing}
+                className="gap-2 text-xs"
+                data-ocid="overview.refresh_button"
+              >
+                <RefreshCw
+                  className={cn("w-3.5 h-3.5", isRefreshing && "animate-spin")}
+                />
+                Refresh Data
+              </Button>
+              <PasswordGateDialog onSuccess={() => setAddEmployeeOpen(true)}>
+                <Button
+                  size="sm"
+                  className="gap-2 text-xs"
+                  data-ocid="overview.open_modal_button"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  Add Employee
+                </Button>
+              </PasswordGateDialog>
+            </div>
+            {/* Last updated timestamp */}
+            <p className="text-[10px] text-muted-foreground/60">
+              Last updated: {timeAgoText}
+            </p>
           </div>
         </div>
       </motion.div>
@@ -289,81 +421,112 @@ export function OverviewPage({ onSelectEmployee }: OverviewPageProps) {
         <TopPerformersSection />
       </motion.div>
 
-      {/* Employee Directory — active top performers only */}
+      {/* Employee Directory — 10 active employees from database */}
       <motion.div
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.2, delay: 0.14 }}
+        transition={{ duration: 0.2, delay: 0.13 }}
       >
         <div className="glass-card rounded-xl overflow-hidden">
           <div className="px-5 py-4 border-b border-border/50 flex items-center justify-between">
             <div>
               <h2 className="font-display font-bold text-sm text-foreground">
-                {labels.overviewDirectoryTitle}
+                Employee Directory
               </h2>
               <p className="text-[10px] text-muted-foreground">
-                {topPerformers.length > 0
-                  ? "Showing active top performers this month"
-                  : labels.overviewDirectorySubtitle}
+                10 active employees from the database
               </p>
             </div>
             <span className="text-[10px] font-mono-data text-primary/70 bg-primary/10 px-2 py-0.5 rounded-full">
-              {directoryEmployees.length} shown
+              {recentEmployees.length} shown
             </span>
           </div>
           <div className="p-4">
-            {employeesLoading || topPerformersLoading ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {SKELETON_KEYS_10.slice(0, 6).map((k) => (
-                  <Skeleton key={k} className="h-24 rounded-lg bg-muted/50" />
+            {employeesLoading ? (
+              <div className="space-y-2">
+                {SKELETON_KEYS_10.map((k) => (
+                  <Skeleton key={k} className="h-10 rounded-lg bg-muted/50" />
                 ))}
               </div>
-            ) : topPerformers.length === 0 ? (
+            ) : recentEmployees.length === 0 ? (
               <div
                 className="flex flex-col items-center justify-center py-12 text-muted-foreground/50"
-                data-ocid="directory.empty_state"
-              >
-                <Users className="w-8 h-8 mb-3 opacity-30" />
-                <p className="text-sm font-semibold">
-                  No top performers uploaded
-                </p>
-                <p className="text-xs mt-0.5">
-                  Upload top performers to populate the directory
-                </p>
-              </div>
-            ) : directoryEmployees.length === 0 ? (
-              <div
-                className="flex flex-col items-center justify-center py-12 text-muted-foreground/50"
-                data-ocid="directory.empty_state"
+                data-ocid="emp_directory.empty_state"
               >
                 <Users className="w-8 h-8 mb-3 opacity-30" />
                 <p className="text-sm font-semibold">
                   No active employees found
                 </p>
                 <p className="text-xs mt-0.5">
-                  Only active top performers appear in the directory
+                  Upload employee data to populate the directory
                 </p>
               </div>
             ) : (
-              <motion.div
-                variants={containerVariants}
-                initial="hidden"
-                animate="visible"
-                className="grid grid-cols-1 sm:grid-cols-2 gap-3"
-              >
-                {directoryEmployees.map((employee, i) => (
-                  <motion.div
-                    key={employee.id.toString()}
-                    variants={itemVariants}
-                    data-ocid={`directory.item.${i + 1}`}
-                  >
-                    <EmployeeCard
-                      employee={employee}
-                      onClick={() => onSelectEmployee(employee)}
-                    />
-                  </motion.div>
-                ))}
-              </motion.div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="border-b border-border/40">
+                      <th className="text-left py-2 px-3 text-muted-foreground font-medium">
+                        #
+                      </th>
+                      <th className="text-left py-2 px-3 text-muted-foreground font-medium">
+                        Name
+                      </th>
+                      <th className="text-left py-2 px-3 text-muted-foreground font-medium">
+                        FIPL Code
+                      </th>
+                      <th className="text-left py-2 px-3 text-muted-foreground font-medium">
+                        Region
+                      </th>
+                      <th className="text-left py-2 px-3 text-muted-foreground font-medium">
+                        Category
+                      </th>
+                      <th className="text-left py-2 px-3 text-muted-foreground font-medium">
+                        Joining Date
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {recentEmployees.map((emp, i) => (
+                      <tr
+                        key={emp.id.toString()}
+                        className="border-b border-border/20 hover:bg-muted/20 transition-colors cursor-pointer"
+                        onClick={() => onSelectEmployee(emp)}
+                        onKeyDown={(e) =>
+                          e.key === "Enter" && onSelectEmployee(emp)
+                        }
+                        tabIndex={0}
+                        data-ocid={`emp_directory.item.${i + 1}`}
+                      >
+                        <td className="py-2.5 px-3 text-muted-foreground">
+                          {i + 1}
+                        </td>
+                        <td className="py-2.5 px-3 font-medium text-foreground">
+                          {emp.name}
+                        </td>
+                        <td className="py-2.5 px-3 font-mono text-muted-foreground">
+                          {emp.fiplCode}
+                        </td>
+                        <td className="py-2.5 px-3 text-muted-foreground">
+                          {emp.region ?? "—"}
+                        </td>
+                        <td className="py-2.5 px-3">
+                          {emp.fseCategory ? (
+                            <span className="bg-primary/10 text-primary px-2 py-0.5 rounded-full text-[10px] font-medium">
+                              {emp.fseCategory}
+                            </span>
+                          ) : (
+                            "—"
+                          )}
+                        </td>
+                        <td className="py-2.5 px-3 text-muted-foreground">
+                          {formatJoinDateFromBigInt(emp.joinDate)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
           </div>
         </div>

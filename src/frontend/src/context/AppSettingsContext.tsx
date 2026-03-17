@@ -1,6 +1,10 @@
 import { createContext, useCallback, useContext, useState } from "react";
 
 export interface AppSettingsLabels {
+  // Company branding
+  companyName: string;
+  companyTagline: string;
+
   // Sidebar
   sidebarAppName: string;
   sidebarTagline: string;
@@ -41,6 +45,10 @@ export interface AppSettings {
 
 const DEFAULT_SETTINGS: AppSettings = {
   labels: {
+    // Company branding
+    companyName: "Frootle India Pvt. Ltd.",
+    companyTagline: "A house of Global Brands.",
+
     // Sidebar
     sidebarAppName: "PeopleOS",
     sidebarTagline: "Intelligence Suite",

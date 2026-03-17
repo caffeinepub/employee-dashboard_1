@@ -8,14 +8,61 @@ const SHEET_CSV_URL =
 const BASE =
   "https://docs.google.com/spreadsheets/d/e/2PACX-1vTOjE98FXvqzyDsHobJaFeIE_45dElbccI_yNzCirTrTD10vQiLE6eZS3UKpqgXt7xH1cLSjlMpeRn6/pub?single=true&output=csv";
 
+// Known GIDs for Sheets 1–5
 const SWOT_URL = `${BASE}&gid=261281208`;
 const PARAMETERS_URL = `${BASE}&gid=540205484`;
 const ATTENDANCE_URL = `${BASE}&gid=699978179`;
 const SALES_URL = `${BASE}&gid=2107831932`;
 
+// Pubhtml URL used to discover Sheet 6 and Sheet 7 GIDs dynamically
+const PUBHTML_URL =
+  "https://docs.google.com/spreadsheets/d/e/2PACX-1vTOjE98FXvqzyDsHobJaFeIE_45dElbccI_yNzCirTrTD10vQiLE6eZS3UKpqgXt7xH1cLSjlMpeRn6/pubhtml";
+
 const STALE_5MIN = 5 * 60 * 1000;
 
-// ─── Shared helpers ──────────────────────────────────────────────────────────
+// ─── GID auto-discovery ──────────────────────────────────────────────────────────────────────
+
+let cachedGids: string[] | null = null;
+
+async function discoverAllSheetGids(): Promise<string[]> {
+  if (cachedGids !== null) return cachedGids;
+  try {
+    const res = await fetch(PUBHTML_URL);
+    const html = await res.text();
+    // The pubhtml navigation contains links like ?gid=XXXXXXX
+    // Extract all unique GIDs in the order they appear (= sheet order)
+    const seen = new Set<string>();
+    const gids: string[] = [];
+    // Match both "gid=XXXXX" patterns in anchor hrefs
+    const re = /[?&]gid=(\d+)/g;
+    let m: RegExpExecArray | null;
+    // biome-ignore lint/suspicious/noAssignInExpressions: regex loop pattern
+    while ((m = re.exec(html)) !== null) {
+      if (!seen.has(m[1])) {
+        seen.add(m[1]);
+        gids.push(m[1]);
+      }
+    }
+    cachedGids = gids;
+    return gids;
+  } catch {
+    // Return empty if discovery fails — hooks will show empty state
+    cachedGids = [];
+    return [];
+  }
+}
+
+/** Hook that discovers all sheet GIDs once per session */
+export function useSheetGids() {
+  return useQuery<string[]>({
+    queryKey: ["sheetGids"],
+    queryFn: discoverAllSheetGids,
+    staleTime: Number.POSITIVE_INFINITY, // GIDs don't change
+    retry: 2,
+  });
+}
+
+// ─── Shared helpers ────────────────────────────────────────────────────────────────────────────
 
 export function fiplCodeToId(fiplCode: string): bigint {
   let hash = 0;
@@ -104,11 +151,12 @@ function parseSemicolonCell(raw: string): string[] {
 function parseNum(val: string): number {
   const v = val?.trim() ?? "";
   if (v === "-" || v === "NA" || v === "") return 0;
-  const n = Number(v);
+  const cleaned = v.replace(/[,\s₹$]/g, "");
+  const n = Number(cleaned);
   return Number.isNaN(n) ? 0 : n;
 }
 
-// ─── Employee (Sheet 1) ──────────────────────────────────────────────────────
+// ─── Employee (Sheet 1) ────────────────────────────────────────────────────────────────────────────
 
 function parseCSV(text: string): Employee[] {
   const lines = text.split("\n").filter(Boolean);
@@ -155,7 +203,7 @@ export function useGoogleSheetEmployees() {
   });
 }
 
-// ─── SWOT (Sheet 2) ──────────────────────────────────────────────────────────
+// ─── SWOT (Sheet 2) ────────────────────────────────────────────────────────────────────────────
 
 export interface SheetSWOT {
   fiplCode: string;
@@ -214,7 +262,7 @@ export function useGoogleSheetSWOTByFiplCode(
   return { ...rest, data: match };
 }
 
-// ─── Parameters (Sheet 3) ────────────────────────────────────────────────────
+// ─── Parameters (Sheet 3) ──────────────────────────────────────────────────────────────────────────
 
 export interface SheetParameters {
   fiplCode: string;
@@ -276,7 +324,7 @@ export function useGoogleSheetParametersByFiplCode(
   return { ...rest, data: match };
 }
 
-// ─── Attendance (Sheet 4) ────────────────────────────────────────────────────
+// ─── Attendance (Sheet 4) ─────────────────────────────────────────────────────────────────────────
 
 export interface SheetAttendanceRecord {
   id: bigint;
@@ -332,7 +380,7 @@ export function useGoogleSheetAttendanceByFiplCode(
   return { ...rest, data: filtered };
 }
 
-// ─── Sales (Sheet 5) ─────────────────────────────────────────────────────────
+// ─── Sales (Sheet 5) ────────────────────────────────────────────────────────────────────────────
 
 export interface SheetSalesRecord {
   id: bigint;
@@ -365,6 +413,55 @@ function mapSaleType(raw: string): string {
   return s;
 }
 
+/**
+ * Parse a sale date from Column G: Unix timestamp (seconds), YYYY-MM-DD, or DD-MM-YYYY.
+ */
+function parseSaleDate(raw: string): bigint {
+  if (!raw || raw.trim() === "") return 0n;
+  const trimmed = raw.trim();
+  const num = Number(trimmed);
+  if (!Number.isNaN(num) && num > 0) {
+    // Excel serial numbers: days since Dec 30, 1899 (range ~25569 to 73050)
+    if (num >= 25569 && num <= 73050) {
+      const ms = Date.UTC(1899, 11, 30) + num * 86400000;
+      const d = new Date(ms);
+      if (!Number.isNaN(d.getTime()) && d.getFullYear() >= 1970) {
+        return BigInt(Math.round(ms)) * 1_000_000n;
+      }
+    }
+    // Unix timestamp in milliseconds (> 1e12)
+    if (num > 1e12) {
+      const d = new Date(num);
+      if (!Number.isNaN(d.getTime()) && d.getFullYear() > 1971) {
+        return BigInt(Math.round(num)) * 1_000_000n;
+      }
+    }
+    // Unix timestamp in seconds (1e9 to 1e12)
+    if (num >= 1e9 && num < 1e12) {
+      const ms = num * 1000;
+      const d = new Date(ms);
+      if (!Number.isNaN(d.getTime()) && d.getFullYear() > 1971) {
+        return BigInt(Math.round(ms)) * 1_000_000n;
+      }
+    }
+  }
+  const isoMatch = trimmed.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if (isoMatch) {
+    const d = new Date(
+      `${isoMatch[1]}-${isoMatch[2].padStart(2, "0")}-${isoMatch[3].padStart(2, "0")}`,
+    );
+    if (!Number.isNaN(d.getTime())) return BigInt(d.getTime()) * 1_000_000n;
+  }
+  const ddmmyyyy = trimmed.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
+  if (ddmmyyyy) {
+    const d = new Date(
+      `${ddmmyyyy[3]}-${ddmmyyyy[2].padStart(2, "0")}-${ddmmyyyy[1].padStart(2, "0")}`,
+    );
+    if (!Number.isNaN(d.getTime())) return BigInt(d.getTime()) * 1_000_000n;
+  }
+  return 0n;
+}
+
 function parseSalesCSV(text: string): SheetSalesRecord[] {
   const lines = text.split("\n").filter(Boolean);
   if (lines.length < 2) return [];
@@ -374,7 +471,7 @@ function parseSalesCSV(text: string): SheetSalesRecord[] {
     const fiplCode = cols[0]?.replace(/\*/g, "").trim() || "";
     if (!fiplCode) continue;
     const employeeId = fiplCodeToId(fiplCode);
-    const saleDate = parseDDMMYYYY(cols[6] || "");
+    const saleDate = parseSaleDate(cols[6] || "");
     results.push({
       id: BigInt(i),
       fiplCode,
@@ -413,4 +510,178 @@ export function useGoogleSheetSalesByFiplCode(
     ? all.filter((r) => r.fiplCode.toUpperCase() === fiplCode.toUpperCase())
     : [];
   return { ...rest, data: filtered };
+}
+
+// ─── Top Performers (Sheet 6) ────────────────────────────────────────────────────────────────────
+
+export interface SheetTopPerformer {
+  rank: number;
+  name: string;
+  fiplCode: string;
+  accessories: number;
+  extendedWarranty: number;
+  totalSales: number;
+}
+
+function normHeader(s: string): string {
+  return s.toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+function findColIdx(headers: string[], ...candidates: string[]): number {
+  const norm = headers.map(normHeader);
+  for (const c of candidates) {
+    const idx = norm.findIndex(
+      (h) => h === normHeader(c) || h.includes(normHeader(c)),
+    );
+    if (idx >= 0) return idx;
+  }
+  return -1;
+}
+
+function parseTopPerformersCSV(text: string): SheetTopPerformer[] {
+  const lines = text.split("\n").filter((l) => l.trim());
+  if (lines.length < 2) return [];
+
+  const headers = parseRow(lines[0]);
+  const rankIdx = findColIdx(headers, "rank", "#", "no");
+  const nameIdx = findColIdx(headers, "name", "fsename", "employee");
+  const fiplIdx = findColIdx(headers, "fiplcode", "fipl", "code");
+  const accIdx = findColIdx(headers, "accessories", "accessory", "acc");
+  const ewIdx = findColIdx(
+    headers,
+    "extendedwarranty",
+    "extended",
+    "warranty",
+    "ew",
+  );
+  const salesIdx = findColIdx(
+    headers,
+    "totalsales",
+    "sales",
+    "amount",
+    "total",
+  );
+
+  const results: SheetTopPerformer[] = [];
+  for (let i = 1; i < lines.length; i++) {
+    const cols = parseRow(lines[i]);
+    const name = nameIdx >= 0 ? cols[nameIdx]?.trim() || "" : "";
+    const fiplCode = fiplIdx >= 0 ? cols[fiplIdx]?.trim() || "" : "";
+    if (!name && !fiplCode) continue;
+
+    const rank = rankIdx >= 0 ? parseNum(cols[rankIdx] || "") || i : i;
+
+    results.push({
+      rank,
+      name,
+      fiplCode,
+      accessories: accIdx >= 0 ? parseNum(cols[accIdx] || "") : 0,
+      extendedWarranty: ewIdx >= 0 ? parseNum(cols[ewIdx] || "") : 0,
+      totalSales: salesIdx >= 0 ? parseNum(cols[salesIdx] || "") : 0,
+    });
+  }
+  return results.sort((a, b) => a.rank - b.rank);
+}
+
+export function useGoogleSheetTopPerformers() {
+  const { data: gids = [] } = useSheetGids();
+  // Sheet 6 is the 6th sheet (index 5)
+  const sheet6Gid = gids[5] ?? null;
+
+  return useQuery<SheetTopPerformer[]>({
+    queryKey: ["googleSheetTopPerformers", sheet6Gid],
+    queryFn: async () => {
+      if (!sheet6Gid) return [];
+      const url = `${BASE}&gid=${sheet6Gid}`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error("Failed to fetch Top Performers sheet");
+      const text = await res.text();
+      return parseTopPerformersCSV(text);
+    },
+    enabled: gids.length > 0,
+    staleTime: STALE_5MIN,
+    refetchOnWindowFocus: true,
+  });
+}
+
+// ─── Call Records (Sheet 7) ─────────────────────────────────────────────────────────────────────
+
+export interface SheetCallRecord {
+  id: string;
+  fiplCode: string;
+  fseName: string;
+  customerName: string;
+  brand: string;
+  product: string;
+  cesScore: number;
+  remark: string;
+  dateOfCall: string;
+  agent: string;
+  priority: string;
+}
+
+function parseCallRecordsCSV(text: string): SheetCallRecord[] {
+  const lines = text.split("\n").filter((l) => l.trim());
+  if (lines.length < 2) return [];
+
+  const headers = parseRow(lines[0]);
+  const fiplIdx = findColIdx(headers, "fiplcode", "fipl");
+  const fseIdx = findColIdx(headers, "fse name", "fsename", "fse");
+  const custIdx = findColIdx(
+    headers,
+    "customer name",
+    "customername",
+    "customer",
+  );
+  const brandIdx = findColIdx(headers, "brand");
+  const productIdx = findColIdx(headers, "product");
+  const cesIdx = findColIdx(headers, "ces score", "cesscore", "ces");
+  const remarkIdx = findColIdx(headers, "remark", "remarks");
+  const dateIdx = findColIdx(headers, "date of call", "dateofcall", "date");
+  const agentIdx = findColIdx(headers, "agent", "calledby");
+  const priorityIdx = findColIdx(headers, "priority", "pri");
+
+  const results: SheetCallRecord[] = [];
+  for (let i = 1; i < lines.length; i++) {
+    const cols = parseRow(lines[i]);
+    const get = (idx: number) => (idx >= 0 ? (cols[idx]?.trim() ?? "") : "");
+    const fiplCode = get(fiplIdx);
+    const customerName = get(custIdx);
+    if (!fiplCode && !customerName) continue;
+    results.push({
+      id: `sheet-${i}`,
+      fiplCode,
+      fseName: get(fseIdx),
+      customerName,
+      brand: get(brandIdx),
+      product: get(productIdx),
+      cesScore: parseNum(get(cesIdx)),
+      remark: get(remarkIdx),
+      dateOfCall: get(dateIdx),
+      agent: get(agentIdx),
+      priority: get(priorityIdx),
+    });
+  }
+  return results;
+}
+
+export function useGoogleSheetCallRecords() {
+  const { data: gids = [] } = useSheetGids();
+  // Sheet 7 is the 7th sheet (index 6)
+  const sheet7Gid = gids[6] ?? null;
+
+  return useQuery<SheetCallRecord[]>({
+    queryKey: ["googleSheetCallRecords", sheet7Gid],
+    queryFn: async () => {
+      if (!sheet7Gid) return [];
+      const url = `${BASE}&gid=${sheet7Gid}`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error("Failed to fetch Call Records sheet");
+      const text = await res.text();
+      return parseCallRecordsCSV(text);
+    },
+    enabled: gids.length > 0,
+    staleTime: STALE_5MIN,
+    refetchOnWindowFocus: true,
+  });
 }
