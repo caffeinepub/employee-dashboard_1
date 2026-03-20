@@ -20,7 +20,10 @@ import { toast } from "sonner";
 import { Status } from "../backend";
 import type { Employee } from "../backend.d.ts";
 import { useAppSettings } from "../context/AppSettingsContext";
-import { useGoogleSheetEmployees } from "../hooks/useGoogleSheetData";
+import {
+  useGoogleSheetEmployees,
+  useGoogleSheetTopPerformers,
+} from "../hooks/useGoogleSheetData";
 import { useAllIssues } from "../hooks/useQueries";
 import { AddEmployeeModal } from "./AddEmployeeModal";
 import { IssuesDialog } from "./IssuesDialog";
@@ -128,6 +131,7 @@ export function OverviewPage({ onSelectEmployee }: OverviewPageProps) {
     setEditingBranding(false);
   };
 
+  const { data: topPerformers = [] } = useGoogleSheetTopPerformers();
   const { data: employees = [], isLoading: employeesLoading } =
     useGoogleSheetEmployees();
   const { data: issues = [], isLoading: issuesLoading } = useAllIssues();
@@ -148,9 +152,12 @@ export function OverviewPage({ onSelectEmployee }: OverviewPageProps) {
     (i) => i.category === "Suggestion",
   ).length;
 
-  const recentEmployees = employees
-    .filter((e) => e.status === Status.active)
-    .slice(0, 10);
+  const topPerformerCodes = new Set(
+    topPerformers.map((tp) => tp.fiplCode.toUpperCase()),
+  );
+  const recentEmployees = employees.filter((emp) =>
+    topPerformerCodes.has(emp.fiplCode.toUpperCase()),
+  );
 
   const containerVariants: Variants = {
     hidden: { opacity: 0 },
@@ -434,7 +441,7 @@ export function OverviewPage({ onSelectEmployee }: OverviewPageProps) {
                 Employee Directory
               </h2>
               <p className="text-[10px] text-muted-foreground">
-                10 active employees from the database
+                Employees from the Top Performers list
               </p>
             </div>
             <span className="text-[10px] font-mono-data text-primary/70 bg-primary/10 px-2 py-0.5 rounded-full">
@@ -455,10 +462,10 @@ export function OverviewPage({ onSelectEmployee }: OverviewPageProps) {
               >
                 <Users className="w-8 h-8 mb-3 opacity-30" />
                 <p className="text-sm font-semibold">
-                  No active employees found
+                  No top performer employee records found
                 </p>
                 <p className="text-xs mt-0.5">
-                  Upload employee data to populate the directory
+                  Make sure Top Performers FIPL Codes match employee records
                 </p>
               </div>
             ) : (

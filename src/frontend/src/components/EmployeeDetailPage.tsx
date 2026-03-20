@@ -64,7 +64,7 @@ import {
   Trash2,
   Users,
 } from "lucide-react";
-import { AnimatePresence, type Variants, motion } from "motion/react";
+
 import { useMemo, useState } from "react";
 import {
   Bar,
@@ -372,12 +372,16 @@ export function EmployeeDetailPage({
     }).format(Number(amount));
 
   // Filter out invalid/1970 sales records
-  const validSalesRecords = salesRecords.filter((rec) => {
-    if (!rec.saleDate || rec.saleDate === 0n) return false;
-    const ms = Number(rec.saleDate) / 1_000_000;
-    const yr = new Date(ms).getFullYear();
-    return yr > 1971;
-  });
+  const validSalesRecords = useMemo(
+    () =>
+      salesRecords.filter((rec) => {
+        if (!rec.saleDate || rec.saleDate === 0n) return false;
+        const ms = Number(rec.saleDate) / 1_000_000;
+        const yr = new Date(ms).getFullYear();
+        return yr > 1971;
+      }),
+    [salesRecords],
+  );
 
   // ── Sales Trend Chart Data ──────────────────────────────────────────────────
   // Build month-over-month line data per year (last 2 years shown as separate lines)
@@ -611,37 +615,23 @@ export function EmployeeDetailPage({
     );
   };
 
-  const containerVariants: Variants = {
-    hidden: { opacity: 0 },
-    visible: { opacity: 1, transition: { staggerChildren: 0.08 } },
-  };
-
-  const sectionVariants: Variants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: { opacity: 1, y: 0, transition: { duration: 0.45 } },
-  };
-
   return (
-    <AnimatePresence mode="wait">
-      <motion.div
-        key={employee.id.toString()}
-        initial={{ opacity: 0, x: 24 }}
-        animate={{ opacity: 1, x: 0 }}
-        exit={{ opacity: 0, x: -24 }}
-        transition={{ duration: 0.4 }}
-        className="p-8 max-w-6xl mx-auto"
-      >
+    <>
+      <div className="p-8 max-w-6xl mx-auto">
         {/* Back button */}
         <div className="flex items-center justify-between mb-6">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onBack}
-            className="text-muted-foreground hover:text-foreground -ml-2 gap-2"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Back to Overview
-          </Button>
+          <div className="flex items-center gap-1 -ml-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onBack}
+              className="text-muted-foreground hover:text-foreground gap-2"
+              data-ocid="employee.back.button"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Back
+            </Button>
+          </div>
 
           {/* Action buttons */}
           <div className="flex items-center gap-2">
@@ -699,13 +689,8 @@ export function EmployeeDetailPage({
         </div>
 
         {/* Employee Header */}
-        <motion.div
-          variants={containerVariants}
-          initial="hidden"
-          animate="visible"
-          className="space-y-6"
-        >
-          <motion.div variants={sectionVariants}>
+        <div className="space-y-6">
+          <div>
             <div className="glass-card rounded-xl p-6 teal-glow">
               <div className="flex items-start gap-5">
                 <Avatar className="w-16 h-16 shrink-0">
@@ -859,10 +844,10 @@ export function EmployeeDetailPage({
                 </div>
               </div>
             </div>
-          </motion.div>
+          </div>
 
           {/* Personal & Background */}
-          <motion.div variants={sectionVariants}>
+          <div>
             <h2 className="text-xs uppercase tracking-widest text-muted-foreground font-semibold mb-3 flex items-center gap-2">
               <Briefcase className="w-3.5 h-3.5" />
               {labels.detailPersonalSectionTitle}
@@ -941,10 +926,10 @@ export function EmployeeDetailPage({
                 </div>
               </div>
             )}
-          </motion.div>
+          </div>
 
           {/* Last Month Summary */}
-          <motion.div variants={sectionVariants}>
+          <div>
             <h2 className="text-xs uppercase tracking-widest text-muted-foreground font-semibold mb-3 flex items-center gap-2">
               <BarChart2 className="w-3.5 h-3.5" />
               Last Month Summary
@@ -989,10 +974,10 @@ export function EmployeeDetailPage({
                 )}
               </div>
             </div>
-          </motion.div>
+          </div>
 
           {/* Performance Metrics */}
-          <motion.div variants={sectionVariants}>
+          <div>
             <h2 className="text-xs uppercase tracking-widest text-muted-foreground font-semibold mb-3 flex items-center gap-2">
               <BarChart2 className="w-3.5 h-3.5" />
               {labels.detailPerformanceSectionTitle}
@@ -1159,10 +1144,10 @@ export function EmployeeDetailPage({
                 </div>
               </div>
             )}
-          </motion.div>
+          </div>
 
           {/* SWOT Analysis */}
-          <motion.div variants={sectionVariants}>
+          <div>
             <h2 className="text-xs uppercase tracking-widest text-muted-foreground font-semibold mb-3">
               {labels.detailSwotSectionTitle}
             </h2>
@@ -1307,13 +1292,10 @@ export function EmployeeDetailPage({
                 </div>
               </>
             )}
-          </motion.div>
+          </div>
 
           {/* Behavioral Traits + Problems Row */}
-          <motion.div
-            variants={sectionVariants}
-            className="grid grid-cols-1 md:grid-cols-2 gap-6"
-          >
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Behavioral Traits */}
             <div>
               <h2 className="text-xs uppercase tracking-widest text-muted-foreground font-semibold mb-3">
@@ -1381,10 +1363,10 @@ export function EmployeeDetailPage({
                 )}
               </div>
             </div>
-          </motion.div>
+          </div>
 
           {/* Employee Feedback / Call Records from Sheet 7 */}
-          <motion.div variants={sectionVariants}>
+          <div>
             <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
               <h2 className="text-xs uppercase tracking-widest text-muted-foreground font-semibold flex items-center gap-2">
                 <MessageSquare className="w-3.5 h-3.5" />
@@ -1618,96 +1600,96 @@ export function EmployeeDetailPage({
                 </div>
               )}
             </div>
-          </motion.div>
 
-          {/* Remark View Dialog */}
-          <Dialog open={remarkOpen} onOpenChange={setRemarkOpen}>
-            <DialogContent
-              className="max-w-md"
-              data-ocid="feedback.remark.modal"
-            >
-              <DialogHeader>
-                <DialogTitle className="font-display text-base font-bold">
-                  Remark
-                </DialogTitle>
-                <DialogDescription asChild>
-                  <div className="flex flex-wrap gap-3 pt-1">
-                    {selectedRemark?.customerName && (
-                      <span className="text-xs text-muted-foreground">
-                        <span className="font-semibold text-foreground/80">
-                          Customer:
-                        </span>{" "}
-                        {selectedRemark.customerName}
-                      </span>
-                    )}
-                    {selectedRemark?.fseName && (
-                      <span className="text-xs text-muted-foreground">
-                        <span className="font-semibold text-foreground/80">
-                          FSE:
-                        </span>{" "}
-                        {selectedRemark.fseName}
-                      </span>
-                    )}
-                    {selectedRemark?.cesScore !== undefined && (
-                      <span
-                        className={`text-xs font-bold px-2 py-0.5 rounded-full ${selectedRemark.cesScore < 30 ? "bg-red-500/20 text-red-600" : "bg-emerald-500/20 text-emerald-600"}`}
-                      >
-                        CES {selectedRemark.cesScore}
-                      </span>
-                    )}
-                    {selectedRemark?.dateOfCall && (
-                      <span className="text-xs text-muted-foreground">
-                        <span className="font-semibold text-foreground/80">
-                          Date:
-                        </span>{" "}
-                        {selectedRemark.dateOfCall}
-                      </span>
-                    )}
-                  </div>
-                </DialogDescription>
-              </DialogHeader>
-              <div className="mt-2 rounded-lg bg-muted/30 border border-border/40 p-4 text-sm leading-relaxed text-foreground/90 whitespace-pre-wrap">
-                {selectedRemark?.remark || "—"}
-              </div>
-              <div className="flex justify-end mt-2">
-                <button
-                  type="button"
-                  className="inline-flex items-center justify-center rounded-md border border-input bg-background px-3 py-1.5 text-sm font-medium hover:bg-accent hover:text-accent-foreground transition-colors"
-                  onClick={() => setRemarkOpen(false)}
-                  data-ocid="feedback.remark.close_button"
-                >
-                  Close
-                </button>
-              </div>
-            </DialogContent>
-          </Dialog>
+            {/* Remark View Dialog */}
+            <Dialog open={remarkOpen} onOpenChange={setRemarkOpen}>
+              <DialogContent
+                className="max-w-md"
+                data-ocid="feedback.remark.modal"
+              >
+                <DialogHeader>
+                  <DialogTitle className="font-display text-base font-bold">
+                    Remark
+                  </DialogTitle>
+                  <DialogDescription asChild>
+                    <div className="flex flex-wrap gap-3 pt-1">
+                      {selectedRemark?.customerName && (
+                        <span className="text-xs text-muted-foreground">
+                          <span className="font-semibold text-foreground/80">
+                            Customer:
+                          </span>{" "}
+                          {selectedRemark.customerName}
+                        </span>
+                      )}
+                      {selectedRemark?.fseName && (
+                        <span className="text-xs text-muted-foreground">
+                          <span className="font-semibold text-foreground/80">
+                            FSE:
+                          </span>{" "}
+                          {selectedRemark.fseName}
+                        </span>
+                      )}
+                      {selectedRemark?.cesScore !== undefined && (
+                        <span
+                          className={`text-xs font-bold px-2 py-0.5 rounded-full ${selectedRemark.cesScore < 30 ? "bg-red-500/20 text-red-600" : "bg-emerald-500/20 text-emerald-600"}`}
+                        >
+                          CES {selectedRemark.cesScore}
+                        </span>
+                      )}
+                      {selectedRemark?.dateOfCall && (
+                        <span className="text-xs text-muted-foreground">
+                          <span className="font-semibold text-foreground/80">
+                            Date:
+                          </span>{" "}
+                          {selectedRemark.dateOfCall}
+                        </span>
+                      )}
+                    </div>
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="mt-2 rounded-lg bg-muted/30 border border-border/40 p-4 text-sm leading-relaxed text-foreground/90 whitespace-pre-wrap">
+                  {selectedRemark?.remark || "—"}
+                </div>
+                <div className="flex justify-end mt-2">
+                  <button
+                    type="button"
+                    className="inline-flex items-center justify-center rounded-md border border-input bg-background px-3 py-1.5 text-sm font-medium hover:bg-accent hover:text-accent-foreground transition-colors"
+                    onClick={() => setRemarkOpen(false)}
+                    data-ocid="feedback.remark.close_button"
+                  >
+                    Close
+                  </button>
+                </div>
+              </DialogContent>
+            </Dialog>
 
-          {/* Customer Reviews (canister-based masonry) */}
-          {feedbackItems.length > 0 && (
-            <motion.div variants={sectionVariants}>
-              <div className="flex items-center justify-between mb-3">
-                <h2 className="text-xs uppercase tracking-widest text-muted-foreground font-semibold flex items-center gap-2">
-                  <MessageSquare className="w-3.5 h-3.5" />
-                  Customer Reviews
-                  <span className="font-mono-data text-[10px] text-primary/60 bg-primary/10 px-2 py-0.5 rounded-full">
-                    {feedbackItems.length}
-                  </span>
-                </h2>
+            {/* Customer Reviews (canister-based masonry) */}
+            {feedbackItems.length > 0 && (
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <h2 className="text-xs uppercase tracking-widest text-muted-foreground font-semibold flex items-center gap-2">
+                    <MessageSquare className="w-3.5 h-3.5" />
+                    Customer Reviews
+                    <span className="font-mono-data text-[10px] text-primary/60 bg-primary/10 px-2 py-0.5 rounded-full">
+                      {feedbackItems.length}
+                    </span>
+                  </h2>
+                </div>
+                <div className="glass-card rounded-xl overflow-hidden divide-y divide-border/30">
+                  {feedbackItems.map((item) => (
+                    <FeedbackCard
+                      key={item.id.toString()}
+                      feedback={item}
+                      employeeName={employee.name}
+                    />
+                  ))}
+                </div>
               </div>
-              <div className="glass-card rounded-xl overflow-hidden divide-y divide-border/30">
-                {feedbackItems.map((item) => (
-                  <FeedbackCard
-                    key={item.id.toString()}
-                    feedback={item}
-                    employeeName={employee.name}
-                  />
-                ))}
-              </div>
-            </motion.div>
-          )}
+            )}
+          </div>
 
           {/* Sales Trend Chart — always visible */}
-          <motion.div variants={sectionVariants}>
+          <div>
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-xs uppercase tracking-widest text-muted-foreground font-semibold flex items-center gap-2">
                 <BarChart2 className="w-3.5 h-3.5" />
@@ -1831,10 +1813,10 @@ export function EmployeeDetailPage({
                 </ResponsiveContainer>
               )}
             </div>
-          </motion.div>
+          </div>
 
           {/* Sales Records — collapsible dropdown */}
-          <motion.div variants={sectionVariants}>
+          <div>
             {/* Header row — clicking toggles the table */}
             <button
               type="button"
@@ -1875,219 +1857,201 @@ export function EmployeeDetailPage({
               </div>
             </button>
 
-            <AnimatePresence initial={false}>
-              {salesOpen && (
-                <motion.div
-                  key="sales-body"
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: "auto", opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.25, ease: "easeInOut" }}
-                  style={{ overflow: "hidden" }}
-                >
-                  <div className="glass-card rounded-xl overflow-hidden">
-                    {salesLoading ? (
-                      <div className="p-4 space-y-3">
-                        {SKELETON_KEYS_3.map((k) => (
-                          <Skeleton
-                            key={k}
-                            className="h-10 rounded-lg bg-muted/50"
-                          />
-                        ))}
-                      </div>
-                    ) : salesRecords.length === 0 ? (
-                      <div
-                        className="flex flex-col items-center justify-center py-8 text-muted-foreground/50"
-                        data-ocid="sales.empty_state"
-                      >
-                        <ShoppingBag className="w-7 h-7 mb-2 opacity-30" />
-                        <p className="text-sm">No sales records</p>
-                      </div>
-                    ) : (
-                      <Table>
-                        <TableHeader>
-                          <TableRow className="bg-muted/10">
-                            <TableHead className="text-[10px] font-bold uppercase py-2">
-                              Date
-                            </TableHead>
-                            <TableHead className="text-[10px] font-bold uppercase py-2">
-                              Brand
-                            </TableHead>
-                            <TableHead className="text-[10px] font-bold uppercase py-2">
-                              Product
-                            </TableHead>
-                            <TableHead className="text-[10px] font-bold uppercase py-2">
-                              Type
-                            </TableHead>
-                            <TableHead className="text-[10px] font-bold uppercase py-2 text-right">
-                              Qty
-                            </TableHead>
-                            <TableHead className="text-[10px] font-bold uppercase py-2 text-right">
-                              Amount (₹)
-                            </TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {salesRecords.map((record, i) => (
-                            <TableRow
-                              key={record.id.toString()}
-                              data-ocid={`sales.item.${i + 1}`}
-                            >
-                              <TableCell className="text-xs py-2 text-muted-foreground">
-                                {formatDate(record.saleDate)}
-                              </TableCell>
-                              <TableCell className="text-xs py-2 capitalize">
-                                {String(record.brand)}
-                              </TableCell>
-                              <TableCell className="text-xs py-2 max-w-[120px] truncate">
-                                {record.product}
-                              </TableCell>
-                              <TableCell className="text-xs py-2 text-muted-foreground">
-                                {record.saleType === SaleType.extendedWarranty
-                                  ? "Ext. Warranty"
-                                  : "Accessories"}
-                              </TableCell>
-                              <TableCell className="text-xs py-2 text-right font-mono-data">
-                                {Number(record.quantity)}
-                              </TableCell>
-                              <TableCell className="text-xs py-2 text-right font-mono-data font-bold text-primary">
-                                {formatCurrencyFull(record.amount)}
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    )}
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </motion.div>
-
-          {/* Attendance Chart — always visible */}
-          <motion.div variants={sectionVariants}>
-            <h2 className="text-xs uppercase tracking-widest text-muted-foreground font-semibold mb-3 flex items-center gap-2">
-              <ClipboardList className="w-3.5 h-3.5" />
-              Attendance Overview — Monthly Lapses
-            </h2>
-            <div className="glass-card rounded-xl p-5">
-              {attendanceLoading ? (
-                <div className="h-56 flex items-center justify-center">
-                  <Skeleton className="w-full h-full rounded-lg bg-muted/50" />
-                </div>
-              ) : attendanceChartData.length === 0 ? (
-                <div className="h-56 flex flex-col items-center justify-center text-muted-foreground/50">
-                  <ClipboardList className="w-8 h-8 mb-2 opacity-25" />
-                  <p className="text-sm">No attendance data to chart</p>
-                  <p className="text-xs mt-1 opacity-70">
-                    Add attendance records to see trends
-                  </p>
-                </div>
-              ) : (
-                <ResponsiveContainer width="100%" height={220}>
-                  <BarChart
-                    data={attendanceChartData}
-                    margin={{ top: 4, right: 16, left: 0, bottom: 4 }}
-                  >
-                    <CartesianGrid
-                      strokeDasharray="3 3"
-                      stroke="oklch(0.88 0.008 240)"
-                      vertical={false}
-                    />
-                    <XAxis
-                      dataKey="month"
-                      tick={{ fontSize: 10, fill: "oklch(0.5 0.012 240)" }}
-                      axisLine={{ stroke: "oklch(0.88 0.008 240)" }}
-                      tickLine={false}
-                      interval={0}
-                      angle={-30}
-                      textAnchor="end"
-                      height={44}
-                    />
-                    <YAxis
-                      tick={{ fontSize: 10, fill: "oklch(0.5 0.012 240)" }}
-                      axisLine={false}
-                      tickLine={false}
-                      allowDecimals={false}
-                      width={28}
-                    />
-                    <Tooltip
-                      contentStyle={{
-                        background: "oklch(0.99 0 0)",
-                        border: "1px solid oklch(0.88 0.008 240)",
-                        borderRadius: "8px",
-                        fontSize: "12px",
-                        boxShadow: "0 4px 12px oklch(0.18 0.01 240 / 0.1)",
-                      }}
-                    />
-                    <Legend
-                      wrapperStyle={{ fontSize: "11px", paddingTop: "8px" }}
-                    />
-                    <Bar
-                      dataKey="lapses"
-                      name="Lapses"
-                      fill="oklch(0.55 0.2 25)"
-                      radius={[3, 3, 0, 0]}
-                      maxBarSize={40}
-                    />
-                  </BarChart>
-                </ResponsiveContainer>
-              )}
-            </div>
-          </motion.div>
-
-          {/* Attendance Records — collapsible dropdown */}
-          <motion.div variants={sectionVariants}>
-            {/* Header row — clicking toggles the table */}
-            <button
-              type="button"
-              className="w-full flex items-center justify-between mb-3 group"
-              onClick={() => setAttendanceOpen((v) => !v)}
-              data-ocid="attendance.toggle"
-            >
-              <h2 className="text-xs uppercase tracking-widest text-muted-foreground font-semibold flex items-center gap-2 group-hover:text-foreground transition-colors">
-                <ClipboardList className="w-3.5 h-3.5" />
-                Attendance Records
-                {!attendanceLoading && (
-                  <span className="font-mono-data text-[10px] text-primary/60 bg-primary/10 px-2 py-0.5 rounded-full">
-                    {attendanceRecords.length}
-                  </span>
-                )}
-              </h2>
-              <div className="flex items-center gap-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setAddAttendanceOpen(true);
-                  }}
-                  className="gap-1.5 text-xs h-7 px-3"
-                  data-ocid="attendance.open_modal_button"
-                >
-                  <Plus className="w-3 h-3" />
-                  Add Record
-                </Button>
-                <span className="text-muted-foreground/50 group-hover:text-muted-foreground transition-colors">
-                  {attendanceOpen ? (
-                    <ChevronUp className="w-4 h-4" />
+            {salesOpen && (
+              <div key="sales-body" style={{ overflow: "hidden" }}>
+                <div className="glass-card rounded-xl overflow-hidden">
+                  {salesLoading ? (
+                    <div className="p-4 space-y-3">
+                      {SKELETON_KEYS_3.map((k) => (
+                        <Skeleton
+                          key={k}
+                          className="h-10 rounded-lg bg-muted/50"
+                        />
+                      ))}
+                    </div>
+                  ) : salesRecords.length === 0 ? (
+                    <div
+                      className="flex flex-col items-center justify-center py-8 text-muted-foreground/50"
+                      data-ocid="sales.empty_state"
+                    >
+                      <ShoppingBag className="w-7 h-7 mb-2 opacity-30" />
+                      <p className="text-sm">No sales records</p>
+                    </div>
                   ) : (
-                    <ChevronDown className="w-4 h-4" />
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-muted/10">
+                          <TableHead className="text-[10px] font-bold uppercase py-2">
+                            Date
+                          </TableHead>
+                          <TableHead className="text-[10px] font-bold uppercase py-2">
+                            Brand
+                          </TableHead>
+                          <TableHead className="text-[10px] font-bold uppercase py-2">
+                            Product
+                          </TableHead>
+                          <TableHead className="text-[10px] font-bold uppercase py-2">
+                            Type
+                          </TableHead>
+                          <TableHead className="text-[10px] font-bold uppercase py-2 text-right">
+                            Qty
+                          </TableHead>
+                          <TableHead className="text-[10px] font-bold uppercase py-2 text-right">
+                            Amount (₹)
+                          </TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {salesRecords.map((record, i) => (
+                          <TableRow
+                            key={record.id.toString()}
+                            data-ocid={`sales.item.${i + 1}`}
+                          >
+                            <TableCell className="text-xs py-2 text-muted-foreground">
+                              {formatDate(record.saleDate)}
+                            </TableCell>
+                            <TableCell className="text-xs py-2 capitalize">
+                              {String(record.brand)}
+                            </TableCell>
+                            <TableCell className="text-xs py-2 max-w-[120px] truncate">
+                              {record.product}
+                            </TableCell>
+                            <TableCell className="text-xs py-2 text-muted-foreground">
+                              {record.saleType === SaleType.extendedWarranty
+                                ? "Ext. Warranty"
+                                : "Accessories"}
+                            </TableCell>
+                            <TableCell className="text-xs py-2 text-right font-mono-data">
+                              {Number(record.quantity)}
+                            </TableCell>
+                            <TableCell className="text-xs py-2 text-right font-mono-data font-bold text-primary">
+                              {formatCurrencyFull(record.amount)}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
                   )}
-                </span>
+                </div>
               </div>
-            </button>
+            )}
 
-            <AnimatePresence initial={false}>
+            {/* Attendance Chart — always visible */}
+            <div>
+              <h2 className="text-xs uppercase tracking-widest text-muted-foreground font-semibold mb-3 flex items-center gap-2">
+                <ClipboardList className="w-3.5 h-3.5" />
+                Attendance Overview — Monthly Lapses
+              </h2>
+              <div className="glass-card rounded-xl p-5">
+                {attendanceLoading ? (
+                  <div className="h-56 flex items-center justify-center">
+                    <Skeleton className="w-full h-full rounded-lg bg-muted/50" />
+                  </div>
+                ) : attendanceChartData.length === 0 ? (
+                  <div className="h-56 flex flex-col items-center justify-center text-muted-foreground/50">
+                    <ClipboardList className="w-8 h-8 mb-2 opacity-25" />
+                    <p className="text-sm">No attendance data to chart</p>
+                    <p className="text-xs mt-1 opacity-70">
+                      Add attendance records to see trends
+                    </p>
+                  </div>
+                ) : (
+                  <ResponsiveContainer width="100%" height={220}>
+                    <BarChart
+                      data={attendanceChartData}
+                      margin={{ top: 4, right: 16, left: 0, bottom: 4 }}
+                    >
+                      <CartesianGrid
+                        strokeDasharray="3 3"
+                        stroke="oklch(0.88 0.008 240)"
+                        vertical={false}
+                      />
+                      <XAxis
+                        dataKey="month"
+                        tick={{ fontSize: 10, fill: "oklch(0.5 0.012 240)" }}
+                        axisLine={{ stroke: "oklch(0.88 0.008 240)" }}
+                        tickLine={false}
+                        interval={0}
+                        angle={-30}
+                        textAnchor="end"
+                        height={44}
+                      />
+                      <YAxis
+                        tick={{ fontSize: 10, fill: "oklch(0.5 0.012 240)" }}
+                        axisLine={false}
+                        tickLine={false}
+                        allowDecimals={false}
+                        width={28}
+                      />
+                      <Tooltip
+                        contentStyle={{
+                          background: "oklch(0.99 0 0)",
+                          border: "1px solid oklch(0.88 0.008 240)",
+                          borderRadius: "8px",
+                          fontSize: "12px",
+                          boxShadow: "0 4px 12px oklch(0.18 0.01 240 / 0.1)",
+                        }}
+                      />
+                      <Legend
+                        wrapperStyle={{ fontSize: "11px", paddingTop: "8px" }}
+                      />
+                      <Bar
+                        dataKey="lapses"
+                        name="Lapses"
+                        fill="oklch(0.55 0.2 25)"
+                        radius={[3, 3, 0, 0]}
+                        maxBarSize={40}
+                      />
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
+              </div>
+            </div>
+
+            {/* Attendance Records — collapsible dropdown */}
+            <div>
+              {/* Header row — clicking toggles the table */}
+              <button
+                type="button"
+                className="w-full flex items-center justify-between mb-3 group"
+                onClick={() => setAttendanceOpen((v) => !v)}
+                data-ocid="attendance.toggle"
+              >
+                <h2 className="text-xs uppercase tracking-widest text-muted-foreground font-semibold flex items-center gap-2 group-hover:text-foreground transition-colors">
+                  <ClipboardList className="w-3.5 h-3.5" />
+                  Attendance Records
+                  {!attendanceLoading && (
+                    <span className="font-mono-data text-[10px] text-primary/60 bg-primary/10 px-2 py-0.5 rounded-full">
+                      {attendanceRecords.length}
+                    </span>
+                  )}
+                </h2>
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setAddAttendanceOpen(true);
+                    }}
+                    className="gap-1.5 text-xs h-7 px-3"
+                    data-ocid="attendance.open_modal_button"
+                  >
+                    <Plus className="w-3 h-3" />
+                    Add Record
+                  </Button>
+                  <span className="text-muted-foreground/50 group-hover:text-muted-foreground transition-colors">
+                    {attendanceOpen ? (
+                      <ChevronUp className="w-4 h-4" />
+                    ) : (
+                      <ChevronDown className="w-4 h-4" />
+                    )}
+                  </span>
+                </div>
+              </button>
+
               {attendanceOpen && (
-                <motion.div
-                  key="attendance-body"
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: "auto", opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.25, ease: "easeInOut" }}
-                  style={{ overflow: "hidden" }}
-                >
+                <div key="attendance-body" style={{ overflow: "hidden" }}>
                   <div className="glass-card rounded-xl overflow-hidden">
                     {attendanceLoading ? (
                       <div className="p-4 space-y-3">
@@ -2153,281 +2117,285 @@ export function EmployeeDetailPage({
                       </Table>
                     )}
                   </div>
-                </motion.div>
+                </div>
               )}
-            </AnimatePresence>
-          </motion.div>
-        </motion.div>
-      </motion.div>
-
-      {/* Add Sales Record Dialog */}
-      <Dialog open={addSalesOpen} onOpenChange={setAddSalesOpen}>
-        <DialogContent className="max-w-sm" data-ocid="sales.dialog">
-          <DialogHeader>
-            <DialogTitle className="font-display text-base font-bold">
-              Add Sales Record
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3 py-2">
-            {/* Brand */}
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-foreground/80">
-                Brand
-              </Label>
-              <Select
-                value={salesForm.brand}
-                onValueChange={(v) => setSalesForm((f) => ({ ...f, brand: v }))}
-              >
-                <SelectTrigger className="text-sm" data-ocid="sales.select">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={SalesBrand.ecovacs} className="text-xs">
-                    Ecovacs
-                  </SelectItem>
-                  <SelectItem value={SalesBrand.kuvings} className="text-xs">
-                    Kuvings
-                  </SelectItem>
-                  <SelectItem value={SalesBrand.coway} className="text-xs">
-                    Coway
-                  </SelectItem>
-                  <SelectItem value={SalesBrand.tineco} className="text-xs">
-                    Tineco
-                  </SelectItem>
-                  <SelectItem value={SalesBrand.instant} className="text-xs">
-                    Instant
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            {/* Product */}
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-foreground/80">
-                Product
-              </Label>
-              <Input
-                type="text"
-                placeholder="e.g. Ecovacs X2 PRO"
-                value={salesForm.product}
-                onChange={(e) =>
-                  setSalesForm((f) => ({ ...f, product: e.target.value }))
-                }
-                className="text-sm"
-                data-ocid="sales.input"
-              />
-            </div>
-            {/* Type */}
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-foreground/80">
-                Type
-              </Label>
-              <Select
-                value={salesForm.saleType}
-                onValueChange={(v) =>
-                  setSalesForm((f) => ({ ...f, saleType: v }))
-                }
-              >
-                <SelectTrigger className="text-sm">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={SaleType.accessories} className="text-xs">
-                    Accessories
-                  </SelectItem>
-                  <SelectItem
-                    value={SaleType.extendedWarranty}
-                    className="text-xs"
-                  >
-                    Extended Warranty
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            {/* Date */}
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-foreground/80">
-                Date
-              </Label>
-              <Input
-                type="date"
-                value={salesForm.date}
-                onChange={(e) =>
-                  setSalesForm((f) => ({ ...f, date: e.target.value }))
-                }
-                className="text-sm"
-              />
-            </div>
-            {/* Quantity */}
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-foreground/80">
-                Quantity
-              </Label>
-              <Input
-                type="number"
-                min={1}
-                placeholder="e.g. 2"
-                value={salesForm.quantity}
-                onChange={(e) =>
-                  setSalesForm((f) => ({ ...f, quantity: e.target.value }))
-                }
-                className="text-sm"
-              />
-            </div>
-            {/* Amount */}
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-foreground/80">
-                Amount (₹)
-              </Label>
-              <Input
-                type="number"
-                min={0}
-                placeholder="e.g. 15000"
-                value={salesForm.amount}
-                onChange={(e) =>
-                  setSalesForm((f) => ({ ...f, amount: e.target.value }))
-                }
-                className="text-sm"
-              />
             </div>
           </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setAddSalesOpen(false)}
-              data-ocid="sales.cancel_button"
-            >
-              Cancel
-            </Button>
-            <Button
-              size="sm"
-              onClick={handleAddSales}
-              disabled={addSalesRecord.isPending}
-              data-ocid="sales.submit_button"
-            >
-              {addSalesRecord.isPending ? (
-                <>
-                  <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
-                  Saving...
-                </>
-              ) : (
-                "Save Record"
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Add Attendance Record Dialog */}
-      <Dialog open={addAttendanceOpen} onOpenChange={setAddAttendanceOpen}>
-        <DialogContent className="max-w-sm" data-ocid="attendance.dialog">
-          <DialogHeader>
-            <DialogTitle className="font-display text-base font-bold">
-              Add Attendance Record
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3 py-2">
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-foreground/80">
-                Date
-              </Label>
-              <Input
-                type="date"
-                value={attendanceForm.date}
-                onChange={(e) =>
-                  setAttendanceForm((f) => ({ ...f, date: e.target.value }))
-                }
-                className="text-sm"
-                data-ocid="attendance.input"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-foreground/80">
-                Lapses Type
-              </Label>
-              <Select
-                value={attendanceForm.lapseType}
-                onValueChange={(v) =>
-                  setAttendanceForm((f) => ({ ...f, lapseType: v }))
-                }
-              >
-                <SelectTrigger
-                  className="text-sm"
-                  data-ocid="attendance.select"
+        </div>
+        <Dialog open={addSalesOpen} onOpenChange={setAddSalesOpen}>
+          <DialogContent className="max-w-sm" data-ocid="sales.dialog">
+            <DialogHeader>
+              <DialogTitle className="font-display text-base font-bold">
+                Add Sales Record
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3 py-2">
+              {/* Brand */}
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-foreground/80">
+                  Brand
+                </Label>
+                <Select
+                  value={salesForm.brand}
+                  onValueChange={(v) =>
+                    setSalesForm((f) => ({ ...f, brand: v }))
+                  }
                 >
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Attendance Lapses" className="text-xs">
-                    Attendance Lapses
-                  </SelectItem>
-                  <SelectItem value="EOD Picture Lapses" className="text-xs">
-                    EOD Picture Lapses
-                  </SelectItem>
-                  <SelectItem value="Days Brief Lapses" className="text-xs">
-                    Days Brief Lapses
-                  </SelectItem>
-                </SelectContent>
-              </Select>
+                  <SelectTrigger className="text-sm" data-ocid="sales.select">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={SalesBrand.ecovacs} className="text-xs">
+                      Ecovacs
+                    </SelectItem>
+                    <SelectItem value={SalesBrand.kuvings} className="text-xs">
+                      Kuvings
+                    </SelectItem>
+                    <SelectItem value={SalesBrand.coway} className="text-xs">
+                      Coway
+                    </SelectItem>
+                    <SelectItem value={SalesBrand.tineco} className="text-xs">
+                      Tineco
+                    </SelectItem>
+                    <SelectItem value={SalesBrand.instant} className="text-xs">
+                      Instant
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {/* Product */}
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-foreground/80">
+                  Product
+                </Label>
+                <Input
+                  type="text"
+                  placeholder="e.g. Ecovacs X2 PRO"
+                  value={salesForm.product}
+                  onChange={(e) =>
+                    setSalesForm((f) => ({ ...f, product: e.target.value }))
+                  }
+                  className="text-sm"
+                  data-ocid="sales.input"
+                />
+              </div>
+              {/* Type */}
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-foreground/80">
+                  Type
+                </Label>
+                <Select
+                  value={salesForm.saleType}
+                  onValueChange={(v) =>
+                    setSalesForm((f) => ({ ...f, saleType: v }))
+                  }
+                >
+                  <SelectTrigger className="text-sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem
+                      value={SaleType.accessories}
+                      className="text-xs"
+                    >
+                      Accessories
+                    </SelectItem>
+                    <SelectItem
+                      value={SaleType.extendedWarranty}
+                      className="text-xs"
+                    >
+                      Extended Warranty
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {/* Date */}
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-foreground/80">
+                  Date
+                </Label>
+                <Input
+                  type="date"
+                  value={salesForm.date}
+                  onChange={(e) =>
+                    setSalesForm((f) => ({ ...f, date: e.target.value }))
+                  }
+                  className="text-sm"
+                />
+              </div>
+              {/* Quantity */}
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-foreground/80">
+                  Quantity
+                </Label>
+                <Input
+                  type="number"
+                  min={1}
+                  placeholder="e.g. 2"
+                  value={salesForm.quantity}
+                  onChange={(e) =>
+                    setSalesForm((f) => ({ ...f, quantity: e.target.value }))
+                  }
+                  className="text-sm"
+                />
+              </div>
+              {/* Amount */}
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-foreground/80">
+                  Amount (₹)
+                </Label>
+                <Input
+                  type="number"
+                  min={0}
+                  placeholder="e.g. 15000"
+                  value={salesForm.amount}
+                  onChange={(e) =>
+                    setSalesForm((f) => ({ ...f, amount: e.target.value }))
+                  }
+                  className="text-sm"
+                />
+              </div>
             </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-foreground/80">
-                Remarks
-              </Label>
-              <Textarea
-                placeholder="Any remarks about this lapse..."
-                value={attendanceForm.remarks}
-                onChange={(e) =>
-                  setAttendanceForm((f) => ({ ...f, remarks: e.target.value }))
-                }
-                className="text-sm resize-none min-h-[60px]"
-                data-ocid="attendance.textarea"
-              />
+            <DialogFooter>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setAddSalesOpen(false)}
+                data-ocid="sales.cancel_button"
+              >
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                onClick={handleAddSales}
+                disabled={addSalesRecord.isPending}
+                data-ocid="sales.submit_button"
+              >
+                {addSalesRecord.isPending ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  "Save Record"
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+        <Dialog open={addAttendanceOpen} onOpenChange={setAddAttendanceOpen}>
+          <DialogContent className="max-w-sm" data-ocid="attendance.dialog">
+            <DialogHeader>
+              <DialogTitle className="font-display text-base font-bold">
+                Add Attendance Record
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3 py-2">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-foreground/80">
+                  Date
+                </Label>
+                <Input
+                  type="date"
+                  value={attendanceForm.date}
+                  onChange={(e) =>
+                    setAttendanceForm((f) => ({ ...f, date: e.target.value }))
+                  }
+                  className="text-sm"
+                  data-ocid="attendance.input"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-foreground/80">
+                  Lapses Type
+                </Label>
+                <Select
+                  value={attendanceForm.lapseType}
+                  onValueChange={(v) =>
+                    setAttendanceForm((f) => ({ ...f, lapseType: v }))
+                  }
+                >
+                  <SelectTrigger
+                    className="text-sm"
+                    data-ocid="attendance.select"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Attendance Lapses" className="text-xs">
+                      Attendance Lapses
+                    </SelectItem>
+                    <SelectItem value="EOD Picture Lapses" className="text-xs">
+                      EOD Picture Lapses
+                    </SelectItem>
+                    <SelectItem value="Days Brief Lapses" className="text-xs">
+                      Days Brief Lapses
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-foreground/80">
+                  Remarks
+                </Label>
+                <Textarea
+                  placeholder="Any remarks about this lapse..."
+                  value={attendanceForm.remarks}
+                  onChange={(e) =>
+                    setAttendanceForm((f) => ({
+                      ...f,
+                      remarks: e.target.value,
+                    }))
+                  }
+                  className="text-sm resize-none min-h-[60px]"
+                  data-ocid="attendance.textarea"
+                />
+              </div>
             </div>
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setAddAttendanceOpen(false)}
-              data-ocid="attendance.cancel_button"
-            >
-              Cancel
-            </Button>
-            <Button
-              size="sm"
-              onClick={handleAddAttendance}
-              disabled={addAttendanceRecord.isPending}
-              data-ocid="attendance.submit_button"
-            >
-              {addAttendanceRecord.isPending ? (
-                <>
-                  <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
-                  Saving...
-                </>
-              ) : (
-                "Save Record"
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setAddAttendanceOpen(false)}
+                data-ocid="attendance.cancel_button"
+              >
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                onClick={handleAddAttendance}
+                disabled={addAttendanceRecord.isPending}
+                data-ocid="attendance.submit_button"
+              >
+                {addAttendanceRecord.isPending ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  "Save Record"
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
-      <AddFeedbackModal
-        open={addFeedbackOpen}
-        onOpenChange={setAddFeedbackOpen}
-        employeeId={employee.id}
-        employeeName={employee.name}
-      />
-
-      {details && (
-        <EditEmployeeModal
-          open={editOpen}
-          onOpenChange={setEditOpen}
+        <AddFeedbackModal
+          open={addFeedbackOpen}
+          onOpenChange={setAddFeedbackOpen}
           employeeId={employee.id}
-          details={details}
+          employeeName={employee.name}
         />
-      )}
-    </AnimatePresence>
+
+        {details && (
+          <EditEmployeeModal
+            open={editOpen}
+            onOpenChange={setEditOpen}
+            employeeId={employee.id}
+            details={details}
+          />
+        )}
+      </div>
+    </>
   );
 }

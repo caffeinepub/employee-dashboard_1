@@ -199,6 +199,7 @@ export function useGoogleSheetEmployees() {
       return parseCSV(text);
     },
     staleTime: STALE_5MIN,
+    gcTime: 10 * 60 * 1000,
     refetchOnWindowFocus: true,
   });
 }
@@ -246,6 +247,7 @@ export function useGoogleSheetSWOT() {
       return parseSWOTCSV(text);
     },
     staleTime: STALE_5MIN,
+    gcTime: 10 * 60 * 1000,
     refetchOnWindowFocus: true,
   });
 }
@@ -309,6 +311,7 @@ export function useGoogleSheetParameters() {
       return parseParametersCSV(text);
     },
     staleTime: STALE_5MIN,
+    gcTime: 10 * 60 * 1000,
     refetchOnWindowFocus: true,
   });
 }
@@ -366,6 +369,7 @@ export function useGoogleSheetAttendance() {
       return parseAttendanceCSV(text);
     },
     staleTime: STALE_5MIN,
+    gcTime: 10 * 60 * 1000,
     refetchOnWindowFocus: true,
   });
 }
@@ -498,6 +502,7 @@ export function useGoogleSheetSales() {
       return parseSalesCSV(text);
     },
     staleTime: STALE_5MIN,
+    gcTime: 10 * 60 * 1000,
     refetchOnWindowFocus: true,
   });
 }
@@ -600,6 +605,7 @@ export function useGoogleSheetTopPerformers() {
     },
     enabled: gids.length > 0,
     staleTime: STALE_5MIN,
+    gcTime: 10 * 60 * 1000,
     refetchOnWindowFocus: true,
   });
 }
@@ -682,6 +688,7 @@ export function useGoogleSheetCallRecords() {
     },
     enabled: gids.length > 0,
     staleTime: STALE_5MIN,
+    gcTime: 10 * 60 * 1000,
     refetchOnWindowFocus: true,
   });
 }

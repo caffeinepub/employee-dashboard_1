@@ -123,6 +123,7 @@ export function RegionalSalesTrend({ className }: RegionalSalesTrendProps) {
   const [filterFse, setFilterFse] = useState<string>("all");
   const [filterBrand, setFilterBrand] = useState<string>("all");
   const [filterSaleType, setFilterSaleType] = useState<string>("all");
+  const [regionPopoverOpen, setRegionPopoverOpen] = useState(false);
   const [fsePopoverOpen, setFsePopoverOpen] = useState(false);
 
   const { data: employees = [] } = useGoogleSheetEmployees();
@@ -578,24 +579,81 @@ export function RegionalSalesTrend({ className }: RegionalSalesTrendProps) {
 
           {/* Region filter */}
           {viewMode === "region" && (
-            <Select value={filterRegion} onValueChange={setFilterRegion}>
-              <SelectTrigger
-                className="h-7 text-xs w-36 border-border/50"
-                data-ocid="sales_trends.region_select"
+            <Popover
+              open={regionPopoverOpen}
+              onOpenChange={setRegionPopoverOpen}
+            >
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-xs w-40 border-border/50 justify-between font-normal px-2.5"
+                  data-ocid="sales_trends.region_select"
+                >
+                  <span className="truncate">
+                    {filterRegion === "all" ? "All Regions" : filterRegion}
+                  </span>
+                  <ChevronDown className="w-3 h-3 ml-1 shrink-0 text-muted-foreground" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent
+                className="w-52 p-0"
+                align="start"
+                data-ocid="sales_trends.region_select.popover"
               >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all" className="text-xs">
-                  All Regions
-                </SelectItem>
-                {allRegions.map((r) => (
-                  <SelectItem key={r} value={r} className="text-xs">
-                    {r}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+                <Command>
+                  <CommandInput
+                    placeholder="Search region..."
+                    className="h-8 text-xs"
+                    data-ocid="sales_trends.region_select.search_input"
+                  />
+                  <CommandList className="max-h-56 overflow-y-auto">
+                    <CommandEmpty className="py-3 text-center text-xs text-muted-foreground">
+                      No region found.
+                    </CommandEmpty>
+                    <CommandGroup>
+                      <CommandItem
+                        value="all"
+                        onSelect={() => {
+                          setFilterRegion("all");
+                          setRegionPopoverOpen(false);
+                        }}
+                        className="text-xs"
+                      >
+                        <Check
+                          className={cn(
+                            "mr-2 h-3 w-3",
+                            filterRegion === "all"
+                              ? "opacity-100"
+                              : "opacity-0",
+                          )}
+                        />
+                        All Regions
+                      </CommandItem>
+                      {allRegions.map((r) => (
+                        <CommandItem
+                          key={r}
+                          value={r}
+                          onSelect={() => {
+                            setFilterRegion(r);
+                            setRegionPopoverOpen(false);
+                          }}
+                          className="text-xs"
+                        >
+                          <Check
+                            className={cn(
+                              "mr-2 h-3 w-3",
+                              filterRegion === r ? "opacity-100" : "opacity-0",
+                            )}
+                          />
+                          {r}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
           )}
 
           {/* FSE filter — searchable combobox */}

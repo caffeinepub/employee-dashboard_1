@@ -14,17 +14,19 @@ import {
   LayoutDashboard,
   MessageSquare,
   Pencil,
+  Search,
   Settings,
   TrendingUp,
   Upload,
   Users,
   X,
 } from "lucide-react";
-import { useState } from "react";
+import { memo, useMemo, useRef, useState } from "react";
 import { Status } from "../backend";
 import type { Employee } from "../backend.d.ts";
 import { useAppSettings } from "../context/AppSettingsContext";
 import type { View } from "./Dashboard";
+import { PasswordGateDialog } from "./PasswordGateDialog";
 
 interface SidebarProps {
   employees: Employee[];
@@ -39,7 +41,7 @@ interface SidebarProps {
   onFeedbackClick: () => void;
 }
 
-export function Sidebar({
+function SidebarComponent({
   employees,
   selectedEmployee,
   currentView,
@@ -60,6 +62,15 @@ export function Sidebar({
   const [logoEditMode, setLogoEditMode] = useState(false);
   const [logoInputVal, setLogoInputVal] = useState("");
   const [logoHover, setLogoHover] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleSearchChange = (val: string) => {
+    setSearchQuery(val);
+    if (searchTimer.current) clearTimeout(searchTimer.current);
+    searchTimer.current = setTimeout(() => setDebouncedSearch(val), 250);
+  };
 
   const getInitials = (name: string) =>
     name
@@ -70,9 +81,22 @@ export function Sidebar({
       .slice(0, 2);
 
   // Only active employees count for the badge
-  const activeEmployeeCount = employees.filter(
-    (e) => e.status === Status.active,
-  ).length;
+  const activeEmployeeCount = useMemo(
+    () => employees.filter((e) => e.status === Status.active).length,
+    [employees],
+  );
+
+  // Filtered employee list for sidebar quick-nav
+  const filteredEmployees = useMemo(() => {
+    const active = employees.filter((e) => e.status === Status.active);
+    if (!debouncedSearch.trim()) return active;
+    const q = debouncedSearch.toLowerCase();
+    return active.filter(
+      (e) =>
+        e.name.toLowerCase().includes(q) ||
+        e.fiplCode.toLowerCase().includes(q),
+    );
+  }, [employees, debouncedSearch]);
 
   const navItems = [
     {
@@ -276,44 +300,91 @@ export function Sidebar({
 
         {/* Employee List (quick nav) — active employees only */}
         {!collapsed && (
-          <ScrollArea className="flex-1 min-h-0 px-3 pb-4">
-            <div className="space-y-0.5">
-              {employees
-                .filter((e) => e.status === Status.active)
-                .map((employee) => (
-                  <button
-                    type="button"
-                    key={employee.id.toString()}
-                    onClick={() => onSelectEmployee(employee)}
-                    className={cn(
-                      "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-all duration-150 group",
-                      selectedEmployee?.id === employee.id &&
-                        currentView === "employee"
-                        ? "bg-primary/15 text-primary border border-primary/25"
-                        : "text-muted-foreground hover:text-foreground hover:bg-accent",
-                    )}
-                    data-ocid="nav.link"
-                  >
-                    <div className="relative shrink-0">
-                      <Avatar className="w-7 h-7">
-                        <AvatarFallback className="text-[10px] font-bold bg-accent text-accent-foreground">
-                          {getInitials(employee.name)}
-                        </AvatarFallback>
-                      </Avatar>
-                      <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-sidebar bg-[oklch(0.52_0.18_145)]" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-semibold truncate">
-                        {employee.name}
-                      </p>
-                      <p className="text-[10px] truncate opacity-70">
-                        {employee.role}
-                      </p>
-                    </div>
-                  </button>
-                ))}
+          <div className="flex-1 min-h-0 flex flex-col px-3 pb-4">
+            {/* Search bar */}
+            <div className="relative mb-2">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => handleSearchChange(e.target.value)}
+                placeholder="Search employees..."
+                className="w-full text-xs rounded-md border border-border/40 bg-muted/30 pl-8 pr-2 py-1.5 outline-none focus:ring-1 focus:ring-primary/40 focus:border-primary/40 transition-colors placeholder:text-muted-foreground/60"
+                data-ocid="sidebar.search_input"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => handleSearchChange("")}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground/60 hover:text-foreground transition-colors"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              )}
             </div>
-          </ScrollArea>
+            <ScrollArea className="flex-1">
+              <div className="space-y-0.5">
+                {filteredEmployees.length === 0 ? (
+                  <p className="text-[10px] text-muted-foreground/60 text-center py-3">
+                    No employees found
+                  </p>
+                ) : (
+                  filteredEmployees.map((employee) => (
+                    <button
+                      type="button"
+                      key={employee.id.toString()}
+                      onClick={() => onSelectEmployee(employee)}
+                      className={cn(
+                        "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-all duration-150 group",
+                        selectedEmployee?.id === employee.id &&
+                          currentView === "employee"
+                          ? "bg-primary/15 text-primary border border-primary/25"
+                          : "text-muted-foreground hover:text-foreground hover:bg-accent",
+                      )}
+                      data-ocid="nav.link"
+                    >
+                      <div className="relative shrink-0">
+                        <Avatar className="w-7 h-7">
+                          <AvatarFallback className="text-[10px] font-bold bg-accent text-accent-foreground">
+                            {getInitials(employee.name)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-sidebar bg-[oklch(0.52_0.18_145)]" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-semibold truncate">
+                          {employee.name}
+                        </p>
+                        <p className="text-[10px] truncate opacity-70">
+                          {employee.role}
+                        </p>
+                      </div>
+                    </button>
+                  ))
+                )}
+              </div>
+            </ScrollArea>
+          </div>
+        )}
+
+        {/* Collapsed: search icon affordance */}
+        {collapsed && (
+          <div className="px-2 pb-1">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  className="w-full flex items-center justify-center rounded-lg py-2.5 text-muted-foreground hover:text-foreground hover:bg-accent transition-all duration-150"
+                  aria-label="Search employees (expand sidebar to search)"
+                >
+                  <Search className="w-4 h-4" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="right">
+                <span>Search employees (expand sidebar)</span>
+              </TooltipContent>
+            </Tooltip>
+          </div>
         )}
 
         {/* Collapsed spacer to push settings to bottom */}
@@ -329,42 +400,50 @@ export function Sidebar({
           {collapsed ? (
             <Tooltip>
               <TooltipTrigger asChild>
-                <button
-                  type="button"
-                  onClick={onSettingsClick}
-                  className={cn(
-                    "w-full flex items-center justify-center rounded-lg py-2.5 text-sm font-medium transition-all duration-150",
-                    currentView === "settings"
-                      ? "bg-primary/15 text-primary border border-primary/25"
-                      : "text-muted-foreground hover:text-foreground hover:bg-accent",
-                  )}
-                  data-ocid="nav.link"
+                <PasswordGateDialog
+                  onSuccess={onSettingsClick}
+                  title="Settings Access"
                 >
-                  <Settings className="w-4 h-4 shrink-0" />
-                </button>
+                  <button
+                    type="button"
+                    className={cn(
+                      "w-full flex items-center justify-center rounded-lg py-2.5 text-sm font-medium transition-all duration-150",
+                      currentView === "settings"
+                        ? "bg-primary/15 text-primary border border-primary/25"
+                        : "text-muted-foreground hover:text-foreground hover:bg-accent",
+                    )}
+                    data-ocid="nav.link"
+                  >
+                    <Settings className="w-4 h-4 shrink-0" />
+                  </button>
+                </PasswordGateDialog>
               </TooltipTrigger>
               <TooltipContent side="right">
                 <span>Settings</span>
               </TooltipContent>
             </Tooltip>
           ) : (
-            <button
-              type="button"
-              onClick={onSettingsClick}
-              className={cn(
-                "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150",
-                currentView === "settings"
-                  ? "bg-primary/15 text-primary border border-primary/25"
-                  : "text-muted-foreground hover:text-foreground hover:bg-accent",
-              )}
-              data-ocid="nav.link"
+            <PasswordGateDialog
+              onSuccess={onSettingsClick}
+              title="Settings Access"
             >
-              <Settings className="w-4 h-4 shrink-0" />
-              <span>Settings</span>
-              {currentView === "settings" && (
-                <ChevronRight className="w-3.5 h-3.5 ml-auto" />
-              )}
-            </button>
+              <button
+                type="button"
+                className={cn(
+                  "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150",
+                  currentView === "settings"
+                    ? "bg-primary/15 text-primary border border-primary/25"
+                    : "text-muted-foreground hover:text-foreground hover:bg-accent",
+                )}
+                data-ocid="nav.link"
+              >
+                <Settings className="w-4 h-4 shrink-0" />
+                <span>Settings</span>
+                {currentView === "settings" && (
+                  <ChevronRight className="w-3.5 h-3.5 ml-auto" />
+                )}
+              </button>
+            </PasswordGateDialog>
           )}
         </div>
 
@@ -412,3 +491,5 @@ export function Sidebar({
     </TooltipProvider>
   );
 }
+
+export const Sidebar = memo(SidebarComponent);

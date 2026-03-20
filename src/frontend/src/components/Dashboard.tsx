@@ -1,9 +1,9 @@
-import { AnimatePresence, motion } from "motion/react";
-import { useState } from "react";
+import { memo, useCallback, useState } from "react";
 import type { Employee } from "../backend.d.ts";
-import { useAllEmployees } from "../hooks/useQueries";
+import { useGoogleSheetEmployees } from "../hooks/useGoogleSheetData";
 import { EmployeeDetailPage } from "./EmployeeDetailPage";
 import { EmployeesPage } from "./EmployeesPage";
+import { ErrorBoundary } from "./ErrorBoundary";
 import { FeedbackPage } from "./FeedbackPage";
 import { OverviewPage } from "./OverviewPage";
 import { SalesTrendsPage } from "./SalesTrendsPage";
@@ -25,42 +25,43 @@ export function Dashboard() {
     null,
   );
   const [view, setView] = useState<View>("overview");
-  const { data: employees = [] } = useAllEmployees();
+  // Use Google Sheets as the authoritative employee source for the sidebar
+  const { data: employees = [] } = useGoogleSheetEmployees();
 
-  const handleSelectEmployee = (employee: Employee) => {
+  const handleSelectEmployee = useCallback((employee: Employee) => {
     setSelectedEmployee(employee);
     setView("employee");
-  };
+  }, []);
 
-  const handleBackToOverview = () => {
+  const handleBackToOverview = useCallback(() => {
     setView("overview");
     setSelectedEmployee(null);
-  };
+  }, []);
 
-  const handleSettingsClick = () => {
+  const handleSettingsClick = useCallback(() => {
     setView("settings");
     setSelectedEmployee(null);
-  };
+  }, []);
 
-  const handleSalesTrendsClick = () => {
+  const handleSalesTrendsClick = useCallback(() => {
     setView("sales");
     setSelectedEmployee(null);
-  };
+  }, []);
 
-  const handleEmployeesClick = () => {
+  const handleEmployeesClick = useCallback(() => {
     setView("employees");
     setSelectedEmployee(null);
-  };
+  }, []);
 
-  const handleUploadsClick = () => {
+  const handleUploadsClick = useCallback(() => {
     setView("uploads");
     setSelectedEmployee(null);
-  };
+  }, []);
 
-  const handleFeedbackClick = () => {
+  const handleFeedbackClick = useCallback(() => {
     setView("feedback");
     setSelectedEmployee(null);
-  };
+  }, []);
 
   return (
     <div className="flex min-h-screen">
@@ -77,40 +78,40 @@ export function Dashboard() {
         onFeedbackClick={handleFeedbackClick}
       />
       <main className="flex-1 overflow-hidden relative">
-        <AnimatePresence mode="wait" initial={false}>
-          <motion.div
+        <div className="absolute inset-0 overflow-auto">
+          <div
             key={
               view === "employee"
-                ? `employee-${selectedEmployee?.id?.toString() ?? "none"}`
+                ? `employee-${selectedEmployee?.fiplCode ?? "none"}`
                 : view
             }
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.12, ease: "easeOut" }}
-            className="absolute inset-0 overflow-auto"
+            className="page-enter min-h-full"
           >
-            {view === "overview" ? (
-              <OverviewPage onSelectEmployee={handleSelectEmployee} />
-            ) : view === "employee" && selectedEmployee ? (
-              <EmployeeDetailPage
-                employee={selectedEmployee}
-                onBack={handleBackToOverview}
-              />
-            ) : view === "settings" ? (
-              <SettingsPage />
-            ) : view === "sales" ? (
-              <SalesTrendsPage />
-            ) : view === "employees" ? (
-              <EmployeesPage onSelectEmployee={handleSelectEmployee} />
-            ) : view === "uploads" ? (
-              <UploadsPage />
-            ) : view === "feedback" ? (
-              <FeedbackPage />
-            ) : null}
-          </motion.div>
-        </AnimatePresence>
+            <ErrorBoundary>
+              {view === "overview" ? (
+                <OverviewPage onSelectEmployee={handleSelectEmployee} />
+              ) : view === "employee" && selectedEmployee ? (
+                <EmployeeDetailPage
+                  employee={selectedEmployee}
+                  onBack={handleBackToOverview}
+                />
+              ) : view === "settings" ? (
+                <SettingsPage />
+              ) : view === "sales" ? (
+                <SalesTrendsPage />
+              ) : view === "employees" ? (
+                <EmployeesPage onSelectEmployee={handleSelectEmployee} />
+              ) : view === "uploads" ? (
+                <UploadsPage />
+              ) : view === "feedback" ? (
+                <FeedbackPage />
+              ) : null}
+            </ErrorBoundary>
+          </div>
+        </div>
       </main>
     </div>
   );
 }
+
+export default memo(Dashboard);
