@@ -14,16 +14,12 @@ import {
   Users,
   X,
 } from "lucide-react";
-import { type Variants, motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Status } from "../backend";
 import type { Employee } from "../backend.d.ts";
 import { useAppSettings } from "../context/AppSettingsContext";
-import {
-  useGoogleSheetEmployees,
-  useGoogleSheetTopPerformers,
-} from "../hooks/useGoogleSheetData";
+import { useGoogleSheetEmployees } from "../hooks/useGoogleSheetData";
 import { useAllIssues } from "../hooks/useQueries";
 import { AddEmployeeModal } from "./AddEmployeeModal";
 import { IssuesDialog } from "./IssuesDialog";
@@ -131,7 +127,6 @@ export function OverviewPage({ onSelectEmployee }: OverviewPageProps) {
     setEditingBranding(false);
   };
 
-  const { data: topPerformers = [] } = useGoogleSheetTopPerformers();
   const { data: employees = [], isLoading: employeesLoading } =
     useGoogleSheetEmployees();
   const { data: issues = [], isLoading: issuesLoading } = useAllIssues();
@@ -152,32 +147,14 @@ export function OverviewPage({ onSelectEmployee }: OverviewPageProps) {
     (i) => i.category === "Suggestion",
   ).length;
 
-  const topPerformerCodes = new Set(
-    topPerformers.map((tp) => tp.fiplCode.toUpperCase()),
-  );
-  const recentEmployees = employees.filter((emp) =>
-    topPerformerCodes.has(emp.fiplCode.toUpperCase()),
-  );
-
-  const containerVariants: Variants = {
-    hidden: { opacity: 0 },
-    visible: { opacity: 1, transition: { staggerChildren: 0.04 } },
-  };
-
-  const itemVariants: Variants = {
-    hidden: { opacity: 0, y: 8 },
-    visible: { opacity: 1, y: 0, transition: { duration: 0.2 } },
-  };
+  const recentEmployees = employees
+    .filter((emp) => emp.status === Status.active)
+    .slice(0, 10);
 
   return (
     <div className="p-8 max-w-7xl mx-auto">
       {/* Header */}
-      <motion.div
-        initial={{ opacity: 0, y: -8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.2 }}
-        className="mb-8"
-      >
+      <div className="mb-8">
         <div className="flex items-start justify-between gap-4">
           {/* Company Branding — editable */}
           <div
@@ -284,17 +261,12 @@ export function OverviewPage({ onSelectEmployee }: OverviewPageProps) {
             </p>
           </div>
         </div>
-      </motion.div>
+      </div>
 
       {/* Stat Cards — 3 cards */}
-      <motion.div
-        variants={containerVariants}
-        initial="hidden"
-        animate="visible"
-        className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6"
-      >
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         {/* Active Employees */}
-        <motion.div variants={itemVariants}>
+        <div>
           <div className="glass-card rounded-xl p-5 teal-glow">
             <div className="flex items-start justify-between mb-3">
               <div className="w-9 h-9 rounded-lg bg-primary/15 border border-primary/25 flex items-center justify-center">
@@ -315,10 +287,10 @@ export function OverviewPage({ onSelectEmployee }: OverviewPageProps) {
               {labels.overviewActiveEmployeesLabel}
             </p>
           </div>
-        </motion.div>
+        </div>
 
         {/* On Hold Employees */}
-        <motion.div variants={itemVariants}>
+        <div>
           <div className="glass-card rounded-xl p-5">
             <div className="flex items-start justify-between mb-3">
               <div className="w-9 h-9 rounded-lg bg-[oklch(0.96_0.04_75_/_0.6)] border border-[oklch(0.7_0.15_75_/_0.3)] flex items-center justify-center">
@@ -336,10 +308,10 @@ export function OverviewPage({ onSelectEmployee }: OverviewPageProps) {
               {labels.overviewOnHoldLabel}
             </p>
           </div>
-        </motion.div>
+        </div>
 
         {/* Inactive Employees */}
-        <motion.div variants={itemVariants}>
+        <div>
           <div className="glass-card rounded-xl p-5">
             <div className="flex items-start justify-between mb-3">
               <div className="w-9 h-9 rounded-lg bg-[oklch(0.96_0.03_25_/_0.5)] border border-[oklch(0.7_0.1_25_/_0.3)] flex items-center justify-center">
@@ -357,16 +329,11 @@ export function OverviewPage({ onSelectEmployee }: OverviewPageProps) {
               Inactive Employees
             </p>
           </div>
-        </motion.div>
-      </motion.div>
+        </div>
+      </div>
 
       {/* Issues & Suggestions Buttons Row */}
-      <motion.div
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.2, delay: 0.08 }}
-        className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6"
-      >
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
         {/* Issues Button */}
         <button
           type="button"
@@ -416,24 +383,15 @@ export function OverviewPage({ onSelectEmployee }: OverviewPageProps) {
             </span>
           )}
         </button>
-      </motion.div>
+      </div>
 
       {/* Top Performers */}
-      <motion.div
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.2, delay: 0.1 }}
-        className="mb-6"
-      >
+      <div className="mb-6">
         <TopPerformersSection />
-      </motion.div>
+      </div>
 
       {/* Employee Directory — 10 active employees from database */}
-      <motion.div
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.2, delay: 0.13 }}
-      >
+      <div>
         <div className="glass-card rounded-xl overflow-hidden">
           <div className="px-5 py-4 border-b border-border/50 flex items-center justify-between">
             <div>
@@ -537,7 +495,7 @@ export function OverviewPage({ onSelectEmployee }: OverviewPageProps) {
             )}
           </div>
         </div>
-      </motion.div>
+      </div>
 
       {/* Modals */}
       <AddEmployeeModal

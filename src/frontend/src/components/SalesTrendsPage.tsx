@@ -1,16 +1,9 @@
 import { TrendingUp } from "lucide-react";
-import { motion } from "motion/react";
 import { RegionalSalesTrend } from "./RegionalSalesTrend";
 
 export function SalesTrendsPage() {
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4 }}
-      className="p-8 max-w-6xl mx-auto"
-      data-ocid="sales_trends.page"
-    >
+    <div className="p-8 max-w-6xl mx-auto" data-ocid="sales_trends.page">
       {/* Page Header */}
       <div className="mb-8">
         <div className="flex items-center gap-2.5 mb-1">
@@ -31,23 +24,15 @@ export function SalesTrendsPage() {
       </div>
 
       {/* Trend Chart */}
-      <motion.section
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, delay: 0.08 }}
+      <section
         className="glass-card rounded-xl p-6"
         data-ocid="sales_trends.section"
       >
         <RegionalSalesTrend />
-      </motion.section>
+      </section>
 
       {/* FSE Category Legend */}
-      <motion.section
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, delay: 0.16 }}
-        className="glass-card rounded-xl p-6 mt-6"
-      >
+      <section className="glass-card rounded-xl p-6 mt-6">
         <h2 className="text-xs uppercase tracking-widest text-muted-foreground font-semibold mb-4 flex items-center gap-2">
           <TrendingUp className="w-3.5 h-3.5" />
           FSE Category Framework
@@ -101,7 +86,7 @@ export function SalesTrendsPage() {
             </div>
           ))}
         </div>
-      </motion.section>
-    </motion.div>
+      </section>
+    </div>
   );
 }

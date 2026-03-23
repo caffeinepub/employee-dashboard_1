@@ -30,7 +30,6 @@ import {
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 import { Loader2, Pencil, Search, Trash2, Users } from "lucide-react";
-import { motion } from "motion/react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Status } from "../backend";
@@ -351,12 +350,7 @@ export function EmployeesPage({ onSelectEmployee }: EmployeesPageProps) {
   return (
     <div className="p-6 max-w-7xl mx-auto" data-ocid="employees_page.page">
       {/* Header */}
-      <motion.div
-        initial={{ opacity: 0, y: -12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
-        className="mb-5"
-      >
+      <div className="mb-5">
         <p className="text-xs uppercase tracking-widest text-primary/70 font-semibold mb-1">
           Organization
         </p>
@@ -379,15 +373,10 @@ export function EmployeesPage({ onSelectEmployee }: EmployeesPageProps) {
             </span>
           </div>
         </div>
-      </motion.div>
+      </div>
 
       {/* Status Filter Tabs */}
-      <motion.div
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, delay: 0.03 }}
-        className="flex gap-2 mb-3 flex-wrap"
-      >
+      <div className="flex gap-2 mb-3 flex-wrap">
         {(
           ["All", "Active", "Inactive", "Hold", "Others"] as StatusFilter[]
         ).map((s) => {
@@ -420,15 +409,10 @@ export function EmployeesPage({ onSelectEmployee }: EmployeesPageProps) {
             </button>
           );
         })}
-      </motion.div>
+      </div>
 
       {/* Search + Filter Bar */}
-      <motion.div
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, delay: 0.06 }}
-        className="flex flex-col sm:flex-row gap-3 mb-4"
-      >
+      <div className="flex flex-col sm:flex-row gap-3 mb-4">
         {/* Search */}
         <div className="relative flex-1 max-w-xs">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
@@ -497,15 +481,10 @@ export function EmployeesPage({ onSelectEmployee }: EmployeesPageProps) {
             ))}
           </SelectContent>
         </Select>
-      </motion.div>
+      </div>
 
       {/* Table */}
-      <motion.div
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, delay: 0.12 }}
-        className="glass-card rounded-xl overflow-hidden"
-      >
+      <div className="glass-card rounded-xl overflow-hidden">
         {isLoading ? (
           <div className="p-6 space-y-3">
             {["s1", "s2", "s3", "s4", "s5"].map((k) => (
@@ -699,7 +678,7 @@ export function EmployeesPage({ onSelectEmployee }: EmployeesPageProps) {
             </Table>
           </ScrollArea>
         )}
-      </motion.div>
+      </div>
 
       {/* Row count footer */}
       {!isLoading && filtered.length > 0 && (

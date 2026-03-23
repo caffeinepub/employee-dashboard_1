@@ -23,7 +23,6 @@ import {
   Users,
   X,
 } from "lucide-react";
-import { motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
@@ -803,12 +802,7 @@ export function SettingsPage() {
   const detailRows = LABEL_ROWS.filter((r) => r.group === "detail");
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4 }}
-      className="p-8 max-w-5xl mx-auto"
-    >
+    <div className="p-8 max-w-5xl mx-auto">
       {/* Page Header */}
       <div className="flex items-start justify-between mb-8">
         <div>
@@ -846,12 +840,7 @@ export function SettingsPage() {
 
       <div className="space-y-6">
         {/* ── Section 1: Branding ──────────────────────────── */}
-        <motion.section
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.05 }}
-          className="glass-card rounded-xl p-6"
-        >
+        <section className="glass-card rounded-xl p-6">
           <SectionHeader
             icon={Building2}
             title="Branding"
@@ -886,15 +875,10 @@ export function SettingsPage() {
               </p>
             </div>
           </div>
-        </motion.section>
+        </section>
 
         {/* ── Section 2: UI Text Labels ────────────────────── */}
-        <motion.section
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.1 }}
-          className="glass-card rounded-xl p-6"
-        >
+        <section className="glass-card rounded-xl p-6">
           <SectionHeader
             icon={Pencil}
             title="UI Text Labels"
@@ -987,15 +971,10 @@ export function SettingsPage() {
               </div>
             </div>
           </div>
-        </motion.section>
+        </section>
 
         {/* ── Section 3: Feedback Categories ──────────────── */}
-        <motion.section
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.15 }}
-          className="glass-card rounded-xl p-6"
-        >
+        <section className="glass-card rounded-xl p-6">
           <SectionHeader
             icon={MessageSquare}
             title="Feedback Categories"
@@ -1006,15 +985,10 @@ export function SettingsPage() {
             categories={settings.feedbackCategories}
             onChange={updateFeedbackCategories}
           />
-        </motion.section>
+        </section>
 
         {/* ── Default values reference ─────────────────────── */}
-        <motion.section
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.2 }}
-          className="glass-card rounded-xl p-6"
-        >
+        <section className="glass-card rounded-xl p-6">
           <SectionHeader
             icon={RefreshCw}
             title="Default Values Reference"
@@ -1054,15 +1028,10 @@ export function SettingsPage() {
               );
             })}
           </div>
-        </motion.section>
+        </section>
 
         {/* ── Section 5: Data Management ───────────────────── */}
-        <motion.section
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.25 }}
-          className="rounded-xl p-6 border border-destructive/30 bg-destructive/5"
-        >
+        <section className="rounded-xl p-6 border border-destructive/30 bg-destructive/5">
           {/* Section header */}
           <div className="flex items-start gap-3 mb-5">
             <div className="w-9 h-9 rounded-lg bg-destructive/10 border border-destructive/30 flex items-center justify-center shrink-0 mt-0.5">
@@ -1085,8 +1054,8 @@ export function SettingsPage() {
           </div>
 
           <DataManagementSection />
-        </motion.section>
+        </section>
       </div>
-    </motion.div>
+    </div>
   );
 }

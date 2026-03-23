@@ -14,19 +14,17 @@ import {
   LayoutDashboard,
   MessageSquare,
   Pencil,
-  Search,
   Settings,
   TrendingUp,
   Upload,
   Users,
   X,
 } from "lucide-react";
-import { memo, useMemo, useRef, useState } from "react";
+import { memo, useMemo, useState } from "react";
 import { Status } from "../backend";
 import type { Employee } from "../backend.d.ts";
 import { useAppSettings } from "../context/AppSettingsContext";
 import type { View } from "./Dashboard";
-import { PasswordGateDialog } from "./PasswordGateDialog";
 
 interface SidebarProps {
   employees: Employee[];
@@ -62,16 +60,6 @@ function SidebarComponent({
   const [logoEditMode, setLogoEditMode] = useState(false);
   const [logoInputVal, setLogoInputVal] = useState("");
   const [logoHover, setLogoHover] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
-  const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const handleSearchChange = (val: string) => {
-    setSearchQuery(val);
-    if (searchTimer.current) clearTimeout(searchTimer.current);
-    searchTimer.current = setTimeout(() => setDebouncedSearch(val), 250);
-  };
-
   const getInitials = (name: string) =>
     name
       .split(" ")
@@ -86,17 +74,11 @@ function SidebarComponent({
     [employees],
   );
 
-  // Filtered employee list for sidebar quick-nav
-  const filteredEmployees = useMemo(() => {
-    const active = employees.filter((e) => e.status === Status.active);
-    if (!debouncedSearch.trim()) return active;
-    const q = debouncedSearch.toLowerCase();
-    return active.filter(
-      (e) =>
-        e.name.toLowerCase().includes(q) ||
-        e.fiplCode.toLowerCase().includes(q),
-    );
-  }, [employees, debouncedSearch]);
+  // Active employees for sidebar quick-nav
+  const filteredEmployees = useMemo(
+    () => employees.filter((e) => e.status === Status.active),
+    [employees],
+  );
 
   const navItems = [
     {
@@ -301,27 +283,6 @@ function SidebarComponent({
         {/* Employee List (quick nav) — active employees only */}
         {!collapsed && (
           <div className="flex-1 min-h-0 flex flex-col px-3 pb-4">
-            {/* Search bar */}
-            <div className="relative mb-2">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => handleSearchChange(e.target.value)}
-                placeholder="Search employees..."
-                className="w-full text-xs rounded-md border border-border/40 bg-muted/30 pl-8 pr-2 py-1.5 outline-none focus:ring-1 focus:ring-primary/40 focus:border-primary/40 transition-colors placeholder:text-muted-foreground/60"
-                data-ocid="sidebar.search_input"
-              />
-              {searchQuery && (
-                <button
-                  type="button"
-                  onClick={() => handleSearchChange("")}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground/60 hover:text-foreground transition-colors"
-                >
-                  <X className="w-3 h-3" />
-                </button>
-              )}
-            </div>
             <ScrollArea className="flex-1">
               <div className="space-y-0.5">
                 {filteredEmployees.length === 0 ? (
@@ -367,26 +328,6 @@ function SidebarComponent({
           </div>
         )}
 
-        {/* Collapsed: search icon affordance */}
-        {collapsed && (
-          <div className="px-2 pb-1">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  type="button"
-                  className="w-full flex items-center justify-center rounded-lg py-2.5 text-muted-foreground hover:text-foreground hover:bg-accent transition-all duration-150"
-                  aria-label="Search employees (expand sidebar to search)"
-                >
-                  <Search className="w-4 h-4" />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="right">
-                <span>Search employees (expand sidebar)</span>
-              </TooltipContent>
-            </Tooltip>
-          </div>
-        )}
-
         {/* Collapsed spacer to push settings to bottom */}
         {collapsed && <div className="flex-1" />}
 
@@ -400,50 +341,42 @@ function SidebarComponent({
           {collapsed ? (
             <Tooltip>
               <TooltipTrigger asChild>
-                <PasswordGateDialog
-                  onSuccess={onSettingsClick}
-                  title="Settings Access"
+                <button
+                  type="button"
+                  onClick={onSettingsClick}
+                  className={cn(
+                    "w-full flex items-center justify-center rounded-lg py-2.5 text-sm font-medium transition-all duration-150",
+                    currentView === "settings"
+                      ? "bg-primary/15 text-primary border border-primary/25"
+                      : "text-muted-foreground hover:text-foreground hover:bg-accent",
+                  )}
+                  data-ocid="nav.link"
                 >
-                  <button
-                    type="button"
-                    className={cn(
-                      "w-full flex items-center justify-center rounded-lg py-2.5 text-sm font-medium transition-all duration-150",
-                      currentView === "settings"
-                        ? "bg-primary/15 text-primary border border-primary/25"
-                        : "text-muted-foreground hover:text-foreground hover:bg-accent",
-                    )}
-                    data-ocid="nav.link"
-                  >
-                    <Settings className="w-4 h-4 shrink-0" />
-                  </button>
-                </PasswordGateDialog>
+                  <Settings className="w-4 h-4 shrink-0" />
+                </button>
               </TooltipTrigger>
               <TooltipContent side="right">
                 <span>Settings</span>
               </TooltipContent>
             </Tooltip>
           ) : (
-            <PasswordGateDialog
-              onSuccess={onSettingsClick}
-              title="Settings Access"
+            <button
+              type="button"
+              onClick={onSettingsClick}
+              className={cn(
+                "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150",
+                currentView === "settings"
+                  ? "bg-primary/15 text-primary border border-primary/25"
+                  : "text-muted-foreground hover:text-foreground hover:bg-accent",
+              )}
+              data-ocid="nav.link"
             >
-              <button
-                type="button"
-                className={cn(
-                  "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150",
-                  currentView === "settings"
-                    ? "bg-primary/15 text-primary border border-primary/25"
-                    : "text-muted-foreground hover:text-foreground hover:bg-accent",
-                )}
-                data-ocid="nav.link"
-              >
-                <Settings className="w-4 h-4 shrink-0" />
-                <span>Settings</span>
-                {currentView === "settings" && (
-                  <ChevronRight className="w-3.5 h-3.5 ml-auto" />
-                )}
-              </button>
-            </PasswordGateDialog>
+              <Settings className="w-4 h-4 shrink-0" />
+              <span>Settings</span>
+              {currentView === "settings" && (
+                <ChevronRight className="w-3.5 h-3.5 ml-auto" />
+              )}
+            </button>
           )}
         </div>
 

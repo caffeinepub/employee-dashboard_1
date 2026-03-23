@@ -44,7 +44,6 @@ import {
   Wifi,
   X,
 } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 import type { CallingRecord, CustomerReview } from "../backend.d.ts";
@@ -153,14 +152,7 @@ function ReviewCard({
 }) {
   return (
     <div className="break-inside-avoid mb-4">
-      <motion.div
-        layout
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.95 }}
-        transition={{ duration: 0.3 }}
-        className="relative glass-card rounded-xl p-5 border border-border/50"
-      >
+      <div className="relative glass-card rounded-xl p-5 border border-border/50">
         {/* Delete button */}
         <button
           type="button"
@@ -204,7 +196,7 @@ function ReviewCard({
             {formatDate(review.date)}
           </p>
         </div>
-      </motion.div>
+      </div>
     </div>
   );
 }
@@ -457,12 +449,7 @@ function SheetCallRecordCard({ record }: { record: SheetCallRecord }) {
   const [remarkOpen, setRemarkOpen] = useState(false);
   return (
     <div className="break-inside-avoid mb-4">
-      <motion.div
-        layout
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.95 }}
-        transition={{ duration: 0.3 }}
+      <div
         className={`relative rounded-xl p-5 border ${isNegative ? "border-red-400/50 border-l-4 border-l-red-500 bg-red-50/10" : "border-border/50 glass-card"}`}
       >
         {/* CES Score badge */}
@@ -523,7 +510,7 @@ function SheetCallRecordCard({ record }: { record: SheetCallRecord }) {
             </span>
           </div>
         </div>
-      </motion.div>
+      </div>
     </div>
   );
 }
@@ -689,9 +676,7 @@ function CustomerReviewsTab() {
           ))}
         </div>
       ) : !hasAny ? (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
+        <div
           className="flex flex-col items-center justify-center py-24 text-muted-foreground/50"
           data-ocid="feedback.review.empty_state"
         >
@@ -703,34 +688,32 @@ function CustomerReviewsTab() {
               : "Add the first"}{" "}
             customer review to get started
           </p>
-        </motion.div>
+        </div>
       ) : (
         <div className="columns-1 sm:columns-2 lg:columns-3 gap-4">
-          <AnimatePresence>
-            {/* Sheet 7 call records first */}
-            {sortedSheetRecords.map((record: SheetCallRecord, idx: number) => (
-              <SheetCallRecordCard
-                key={`sheet-${record.id || idx}`}
-                record={record}
+          {/* Sheet 7 call records first */}
+          {sortedSheetRecords.map((record: SheetCallRecord, idx: number) => (
+            <SheetCallRecordCard
+              key={`sheet-${record.id || idx}`}
+              record={record}
+            />
+          ))}
+          {/* Manual canister reviews with "Manual" badge */}
+          {sortedReviews.map((review) => (
+            <div
+              key={review.id.toString()}
+              className="break-inside-avoid mb-4 relative"
+            >
+              <span className="absolute top-3 left-3 z-10 text-[9px] font-semibold bg-muted/70 text-muted-foreground rounded px-1.5 py-0.5">
+                Manual
+              </span>
+              <ReviewCard
+                review={review}
+                onDelete={() => handleDelete(review.id)}
+                isDeleting={deletingId === review.id}
               />
-            ))}
-            {/* Manual canister reviews with "Manual" badge */}
-            {sortedReviews.map((review) => (
-              <div
-                key={review.id.toString()}
-                className="break-inside-avoid mb-4 relative"
-              >
-                <span className="absolute top-3 left-3 z-10 text-[9px] font-semibold bg-muted/70 text-muted-foreground rounded px-1.5 py-0.5">
-                  Manual
-                </span>
-                <ReviewCard
-                  review={review}
-                  onDelete={() => handleDelete(review.id)}
-                  isDeleting={deletingId === review.id}
-                />
-              </div>
-            ))}
-          </AnimatePresence>
+            </div>
+          ))}
         </div>
       )}
 
@@ -1896,12 +1879,7 @@ export function FeedbackPage() {
   return (
     <div className="p-6 max-w-7xl mx-auto" data-ocid="feedback.page">
       {/* Page header */}
-      <motion.div
-        initial={{ opacity: 0, y: -12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
-        className="mb-6"
-      >
+      <div className="mb-6">
         <p className="text-xs uppercase tracking-widest text-primary/70 font-semibold mb-1">
           Insights
         </p>
@@ -1911,15 +1889,10 @@ export function FeedbackPage() {
         <p className="text-muted-foreground mt-1 text-sm">
           Calling records and customer reviews in one place
         </p>
-      </motion.div>
+      </div>
 
       {/* Tab switcher */}
-      <motion.div
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, delay: 0.06 }}
-        className="flex items-center gap-1 p-1 rounded-xl bg-muted/40 border border-border/50 w-fit mb-7"
-      >
+      <div className="flex items-center gap-1 p-1 rounded-xl bg-muted/40 border border-border/50 w-fit mb-7">
         <button
           type="button"
           onClick={() => setActiveTab("calling")}
@@ -1948,32 +1921,19 @@ export function FeedbackPage() {
           <Users className="w-3.5 h-3.5" />
           Customer Reviews
         </button>
-      </motion.div>
+      </div>
 
       {/* Tab content */}
-      <AnimatePresence mode="wait">
-        {activeTab === "calling" ? (
-          <motion.div
-            key="calling"
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.25 }}
-          >
-            <CallingRecordsTab />
-          </motion.div>
-        ) : (
-          <motion.div
-            key="reviews"
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.25 }}
-          >
-            <CustomerReviewsTab />
-          </motion.div>
-        )}
-      </AnimatePresence>
+
+      {activeTab === "calling" ? (
+        <div key="calling">
+          <CallingRecordsTab />
+        </div>
+      ) : (
+        <div key="reviews">
+          <CustomerReviewsTab />
+        </div>
+      )}
     </div>
   );
 }

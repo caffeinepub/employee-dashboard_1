@@ -85,7 +85,7 @@ export function Dashboard() {
                 ? `employee-${selectedEmployee?.fiplCode ?? "none"}`
                 : view
             }
-            className="page-enter min-h-full"
+            className="min-h-full"
           >
             <ErrorBoundary>
               {view === "overview" ? (
