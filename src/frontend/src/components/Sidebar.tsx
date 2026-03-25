@@ -1,5 +1,3 @@
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Tooltip,
   TooltipContent,
@@ -25,6 +23,7 @@ import { Status } from "../backend";
 import type { Employee } from "../backend.d.ts";
 import { useAppSettings } from "../context/AppSettingsContext";
 import type { View } from "./Dashboard";
+import { PasswordGateDialog } from "./PasswordGateDialog";
 
 interface SidebarProps {
   employees: Employee[];
@@ -41,9 +40,9 @@ interface SidebarProps {
 
 function SidebarComponent({
   employees,
-  selectedEmployee,
+  selectedEmployee: _selectedEmployee,
   currentView,
-  onSelectEmployee,
+  onSelectEmployee: _onSelectEmployee,
   onOverviewClick,
   onSettingsClick,
   onSalesTrendsClick,
@@ -60,23 +59,10 @@ function SidebarComponent({
   const [logoEditMode, setLogoEditMode] = useState(false);
   const [logoInputVal, setLogoInputVal] = useState("");
   const [logoHover, setLogoHover] = useState(false);
-  const getInitials = (name: string) =>
-    name
-      .split(" ")
-      .map((n) => n[0])
-      .join("")
-      .toUpperCase()
-      .slice(0, 2);
 
   // Only active employees count for the badge
   const activeEmployeeCount = useMemo(
     () => employees.filter((e) => e.status === Status.active).length,
-    [employees],
-  );
-
-  // Active employees for sidebar quick-nav
-  const filteredEmployees = useMemo(
-    () => employees.filter((e) => e.status === Status.active),
     [employees],
   );
 
@@ -225,7 +211,9 @@ function SidebarComponent({
         </div>
 
         {/* Navigation */}
-        <nav className={cn("py-4 space-y-1", collapsed ? "px-2" : "px-3")}>
+        <nav
+          className={cn("py-4 space-y-1 flex-1", collapsed ? "px-2" : "px-3")}
+        >
           {navItems.map((item) => {
             const isActive = currentView === item.view;
             const btn = (
@@ -280,57 +268,6 @@ function SidebarComponent({
           })}
         </nav>
 
-        {/* Employee List (quick nav) — active employees only */}
-        {!collapsed && (
-          <div className="flex-1 min-h-0 flex flex-col px-3 pb-4">
-            <ScrollArea className="flex-1">
-              <div className="space-y-0.5">
-                {filteredEmployees.length === 0 ? (
-                  <p className="text-[10px] text-muted-foreground/60 text-center py-3">
-                    No employees found
-                  </p>
-                ) : (
-                  filteredEmployees.map((employee) => (
-                    <button
-                      type="button"
-                      key={employee.id.toString()}
-                      onClick={() => onSelectEmployee(employee)}
-                      className={cn(
-                        "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-all duration-150 group",
-                        selectedEmployee?.id === employee.id &&
-                          currentView === "employee"
-                          ? "bg-primary/15 text-primary border border-primary/25"
-                          : "text-muted-foreground hover:text-foreground hover:bg-accent",
-                      )}
-                      data-ocid="nav.link"
-                    >
-                      <div className="relative shrink-0">
-                        <Avatar className="w-7 h-7">
-                          <AvatarFallback className="text-[10px] font-bold bg-accent text-accent-foreground">
-                            {getInitials(employee.name)}
-                          </AvatarFallback>
-                        </Avatar>
-                        <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-sidebar bg-[oklch(0.52_0.18_145)]" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-semibold truncate">
-                          {employee.name}
-                        </p>
-                        <p className="text-[10px] truncate opacity-70">
-                          {employee.role}
-                        </p>
-                      </div>
-                    </button>
-                  ))
-                )}
-              </div>
-            </ScrollArea>
-          </div>
-        )}
-
-        {/* Collapsed spacer to push settings to bottom */}
-        {collapsed && <div className="flex-1" />}
-
         {/* Settings Nav */}
         <div
           className={cn(
@@ -341,42 +278,50 @@ function SidebarComponent({
           {collapsed ? (
             <Tooltip>
               <TooltipTrigger asChild>
-                <button
-                  type="button"
-                  onClick={onSettingsClick}
-                  className={cn(
-                    "w-full flex items-center justify-center rounded-lg py-2.5 text-sm font-medium transition-all duration-150",
-                    currentView === "settings"
-                      ? "bg-primary/15 text-primary border border-primary/25"
-                      : "text-muted-foreground hover:text-foreground hover:bg-accent",
-                  )}
-                  data-ocid="nav.link"
+                <PasswordGateDialog
+                  onSuccess={onSettingsClick}
+                  title="Settings Access"
                 >
-                  <Settings className="w-4 h-4 shrink-0" />
-                </button>
+                  <button
+                    type="button"
+                    className={cn(
+                      "w-full flex items-center justify-center rounded-lg py-2.5 text-sm font-medium transition-all duration-150",
+                      currentView === "settings"
+                        ? "bg-primary/15 text-primary border border-primary/25"
+                        : "text-muted-foreground hover:text-foreground hover:bg-accent",
+                    )}
+                    data-ocid="nav.link"
+                  >
+                    <Settings className="w-4 h-4 shrink-0" />
+                  </button>
+                </PasswordGateDialog>
               </TooltipTrigger>
               <TooltipContent side="right">
                 <span>Settings</span>
               </TooltipContent>
             </Tooltip>
           ) : (
-            <button
-              type="button"
-              onClick={onSettingsClick}
-              className={cn(
-                "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150",
-                currentView === "settings"
-                  ? "bg-primary/15 text-primary border border-primary/25"
-                  : "text-muted-foreground hover:text-foreground hover:bg-accent",
-              )}
-              data-ocid="nav.link"
+            <PasswordGateDialog
+              onSuccess={onSettingsClick}
+              title="Settings Access"
             >
-              <Settings className="w-4 h-4 shrink-0" />
-              <span>Settings</span>
-              {currentView === "settings" && (
-                <ChevronRight className="w-3.5 h-3.5 ml-auto" />
-              )}
-            </button>
+              <button
+                type="button"
+                className={cn(
+                  "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150",
+                  currentView === "settings"
+                    ? "bg-primary/15 text-primary border border-primary/25"
+                    : "text-muted-foreground hover:text-foreground hover:bg-accent",
+                )}
+                data-ocid="nav.link"
+              >
+                <Settings className="w-4 h-4 shrink-0" />
+                <span>Settings</span>
+                {currentView === "settings" && (
+                  <ChevronRight className="w-3.5 h-3.5 ml-auto" />
+                )}
+              </button>
+            </PasswordGateDialog>
           )}
         </div>
 

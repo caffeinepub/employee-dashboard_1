@@ -312,6 +312,8 @@ export interface _SERVICE {
     [Array<EmployeeFullInput>],
     Array<[string, EmployeeId]>
   >,
+  'getAppSettings' : ActorMethod<[], string>,
+  'setAppSettings' : ActorMethod<[string], undefined>,
 }
 export declare const idlService: IDL.ServiceClass;
 export declare const idlInitArgs: IDL.Type[];

@@ -14,12 +14,16 @@ import {
   Users,
   X,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Status } from "../backend";
 import type { Employee } from "../backend.d.ts";
 import { useAppSettings } from "../context/AppSettingsContext";
-import { useGoogleSheetEmployees } from "../hooks/useGoogleSheetData";
+import {
+  resetGidCache,
+  useGoogleSheetEmployees,
+  useGoogleSheetTopPerformers,
+} from "../hooks/useGoogleSheetData";
 import { useAllIssues } from "../hooks/useQueries";
 import { AddEmployeeModal } from "./AddEmployeeModal";
 import { IssuesDialog } from "./IssuesDialog";
@@ -89,6 +93,7 @@ export function OverviewPage({ onSelectEmployee }: OverviewPageProps) {
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
+    resetGidCache();
     await queryClient.invalidateQueries();
     const now = new Date();
     setLastRefreshed(now);
@@ -129,6 +134,17 @@ export function OverviewPage({ onSelectEmployee }: OverviewPageProps) {
 
   const { data: employees = [], isLoading: employeesLoading } =
     useGoogleSheetEmployees();
+  const { data: topPerformers = [] } = useGoogleSheetTopPerformers();
+
+  const topPerformerFiplCodes = useMemo(
+    () =>
+      new Set(
+        (topPerformers as any[])
+          .map((tp: any) => String(tp.fiplCode ?? "").toUpperCase())
+          .filter(Boolean),
+      ),
+    [topPerformers],
+  );
   const { data: issues = [], isLoading: issuesLoading } = useAllIssues();
 
   // Derive counts directly from the employee list — filtered by status
@@ -147,9 +163,15 @@ export function OverviewPage({ onSelectEmployee }: OverviewPageProps) {
     (i) => i.category === "Suggestion",
   ).length;
 
-  const recentEmployees = employees
-    .filter((emp) => emp.status === Status.active)
-    .slice(0, 10);
+  const recentEmployees = useMemo(
+    () =>
+      employees.filter((emp) =>
+        topPerformerFiplCodes.size === 0
+          ? false
+          : topPerformerFiplCodes.has(emp.fiplCode.toUpperCase()),
+      ),
+    [employees, topPerformerFiplCodes],
+  );
 
   return (
     <div className="p-8 max-w-7xl mx-auto">
@@ -423,7 +445,8 @@ export function OverviewPage({ onSelectEmployee }: OverviewPageProps) {
                   No top performer employee records found
                 </p>
                 <p className="text-xs mt-0.5">
-                  Make sure Top Performers FIPL Codes match employee records
+                  No top performer profiles found. Make sure FIPL codes in Sheet
+                  6 (Top Performers) match Sheet 1 (Employee Data).
                 </p>
               </div>
             ) : (

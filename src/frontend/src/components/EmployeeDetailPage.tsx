@@ -171,24 +171,28 @@ export function EmployeeDetailPage({
   const { data: sheetSalesRaw = [], isLoading: salesLoading } =
     useGoogleSheetSalesByFiplCode(employee.fiplCode);
 
-  const detailsLoading = swotLoading || paramsLoading;
+  const detailsLoading =
+    (swotLoading || paramsLoading) && !sheetSwot && !sheetParams;
 
   // Adapter: map sheet data to the shape the component already uses
   const details = useMemo(() => {
-    if (!sheetSwot && !sheetParams) return null;
     const p = sheetParams;
     return {
       info: employee,
-      performance: p
-        ? {
-            salesInfluenceIndex: BigInt(p.salesInfluenceIndex),
-            reviewCount: BigInt(p.reviewCount),
-            operationalDiscipline: BigInt(p.operationalDiscipline),
-            productKnowledgeScore: BigInt(p.productKnowledgeScore),
-            softSkillsScore: BigInt(p.softSkillsScore),
-          }
-        : null,
+      performance: {
+        employeeId: employee.id,
+        salesInfluenceIndex: BigInt(Math.round(p?.salesInfluenceIndex ?? 0)),
+        reviewCount: BigInt(Math.round(p?.reviewCount ?? 0)),
+        operationalDiscipline: BigInt(
+          Math.round(p?.operationalDiscipline ?? 0),
+        ),
+        productKnowledgeScore: BigInt(
+          Math.round(p?.productKnowledgeScore ?? 0),
+        ),
+        softSkillsScore: BigInt(Math.round(p?.softSkillsScore ?? 0)),
+      },
       swot: {
+        employeeId: employee.id,
         cesScore: BigInt(
           Math.round(
             ((p?.salesInfluenceIndex ?? 0) +
@@ -207,9 +211,7 @@ export function EmployeeDetailPage({
       traits: sheetSwot?.traits ?? [],
       problems: sheetSwot?.problems ?? [],
     };
-  }, [sheetSwot, sheetParams, employee]) as
-    | import("../backend.d.ts").EmployeeDetails
-    | null;
+  }, [sheetSwot, sheetParams, employee]);
 
   // Cast sheet records to the shape already used in the component
   const attendanceRecords = sheetAttendanceRaw as unknown as AttendanceRecord[];
@@ -570,7 +572,11 @@ export function EmployeeDetailPage({
       },
       {
         onSuccess: () => {
-          toast.success("Sales record added");
+          toast.success("Sales record added and saved to database");
+          console.log(
+            "[Write] Sales record added successfully for",
+            employee.fiplCode,
+          );
           setSalesForm({
             brand: "ecovacs",
             product: "",
@@ -581,7 +587,10 @@ export function EmployeeDetailPage({
           });
           setAddSalesOpen(false);
         },
-        onError: () => toast.error("Failed to add sales record"),
+        onError: (err: unknown) => {
+          toast.error("Failed to add sales record. Please try again.");
+          console.error("[Write] Failed to add sales record:", err);
+        },
       },
     );
   };
@@ -602,7 +611,8 @@ export function EmployeeDetailPage({
       },
       {
         onSuccess: () => {
-          toast.success("Attendance record added");
+          toast.success("Attendance record added and saved to database");
+          console.log("[Write] Attendance record added for", employee.fiplCode);
           setAttendanceForm({
             date: new Date().toISOString().split("T")[0],
             lapseType: "Attendance Lapses",
@@ -610,7 +620,10 @@ export function EmployeeDetailPage({
           });
           setAddAttendanceOpen(false);
         },
-        onError: () => toast.error("Failed to add attendance record"),
+        onError: (err: unknown) => {
+          toast.error("Failed to add attendance record. Please try again.");
+          console.error("[Write] Failed to add attendance record:", err);
+        },
       },
     );
   };
@@ -640,7 +653,7 @@ export function EmployeeDetailPage({
                 variant="outline"
                 size="sm"
                 className="gap-2 text-xs"
-                disabled={detailsLoading || !details}
+                disabled={detailsLoading}
               >
                 <Pencil className="w-3.5 h-3.5" />
                 Edit Employee

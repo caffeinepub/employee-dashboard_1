@@ -267,6 +267,7 @@ actor {
   var nextIssueId = 1;
   var nextCallingRecordId = 1;
   var nextReviewId = 1;
+  var appSettingsJson : Text = "{}";
 
   public query ({ caller }) func getAllEmployees() : async [Employee] {
     employees.values().toArray().sort();
@@ -1301,8 +1302,16 @@ actor {
     nextReviewId := 1;
     true;
   };
+  // App Settings
 
-  // Helper Functions
+  public query func getAppSettings() : async Text {
+    appSettingsJson
+  };
+
+  public shared func setAppSettings(json : Text) : async () {
+    appSettingsJson := json;
+  };
+
 
   func findEmployeeIdByFiplCode(fiplCode : Text) : ?EmployeeId {
     for ((id, empData) in employees.entries()) {

@@ -1,0 +1,136 @@
+@import url("https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700;12..96,800&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: 0.98 0.003 250;
+  --foreground: 0.15 0.02 250;
+  --card: 1 0 0;
+  --card-foreground: 0.15 0.02 250;
+  --popover: 1 0 0;
+  --popover-foreground: 0.15 0.02 250;
+  --primary: 0.52 0.18 145;
+  --primary-foreground: 0.98 0 0;
+  --secondary: 0.96 0.01 250;
+  --secondary-foreground: 0.15 0.02 250;
+  --muted: 0.96 0.01 250;
+  --muted-foreground: 0.5 0.02 250;
+  --accent: 0.96 0.01 250;
+  --accent-foreground: 0.15 0.02 250;
+  --destructive: 0.55 0.22 25;
+  --destructive-foreground: 0.98 0 0;
+  --border: 0.88 0.01 250;
+  --input: 0.88 0.01 250;
+  --ring: 0.52 0.18 145;
+  --radius: 0.625rem;
+  --success: 0.52 0.18 145;
+  --success-foreground: 0.98 0 0;
+  --warning: 0.7 0.16 75;
+  --warning-foreground: 0.15 0 0;
+  --chart-1: 0.52 0.18 145;
+  --chart-2: 0.55 0.18 220;
+  --chart-3: 0.6 0.17 75;
+  --chart-4: 0.55 0.18 310;
+  --chart-5: 0.55 0.22 25;
+  --sidebar: 0.97 0.005 250;
+  --sidebar-foreground: 0.15 0.02 250;
+  --sidebar-primary: 0.52 0.18 145;
+  --sidebar-primary-foreground: 0.98 0 0;
+  --sidebar-accent: 0.94 0.01 250;
+  --sidebar-accent-foreground: 0.15 0.02 250;
+  --sidebar-border: 0.88 0.01 250;
+  --sidebar-ring: 0.52 0.18 145;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: "Inter", "Cabinet Grotesk", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: "Bricolage Grotesque", sans-serif;
+  }
+}
+
+@layer utilities {
+  .font-display {
+    font-family: "Bricolage Grotesque", sans-serif;
+  }
+
+  .font-body {
+    font-family: "Inter", sans-serif;
+  }
+
+  .font-mono-data {
+    font-family: "JetBrains Mono", monospace;
+    font-feature-settings: "tnum" 1;
+  }
+
+  .glass-card {
+    background: oklch(1 0 0 / 0.7);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid oklch(0.88 0.01 250 / 0.6);
+    box-shadow: 0 1px 3px oklch(0.15 0.02 250 / 0.05), 0 4px 16px
+      oklch(0.15 0.02 250 / 0.04);
+  }
+
+  .teal-glow {
+    box-shadow: 0 0 0 1px oklch(0.52 0.18 145 / 0.15), 0 4px 16px
+      oklch(0.52 0.18 145 / 0.08);
+  }
+
+  .page-transition {
+    animation: page-enter 0.22s cubic-bezier(0.22, 1, 0.36, 1) both;
+    will-change: opacity, transform;
+  }
+}
+
+@keyframes page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: oklch(0.7 0.01 250 / 0.5);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: oklch(0.6 0.01 250 / 0.7);
+}
+
+[data-radix-scroll-area-viewport]::-webkit-scrollbar-thumb,
+.scroll-area-viewport::-webkit-scrollbar-thumb {
+  background: oklch(0.7 0.01 250 / 0.5);
+  border-radius: 9999px;
+}

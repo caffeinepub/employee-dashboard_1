@@ -25,43 +25,62 @@ export function Dashboard() {
     null,
   );
   const [view, setView] = useState<View>("overview");
+  const [viewHistory, setViewHistory] = useState<View[]>([]);
+
   // Use Google Sheets as the authoritative employee source for the sidebar
   const { data: employees = [] } = useGoogleSheetEmployees();
 
-  const handleSelectEmployee = useCallback((employee: Employee) => {
-    setSelectedEmployee(employee);
-    setView("employee");
-  }, []);
+  const navigateTo = useCallback(
+    (newView: View, employee?: Employee) => {
+      setViewHistory((prev) => [...prev, view]);
+      setView(newView);
+      if (employee) setSelectedEmployee(employee);
+    },
+    [view],
+  );
 
-  const handleBackToOverview = useCallback(() => {
+  const handleBack = useCallback(() => {
+    if (viewHistory.length === 0) {
+      setView("overview");
+      return;
+    }
+    const prev = viewHistory[viewHistory.length - 1];
+    setViewHistory((h) => h.slice(0, -1));
+    setView(prev);
+  }, [viewHistory]);
+
+  const handleSelectEmployee = useCallback(
+    (employee: Employee) => {
+      navigateTo("employee", employee);
+    },
+    [navigateTo],
+  );
+
+  const handleOverviewClick = useCallback(() => {
+    setViewHistory([]);
     setView("overview");
-    setSelectedEmployee(null);
   }, []);
 
-  const handleSettingsClick = useCallback(() => {
-    setView("settings");
-    setSelectedEmployee(null);
-  }, []);
-
-  const handleSalesTrendsClick = useCallback(() => {
-    setView("sales");
-    setSelectedEmployee(null);
-  }, []);
-
-  const handleEmployeesClick = useCallback(() => {
-    setView("employees");
-    setSelectedEmployee(null);
-  }, []);
-
-  const handleUploadsClick = useCallback(() => {
-    setView("uploads");
-    setSelectedEmployee(null);
-  }, []);
-
-  const handleFeedbackClick = useCallback(() => {
-    setView("feedback");
-    setSelectedEmployee(null);
-  }, []);
+  const handleSettingsClick = useCallback(
+    () => navigateTo("settings"),
+    [navigateTo],
+  );
+  const handleSalesTrendsClick = useCallback(
+    () => navigateTo("sales"),
+    [navigateTo],
+  );
+  const handleEmployeesClick = useCallback(
+    () => navigateTo("employees"),
+    [navigateTo],
+  );
+  const handleUploadsClick = useCallback(
+    () => navigateTo("uploads"),
+    [navigateTo],
+  );
+  const handleFeedbackClick = useCallback(
+    () => navigateTo("feedback"),
+    [navigateTo],
+  );
 
   return (
     <div className="flex min-h-screen">
@@ -70,7 +89,7 @@ export function Dashboard() {
         selectedEmployee={selectedEmployee}
         currentView={view}
         onSelectEmployee={handleSelectEmployee}
-        onOverviewClick={handleBackToOverview}
+        onOverviewClick={handleOverviewClick}
         onSettingsClick={handleSettingsClick}
         onSalesTrendsClick={handleSalesTrendsClick}
         onEmployeesClick={handleEmployeesClick}
@@ -85,7 +104,7 @@ export function Dashboard() {
                 ? `employee-${selectedEmployee?.fiplCode ?? "none"}`
                 : view
             }
-            className="min-h-full"
+            className="min-h-full page-transition"
           >
             <ErrorBoundary>
               {view === "overview" ? (
@@ -93,7 +112,7 @@ export function Dashboard() {
               ) : view === "employee" && selectedEmployee ? (
                 <EmployeeDetailPage
                   employee={selectedEmployee}
-                  onBack={handleBackToOverview}
+                  onBack={handleBack}
                 />
               ) : view === "settings" ? (
                 <SettingsPage />

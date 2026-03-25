@@ -30,7 +30,7 @@ import {
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 import { Loader2, Pencil, Search, Trash2, Users } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Status } from "../backend";
 import type { Employee } from "../backend.d.ts";
@@ -199,6 +199,11 @@ export function EmployeesPage({ onSelectEmployee }: EmployeesPageProps) {
   const [joinDateSort, setJoinDateSort] = useState<JoinDateSort>("All");
   const [regionFilter, setRegionFilter] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(searchQuery), 200);
+    return () => clearTimeout(t);
+  }, [searchQuery]);
   const [deleteTarget, setDeleteTarget] = useState<Employee | null>(null);
 
   const { data: employees = [], isLoading } = useGoogleSheetEmployees();
@@ -278,12 +283,14 @@ export function EmployeesPage({ onSelectEmployee }: EmployeesPageProps) {
       )
       .filter((e) => regionFilter === "All" || e.region === regionFilter)
       .filter((e) =>
-        searchQuery.trim() === ""
+        debouncedSearch.trim() === ""
           ? true
-          : e.name.toLowerCase().includes(searchQuery.trim().toLowerCase()) ||
+          : e.name
+              .toLowerCase()
+              .includes(debouncedSearch.trim().toLowerCase()) ||
             e.fiplCode
               ?.toLowerCase()
-              .includes(searchQuery.trim().toLowerCase()),
+              .includes(debouncedSearch.trim().toLowerCase()),
       );
 
     if (joinDateSort === "Newest First") {
@@ -298,7 +305,7 @@ export function EmployeesPage({ onSelectEmployee }: EmployeesPageProps) {
     categoryFilter,
     statusFilter,
     joinDateSort,
-    searchQuery,
+    debouncedSearch,
     regionFilter,
   ]);
 
@@ -504,7 +511,7 @@ export function EmployeesPage({ onSelectEmployee }: EmployeesPageProps) {
               {employees.length === 0
                 ? "No employees yet"
                 : searchQuery.trim() !== ""
-                  ? `No employees match "${searchQuery}"`
+                  ? `No employees match "${debouncedSearch}"`
                   : `No ${statusFilter === "All" ? "" : `${statusFilter} `}employees in "${categoryFilter}" category`}
             </p>
             <p className="text-xs mt-1 opacity-70">

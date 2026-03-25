@@ -12,6 +12,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Select,
   SelectContent,
@@ -586,14 +587,16 @@ export function RegionalSalesTrend({ className }: RegionalSalesTrendProps) {
                 <SelectValue placeholder="All Regions" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all" className="text-xs">
-                  All Regions
-                </SelectItem>
-                {allRegions.map((r) => (
-                  <SelectItem key={r} value={r} className="text-xs">
-                    {r}
+                <ScrollArea className="max-h-60">
+                  <SelectItem value="all" className="text-xs">
+                    All Regions
                   </SelectItem>
-                ))}
+                  {allRegions.map((r) => (
+                    <SelectItem key={r} value={r} className="text-xs">
+                      {r}
+                    </SelectItem>
+                  ))}
+                </ScrollArea>
               </SelectContent>
             </Select>
           )}

@@ -287,4 +287,6 @@ export interface backendInterface {
     updateSwotBatch(inputs: Array<SwotBatchInput>): Promise<bigint>;
     updateSwotByFiplCode(fiplCode: string, swotInput: SWOTInput, newTraits: Array<string>, newProblems: Array<string>): Promise<boolean>;
     upsertEmployeesBatch(inputs: Array<EmployeeFullInput>): Promise<Array<[string, EmployeeId]>>;
+    getAppSettings(): Promise<string>;
+    setAppSettings(json: string): Promise<void>;
 }

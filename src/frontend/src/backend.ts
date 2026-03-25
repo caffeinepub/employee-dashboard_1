@@ -369,6 +369,8 @@ export interface backendInterface {
     updateSwotBatch(inputs: Array<SwotBatchInput>): Promise<bigint>;
     updateSwotByFiplCode(fiplCode: string, swotInput: SWOTInput, newTraits: Array<string>, newProblems: Array<string>): Promise<boolean>;
     upsertEmployeesBatch(inputs: Array<EmployeeFullInput>): Promise<Array<[string, EmployeeId]>>;
+    getAppSettings(): Promise<string>;
+    setAppSettings(json: string): Promise<void>;
 }
 import type { Employee as _Employee, EmployeeDetails as _EmployeeDetails, EmployeeFullInput as _EmployeeFullInput, EmployeeId as _EmployeeId, EmployeeInput as _EmployeeInput, Feedback as _Feedback, FeedbackInput as _FeedbackInput, Performance as _Performance, PerformanceInput as _PerformanceInput, SWOT as _SWOT, SWOTInput as _SWOTInput, SaleType as _SaleType, SalesBrand as _SalesBrand, SalesRecord as _SalesRecord, SalesRecordInput as _SalesRecordInput, Severity as _Severity, Status as _Status } from "./declarations/backend.did.d.ts";
 export class Backend implements backendInterface {
@@ -931,6 +933,31 @@ export class Backend implements backendInterface {
         } else {
             const result = await this.actor.setTopPerformers(arg0);
             return result;
+        }
+    }
+
+    async getAppSettings(): Promise<string> {
+        if (this.processError) {
+            try {
+                return await this.actor.getAppSettings();
+            } catch (e) {
+                this.processError(e);
+                throw new Error('unreachable');
+            }
+        } else {
+            return await this.actor.getAppSettings();
+        }
+    }
+    async setAppSettings(arg0: string): Promise<void> {
+        if (this.processError) {
+            try {
+                await this.actor.setAppSettings(arg0);
+            } catch (e) {
+                this.processError(e);
+                throw new Error('unreachable');
+            }
+        } else {
+            await this.actor.setAppSettings(arg0);
         }
     }
     async updateEmployee(arg0: EmployeeId, arg1: EmployeeFullInput): Promise<boolean> {

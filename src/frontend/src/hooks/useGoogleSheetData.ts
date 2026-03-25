@@ -8,11 +8,7 @@ const SHEET_CSV_URL =
 const BASE =
   "https://docs.google.com/spreadsheets/d/e/2PACX-1vTOjE98FXvqzyDsHobJaFeIE_45dElbccI_yNzCirTrTD10vQiLE6eZS3UKpqgXt7xH1cLSjlMpeRn6/pub?single=true&output=csv";
 
-// Known GIDs for Sheets 1–5
-const SWOT_URL = `${BASE}&gid=261281208`;
-const PARAMETERS_URL = `${BASE}&gid=540205484`;
-const ATTENDANCE_URL = `${BASE}&gid=699978179`;
-const SALES_URL = `${BASE}&gid=2107831932`;
+// Known GIDs (fallbacks) for Sheets 1–5 — dynamic GIDs used at runtime via useSheetGids
 
 // Pubhtml URL used to discover Sheet 6 and Sheet 7 GIDs dynamically
 const PUBHTML_URL =
@@ -23,6 +19,10 @@ const STALE_5MIN = 5 * 60 * 1000;
 // ─── GID auto-discovery ──────────────────────────────────────────────────────────────────────
 
 let cachedGids: string[] | null = null;
+
+export function resetGidCache() {
+  cachedGids = null;
+}
 
 async function discoverAllSheetGids(): Promise<string[]> {
   if (cachedGids !== null) return cachedGids;
@@ -131,20 +131,26 @@ function parseRow(line: string): string[] {
   return cols;
 }
 
-/** Split a multiline cell into a clean string array */
+/** Split a multiline cell into a clean string array (handles \n, ;, , separators) */
 function parseMultilineCell(raw: string): string[] {
-  return raw
-    .split(/\n/)
-    .map((s) => s.replace(/^\d+[.)\s]+/, "").trim())
-    .filter(Boolean);
-}
-
-/** Split a semicolon-separated cell */
-function parseSemicolonCell(raw: string): string[] {
-  return raw
-    .split(";")
-    .map((s) => s.trim())
-    .filter(Boolean);
+  if (!raw) return [];
+  const cleanItem = (s: string) =>
+    s
+      .replace(/^\d+[.)\s]+/, "")
+      .replace(/^[•·▪▸\-]\s*/, "")
+      .trim();
+  // Try newline first
+  let parts = raw.split("\n").map(cleanItem).filter(Boolean);
+  if (parts.length > 1) return parts;
+  // Try semicolon
+  parts = raw.split(";").map(cleanItem).filter(Boolean);
+  if (parts.length > 1) return parts;
+  // Try comma (only if items seem substantial)
+  const commaParts = raw.split(",").map(cleanItem).filter(Boolean);
+  if (commaParts.length > 1 && commaParts.every((p) => p.length > 3))
+    return commaParts;
+  // Return as single item
+  return raw.trim() ? [cleanItem(raw)] : [];
 }
 
 /** Parse numeric; treats "-", "NA" or empty as 0 */
@@ -199,7 +205,7 @@ export function useGoogleSheetEmployees() {
       return parseCSV(text);
     },
     staleTime: STALE_5MIN,
-    gcTime: 10 * 60 * 1000,
+    gcTime: 15 * 60 * 1000,
     refetchOnWindowFocus: true,
   });
 }
@@ -219,35 +225,77 @@ export interface SheetSWOT {
 function parseSWOTCSV(text: string): SheetSWOT[] {
   const lines = text.split("\n").filter(Boolean);
   if (lines.length < 2) return [];
+  const headers = parseRow(lines[0]).map((h) => h.trim());
+  // Header-based column lookup with positional fallbacks
+  const normH = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
+  const findH = (headers: string[], ...candidates: string[]): number => {
+    const norm = headers.map(normH);
+    for (const c of candidates) {
+      const idx = norm.findIndex((h) => h === normH(c) || h.includes(normH(c)));
+      if (idx !== -1) return idx;
+    }
+    return -1;
+  };
+  const fiplIdx =
+    findH(headers, "fiplcode", "fipl", "code") !== -1
+      ? findH(headers, "fiplcode", "fipl", "code")
+      : 0;
+  const strIdx =
+    findH(headers, "strengths", "strength") !== -1
+      ? findH(headers, "strengths", "strength")
+      : 1;
+  const weakIdx =
+    findH(headers, "weaknesses", "weakness") !== -1
+      ? findH(headers, "weaknesses", "weakness")
+      : 2;
+  const oppIdx =
+    findH(headers, "opportunities", "opportunity", "opportunit") !== -1
+      ? findH(headers, "opportunities", "opportunity", "opportunit")
+      : 3;
+  const thrIdx =
+    findH(headers, "threats", "threat") !== -1
+      ? findH(headers, "threats", "threat")
+      : 4;
+  const traitIdx =
+    findH(headers, "traits", "trait", "behavioral", "behaviour") !== -1
+      ? findH(headers, "traits", "trait", "behavioral", "behaviour")
+      : 5;
+  const probIdx =
+    findH(headers, "problems", "problem", "faced") !== -1
+      ? findH(headers, "problems", "problem", "faced")
+      : 6;
   const results: SheetSWOT[] = [];
   for (let i = 1; i < lines.length; i++) {
     const cols = parseRow(lines[i]);
-    const fiplCode = cols[0]?.replace(/\*/g, "").trim() || "";
+    const fiplCode = (cols[fiplIdx] || "").replace(/\*/g, "").trim();
     if (!fiplCode) continue;
     results.push({
       fiplCode,
-      strengths: parseMultilineCell(cols[1] || ""),
-      weaknesses: parseMultilineCell(cols[2] || ""),
-      opportunities: parseMultilineCell(cols[3] || ""),
-      threats: parseMultilineCell(cols[4] || ""),
-      traits: parseSemicolonCell(cols[5] || ""),
-      problems: parseSemicolonCell(cols[6] || ""),
+      strengths: parseMultilineCell(cols[strIdx] || ""),
+      weaknesses: parseMultilineCell(cols[weakIdx] || ""),
+      opportunities: parseMultilineCell(cols[oppIdx] || ""),
+      threats: parseMultilineCell(cols[thrIdx] || ""),
+      traits: parseMultilineCell(cols[traitIdx] || ""),
+      problems: parseMultilineCell(cols[probIdx] || ""),
     });
   }
   return results;
 }
 
 export function useGoogleSheetSWOT() {
+  const { data: gids = [] } = useSheetGids();
+  const swotGid = gids[1] ?? "261281208";
   return useQuery<SheetSWOT[]>({
-    queryKey: ["googleSheetSWOT"],
+    queryKey: ["googleSheetSWOT", swotGid],
     queryFn: async () => {
-      const res = await fetch(SWOT_URL);
+      const url = `${BASE}&gid=${swotGid}`;
+      const res = await fetch(url);
       if (!res.ok) throw new Error("Failed to fetch SWOT sheet");
       const text = await res.text();
       return parseSWOTCSV(text);
     },
     staleTime: STALE_5MIN,
-    gcTime: 10 * 60 * 1000,
+    gcTime: 15 * 60 * 1000,
     refetchOnWindowFocus: true,
   });
 }
@@ -302,16 +350,19 @@ function parseParametersCSV(text: string): SheetParameters[] {
 }
 
 export function useGoogleSheetParameters() {
+  const { data: gids = [] } = useSheetGids();
+  const paramsGid = gids[2] ?? "540205484";
   return useQuery<SheetParameters[]>({
-    queryKey: ["googleSheetParameters"],
+    queryKey: ["googleSheetParameters", paramsGid],
     queryFn: async () => {
-      const res = await fetch(PARAMETERS_URL);
+      const url = `${BASE}&gid=${paramsGid}`;
+      const res = await fetch(url);
       if (!res.ok) throw new Error("Failed to fetch Parameters sheet");
       const text = await res.text();
       return parseParametersCSV(text);
     },
     staleTime: STALE_5MIN,
-    gcTime: 10 * 60 * 1000,
+    gcTime: 15 * 60 * 1000,
     refetchOnWindowFocus: true,
   });
 }
@@ -360,16 +411,19 @@ function parseAttendanceCSV(text: string): SheetAttendanceRecord[] {
 }
 
 export function useGoogleSheetAttendance() {
+  const { data: gids = [] } = useSheetGids();
+  const attGid = gids[3] ?? "699978179";
   return useQuery<SheetAttendanceRecord[]>({
-    queryKey: ["googleSheetAttendance"],
+    queryKey: ["googleSheetAttendance", attGid],
     queryFn: async () => {
-      const res = await fetch(ATTENDANCE_URL);
+      const url = `${BASE}&gid=${attGid}`;
+      const res = await fetch(url);
       if (!res.ok) throw new Error("Failed to fetch Attendance sheet");
       const text = await res.text();
       return parseAttendanceCSV(text);
     },
     staleTime: STALE_5MIN,
-    gcTime: 10 * 60 * 1000,
+    gcTime: 15 * 60 * 1000,
     refetchOnWindowFocus: true,
   });
 }
@@ -485,24 +539,27 @@ function parseSalesCSV(text: string): SheetSalesRecord[] {
       saleType: mapSaleType(cols[5] || ""),
       saleDate,
       recordDate: saleDate,
-      quantity: BigInt(parseNum(cols[7] || "")),
-      amount: BigInt(parseNum(cols[8]?.replace(/[₹,]/g, "") || "")),
+      quantity: BigInt(Math.round(parseNum(cols[7] || ""))),
+      amount: BigInt(Math.round(parseNum(cols[8]?.replace(/[₹,]/g, "") || ""))),
     });
   }
   return results;
 }
 
 export function useGoogleSheetSales() {
+  const { data: gids = [] } = useSheetGids();
+  const salesGid = gids[4] ?? "2107831932";
   return useQuery<SheetSalesRecord[]>({
-    queryKey: ["googleSheetSales"],
+    queryKey: ["googleSheetSales", salesGid],
     queryFn: async () => {
-      const res = await fetch(SALES_URL);
+      const url = `${BASE}&gid=${salesGid}`;
+      const res = await fetch(url);
       if (!res.ok) throw new Error("Failed to fetch Sales sheet");
       const text = await res.text();
       return parseSalesCSV(text);
     },
     staleTime: STALE_5MIN,
-    gcTime: 10 * 60 * 1000,
+    gcTime: 15 * 60 * 1000,
     refetchOnWindowFocus: true,
   });
 }
@@ -605,7 +662,7 @@ export function useGoogleSheetTopPerformers() {
     },
     enabled: gids.length > 0,
     staleTime: STALE_5MIN,
-    gcTime: 10 * 60 * 1000,
+    gcTime: 15 * 60 * 1000,
     refetchOnWindowFocus: true,
   });
 }
@@ -688,7 +745,7 @@ export function useGoogleSheetCallRecords() {
     },
     enabled: gids.length > 0,
     staleTime: STALE_5MIN,
-    gcTime: 10 * 60 * 1000,
+    gcTime: 15 * 60 * 1000,
     refetchOnWindowFocus: true,
   });
 }

@@ -1,4 +1,12 @@
-import { createContext, useCallback, useContext, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+import { useActor } from "../hooks/useActor";
 
 export interface AppSettingsLabels {
   // Company branding
@@ -94,7 +102,7 @@ const DEFAULT_SETTINGS: AppSettings = {
 
 const STORAGE_KEY = "employee-dashboard-settings";
 
-function loadSettings(): AppSettings {
+function loadFromLocalStorage(): AppSettings {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return DEFAULT_SETTINGS;
@@ -109,7 +117,7 @@ function loadSettings(): AppSettings {
   }
 }
 
-function saveSettings(settings: AppSettings) {
+function saveToLocalStorage(settings: AppSettings) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
   } catch {
@@ -131,7 +139,51 @@ export function AppSettingsProvider({
 }: {
   children: React.ReactNode;
 }) {
-  const [settings, setSettings] = useState<AppSettings>(loadSettings);
+  // Start with localStorage for instant render, then sync from backend
+  const [settings, setSettings] = useState<AppSettings>(loadFromLocalStorage);
+  const { actor } = useActor();
+  const syncedFromBackend = useRef(false);
+
+  // On mount / when actor becomes available, load from backend and override local
+  useEffect(() => {
+    if (!actor || syncedFromBackend.current) return;
+    let cancelled = false;
+    actor
+      .getAppSettings()
+      .then((json) => {
+        if (cancelled) return;
+        if (!json || json === "{}") return; // no backend data yet, keep local
+        const parsed = JSON.parse(json) as Partial<AppSettings>;
+        const merged: AppSettings = {
+          labels: { ...DEFAULT_SETTINGS.labels, ...(parsed.labels ?? {}) },
+          feedbackCategories:
+            parsed.feedbackCategories ?? DEFAULT_SETTINGS.feedbackCategories,
+        };
+        setSettings(merged);
+        saveToLocalStorage(merged);
+        syncedFromBackend.current = true;
+      })
+      .catch(() => {
+        // Backend unavailable — keep using localStorage values
+        syncedFromBackend.current = true;
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [actor]);
+
+  const saveSettings = useCallback(
+    (next: AppSettings) => {
+      saveToLocalStorage(next);
+      // Async write to canister — don't block UI
+      if (actor) {
+        actor.setAppSettings(JSON.stringify(next)).catch(() => {
+          // Silently ignore canister write failures
+        });
+      }
+    },
+    [actor],
+  );
 
   const updateLabel = useCallback(
     (key: keyof AppSettingsLabels, value: string) => {
@@ -144,21 +196,24 @@ export function AppSettingsProvider({
         return next;
       });
     },
-    [],
+    [saveSettings],
   );
 
-  const updateFeedbackCategories = useCallback((cats: string[]) => {
-    setSettings((prev) => {
-      const next: AppSettings = { ...prev, feedbackCategories: cats };
-      saveSettings(next);
-      return next;
-    });
-  }, []);
+  const updateFeedbackCategories = useCallback(
+    (cats: string[]) => {
+      setSettings((prev) => {
+        const next: AppSettings = { ...prev, feedbackCategories: cats };
+        saveSettings(next);
+        return next;
+      });
+    },
+    [saveSettings],
+  );
 
   const resetToDefaults = useCallback(() => {
     saveSettings(DEFAULT_SETTINGS);
     setSettings(DEFAULT_SETTINGS);
-  }, []);
+  }, [saveSettings]);
 
   return (
     <AppSettingsContext.Provider
